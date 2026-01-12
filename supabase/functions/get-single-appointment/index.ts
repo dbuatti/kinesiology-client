@@ -112,14 +112,10 @@ serve(async (req) => {
 
     let clientName = properties.Name?.title?.[0]?.plain_text || "Unknown Client"
     let starSign = "Unknown" // Initial value
-    console.log("[get-single-appointment] Initial starSign:", starSign);
 
     // Fetch client details from CRM if relation exists and crm_database_id is available
-    // Use the 'Star Sign' relation property from the appointment page to link to the client in CRM
-    const clientCrmRelation = properties["Star Sign"]?.relation?.[0]?.id
-    console.log("[get-single-appointment] Client CRM Relation ID (from 'Star Sign' property):", clientCrmRelation);
-    console.log("[get-single-appointment] CRM Database ID configured:", !!secrets.crm_database_id);
-
+    // Use the 'Client' relation property from the appointment page to link to the client in CRM
+    const clientCrmRelation = properties["Client"]?.relation?.[0]?.id
     if (clientCrmRelation && secrets.crm_database_id) {
       console.log(`[get-single-appointment] Attempting to fetch CRM details for client ID: ${clientCrmRelation}`)
       const notionClientResponse = await fetch('https://api.notion.com/v1/pages/' + clientCrmRelation, {
@@ -136,10 +132,9 @@ serve(async (req) => {
         const clientProperties = clientData.properties
 
         clientName = clientProperties.Name?.title?.[0]?.plain_text || clientName
-        const birthDate = clientProperties["Born"]?.date?.start || null; // Fetch 'Born' date from CRM
-        console.log(`[get-single-appointment] Client: ${clientName}, Raw birthDate from CRM: ${birthDate}`); // DIAGNOSTIC LOG
-        starSign = calculateStarSign(birthDate); // Calculate star sign
-        console.log(`[get-single-appointment] CRM details fetched for ${clientName}, starSign calculated: ${starSign}`)
+        // Read star sign directly from the rollup property on the appointment page
+        starSign = properties["Star Sign"]?.rollup?.array?.[0]?.formula?.string || "Unknown";
+        console.log(`[get-single-appointment] CRM details fetched for ${clientName}, starSign read from rollup: ${starSign}`)
       } else {
         const errorText = await notionClientResponse.text()
         console.warn(`[get-single-appointment] Failed to fetch CRM details for client ID ${clientCrmRelation}:`, errorText)

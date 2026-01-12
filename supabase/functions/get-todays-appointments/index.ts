@@ -190,8 +190,8 @@ serve(async (req) => {
       // Removed 'focus' from CRM fetch for appointment context
 
       // Fetch client details from CRM if relation exists and crm_database_id is available
-      // Use the 'Star Sign' relation property from the appointment page to link to the client in CRM
-      const clientCrmRelation = properties["Star Sign"]?.relation?.[0]?.id
+      // Use the 'Client' relation property from the appointment page to link to the client in CRM
+      const clientCrmRelation = properties["Client"]?.relation?.[0]?.id
       if (clientCrmRelation && secrets.crm_database_id) {
         console.log(`[get-todays-appointments] Fetching CRM details for client ID: ${clientCrmRelation}`)
         const notionClientResponse = await fetch('https://api.notion.com/v1/pages/' + clientCrmRelation, {
@@ -208,10 +208,9 @@ serve(async (req) => {
           const clientProperties = clientData.properties
 
           clientName = clientProperties.Name?.title?.[0]?.plain_text || clientName
-          const birthDate = clientProperties["Born"]?.date?.start || null; // Fetch 'Born' date from CRM
-          console.log(`[get-todays-appointments] Client: ${clientName}, Raw birthDate from CRM: ${birthDate}`); // DIAGNOSTIC LOG
-          starSign = calculateStarSign(birthDate); // Calculate star sign
-          console.log(`[get-todays-appointments] CRM details fetched for ${clientName}, starSign calculated: ${starSign}`)
+          // Read star sign directly from the rollup property on the appointment page
+          starSign = properties["Star Sign"]?.rollup?.array?.[0]?.formula?.string || "Unknown";
+          console.log(`[get-todays-appointments] CRM details fetched for ${clientName}, starSign read from rollup: ${starSign}`)
         } else {
           const errorText = await notionClientResponse.text()
           console.warn(`[get-todays-appointments] Failed to fetch CRM details for client ID ${clientCrmRelation}:`, errorText)

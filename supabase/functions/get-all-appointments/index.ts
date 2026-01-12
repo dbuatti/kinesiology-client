@@ -95,7 +95,7 @@ serve(async (req) => {
 
     const appointments = await Promise.all(notionAppointmentsData.results.map(async (page: any) => {
       const properties = page.properties
-      console.log(`[get-all-appointments] Properties for appointment ${page.id}:`, JSON.stringify(properties, null, 2)); // NEW DIAGNOSTIC LOG
+      // console.log(`[get-all-appointments] Properties for appointment ${page.id}:`, JSON.stringify(properties, null, 2)); // Removed diagnostic log
 
       let clientName = properties.Name?.title?.[0]?.plain_text || "Unknown Client"
       let starSign = "Unknown"
@@ -104,8 +104,8 @@ serve(async (req) => {
       let clientFocus = "" // Renamed from 'focus' to 'clientFocus' for clarity
 
       // Fetch client details from CRM if relation exists and crm_database_id is available
-      // Use the 'Star Sign' relation property from the appointment page to link to the client in CRM
-      const clientCrmRelation = properties["Star Sign"]?.relation?.[0]?.id
+      // Use the 'Client' relation property from the appointment page to link to the client in CRM
+      const clientCrmRelation = properties["Client"]?.relation?.[0]?.id
       if (clientCrmRelation && secrets.crm_database_id) {
         console.log(`[get-all-appointments] Fetching CRM details for client ID: ${clientCrmRelation}`)
         const notionClientResponse = await fetch('https://api.notion.com/v1/pages/' + clientCrmRelation, {
@@ -122,8 +122,8 @@ serve(async (req) => {
           const clientProperties = clientData.properties
 
           clientName = clientProperties.Name?.title?.[0]?.plain_text || clientName
-          const birthDate = clientProperties["Born"]?.date?.start || null; // Fetch 'Born' date from CRM
-          starSign = calculateStarSign(birthDate); // Calculate star sign
+          // Read star sign directly from the rollup property on the appointment page
+          starSign = properties["Star Sign"]?.rollup?.array?.[0]?.formula?.string || "Unknown";
           clientFocus = clientProperties.Focus?.rich_text?.[0]?.plain_text || "" // Fetch general client focus
           clientEmail = clientProperties.Email?.email || ""
           clientPhone = clientProperties.Phone?.phone_number || ""
