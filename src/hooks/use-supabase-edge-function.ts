@@ -61,8 +61,8 @@ export const useSupabaseEdgeFunction = <TRequest, TResponse>(
         console.log(`[useSupabaseEdgeFunction] Checking Notion config for ${functionName}.`);
         const { data: secrets, error: secretsError } = await supabase
           .from('notion_secrets')
-          .select('*')
-          .eq('id', session.user.id) // Changed from 'user_id' to 'id'
+          .select('*') // Reverted to select all columns
+          .eq('id', session.user.id)
           .single();
 
         if (secretsError && secretsError.code !== 'PGRST116') { // PGRST116 means "no rows found"
