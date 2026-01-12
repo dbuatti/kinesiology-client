@@ -45,7 +45,7 @@ serve(async (req) => {
 
     const { data: secrets, error: secretsError } = await serviceRoleSupabase
       .from('notion_secrets')
-      .select('notion_integration_token, acupoints_database_id')
+      .select('notion_integration_token, acupoints_database_id, channels_database_id') // Fetch channels_database_id
       .eq('id', user.id) // Changed from 'user_id' to 'id'
       .single()
 
@@ -60,6 +60,9 @@ serve(async (req) => {
     }
 
     console.log("[get-acupoints] Acupoints database ID loaded:", secrets.acupoints_database_id)
+    if (!secrets.channels_database_id) {
+      console.warn("[get-acupoints] Channels database ID not configured. Channel names will not be resolved.")
+    }
 
     const { searchTerm, searchType } = await req.json()
 
@@ -143,8 +146,39 @@ serve(async (req) => {
     const notionAcupointsData = await notionAcupointsResponse.json()
     console.log("[get-acupoints] Found", notionAcupointsData.results.length, "acupoints")
 
-    const acupoints = notionAcupointsData.results.map((page: any) => {
+    const acupoints = await Promise.all(notionAcupointsData.results.map(async (page: any) => {
       const properties = page.properties
+      let channelName = "";
+
+      // Handle Channel as a relation property
+      const channelRelation = properties.Channel?.relation?.[0]?.id;
+      if (channelRelation && secrets.channels_database_id) {
+        console.log(`[get-acupoints] Fetching channel name for ID: ${channelRelation}`);
+        try {
+          const channelPageResponse = await fetch('https://api.notion.com/v1/pages/' + channelRelation, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${secrets.notion_integration_token}`,
+              'Content-Type': 'application/json',
+              'Notion-Version': '2022-06-28'
+            }
+          });
+          if (channelPageResponse.ok) {
+            const channelPageData = await channelPageResponse.json();
+            channelName = channelPageData.properties.Name?.title?.[0]?.plain_text || "";
+            console.log(`[get-acupoints] Resolved channel name: ${channelName}`);
+          } else {
+            const errorText = await channelPageResponse.text();
+            console.warn(`[get-acupoints] Failed to fetch channel page ${channelRelation}:`, errorText);
+          }
+        } catch (channelError) {
+          console.error(`[get-acupoints] Error fetching channel page ${channelRelation}:`, channelError);
+        }
+      } else if (channelRelation && !secrets.channels_database_id) {
+        console.warn(`[get-acupoints] Channel relation found for ${page.id} but channels_database_id is not configured. Cannot resolve channel name.`);
+      }
+
+
       return {
         id: page.id,
         name: properties.Name?.title?.[0]?.plain_text || "Unknown Point",
@@ -152,11 +186,11 @@ serve(async (req) => {
         kinesiology: properties.Kinesiology?.rich_text?.[0]?.plain_text || "",
         psychology: properties.Psychology?.rich_text?.[0]?.plain_text || "",
         akMuscles: properties["AK Muscles"]?.multi_select?.map((s: any) => s.name) || [],
-        channel: properties.Channel?.select?.name || "",
+        channel: channelName, // Use the resolved channel name
         typeOfPoint: properties["Type of point"]?.multi_select?.map((s: any) => s.name) || [],
         time: properties.Time?.multi_select?.map((s: any) => s.name) || [],
       }
-    })
+    }))
 
     return new Response(JSON.stringify({ acupoints }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
