@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Calendar, Settings, AlertCircle, PlayCircle } from 'lucide-react';
+import { Calendar, Settings, AlertCircle, PlayCircle, User, Star, Target, Lightbulb } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { format } from 'date-fns';
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
@@ -168,12 +168,47 @@ const WaitingRoom = () => {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-4 p-4 bg-white rounded-lg shadow-md">
-            <h3 className="text-xl font-bold text-indigo-800">Appointments Data (for debugging):</h3>
-            <pre className="whitespace-pre-wrap text-sm text-gray-700">
-              {JSON.stringify(appointments, null, 2)}
-            </pre>
-            {/* The original map rendering logic would go here if this debugging step confirms data is present */}
+          <div className="space-y-4">
+            {appointments.map((appointment) => (
+              <Card key={appointment.id} className="shadow-md border border-gray-200">
+                <CardHeader className="bg-indigo-50 rounded-t-lg p-4">
+                  <CardTitle className="text-xl font-bold text-indigo-800 flex items-center gap-2">
+                    <User className="w-5 h-5" />
+                    {appointment.clientName}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-4 space-y-3">
+                  <div className="flex items-center gap-2 text-sm text-gray-700">
+                    <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                    <span>{appointment.starSign}</span>
+                  </div>
+                  {appointment.sessionNorthStar && (
+                    <div className="flex items-start gap-2 text-sm text-gray-700">
+                      <Target className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
+                      <p>
+                        <span className="font-semibold">Session North Star:</span> {appointment.sessionNorthStar}
+                      </p>
+                    </div>
+                  )}
+                  {appointment.goal && (
+                    <div className="flex items-start gap-2 text-sm text-gray-700">
+                      <Lightbulb className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                      <p>
+                        <span className="font-semibold">Goal:</span> {appointment.goal}
+                      </p>
+                    </div>
+                  )}
+                  <Button
+                    className="w-full mt-4 h-10 text-base bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+                    onClick={() => handleStartSession(appointment.id)}
+                    disabled={updatingAppointment}
+                  >
+                    <PlayCircle className="w-5 h-5 mr-2" />
+                    {updatingAppointment ? 'Starting Session...' : 'Start Session'}
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         )}
       </div>
