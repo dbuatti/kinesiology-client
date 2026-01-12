@@ -31,8 +31,6 @@ interface Appointment {
   status: string;
   notes: string;
   sessionAnchor: string;
-  bodyYes: boolean;
-  bodyNo: boolean;
 }
 
 const statusOptions = ['OPEN', 'AP', 'CH', 'CXL']; // Assuming these are your Notion Status options

@@ -151,8 +151,6 @@ serve(async (req) => {
       sessionNorthStar: properties["Session North Star"]?.rich_text?.[0]?.plain_text || "", // New: Fetch Session North Star from appointment
       goal: properties.Goal?.rich_text?.[0]?.plain_text || "",
       sessionAnchor: properties["Today we are really working with..."]?.rich_text?.[0]?.plain_text || "",
-      bodyYes: properties["BODY YES"]?.checkbox || false,
-      bodyNo: properties["BODY NO"]?.checkbox || false,
       status: properties.Status?.status?.name || "UNKNOWN" // Get status for display
     }
 

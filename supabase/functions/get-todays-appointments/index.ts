@@ -221,8 +221,6 @@ serve(async (req) => {
       const goal = properties.Goal?.rich_text?.[0]?.plain_text || ""
       const sessionAnchor = properties["Today we are really working with..."]?.rich_text?.[0]?.plain_text || ""
       const sessionNorthStar = properties["Session North Star"]?.rich_text?.[0]?.plain_text || ""; // New: Fetch Session North Star from appointment
-      const bodyYes = properties["BODY YES"]?.checkbox || false;
-      const bodyNo = properties["BODY NO"]?.checkbox || false;
       const notionPageId = page.id;
 
       return {
@@ -232,8 +230,6 @@ serve(async (req) => {
         sessionNorthStar, // Use the new field
         goal,
         sessionAnchor,
-        bodyYes,
-        bodyNo,
         status: properties.Status?.status?.name || "UNKNOWN" // Include status for display in Waiting Room
       }
     }))

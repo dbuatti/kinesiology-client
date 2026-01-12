@@ -101,12 +101,7 @@ serve(async (req) => {
         rich_text: [{ type: "text", text: { content: updates.sessionAnchor } }]
       };
     }
-    if (updates.bodyYes !== undefined) {
-      notionProperties["BODY YES"] = { checkbox: updates.bodyYes };
-    }
-    if (updates.bodyNo !== undefined) {
-      notionProperties["BODY NO"] = { checkbox: updates.bodyNo };
-    }
+    // Removed BODY YES and BODY NO update logic
     if (updates.status !== undefined) {
       // Corrected: Use 'status' key for Notion status property
       notionProperties["Status"] = { status: { name: updates.status } };

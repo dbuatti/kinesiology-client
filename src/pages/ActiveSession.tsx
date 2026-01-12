@@ -22,8 +22,6 @@
       sessionNorthStar: string; // Changed from 'focus' to 'sessionNorthStar'
       goal: string;
       sessionAnchor: string; // Today we are really working with...
-      bodyYes: boolean;
-      bodyNo: boolean;
       status: string; // Added status to the interface
     }
 
@@ -44,8 +42,6 @@
       const [modes, setModes] = useState<Mode[]>([]);
       const [selectedMode, setSelectedMode] = useState<Mode | null>(null);
       const [isModeSelectOpen, setIsModeSelectOpen] = useState(false);
-      const [bodyYesState, setBodyYesState] = useState(false);
-      const [bodyNoState, setBodyNoState] = useState(false);
       const navigate = useNavigate();
       const { toast } = useToast();
 
@@ -108,8 +104,6 @@
           setAppointment(fetchedAppointment);
           setSessionAnchorText(fetchedAppointment.sessionAnchor || '');
           setSessionNorthStarText(fetchedAppointment.sessionNorthStar || ''); // Set new state
-          setBodyYesState(fetchedAppointment.bodyYes);
-          setBodyNoState(fetchedAppointment.bodyNo);
         } catch (err: any) {
           console.error('Error fetching single appointment:', err);
           toast({
@@ -170,8 +164,6 @@
           return;
         }
 
-        console.log("[ActiveSession] Attempting to update appointment:", appointment.id, "with updates:", updates);
-
         try {
           const { data: { session } } = await supabase.auth.getSession();
           if (!session) {
@@ -212,8 +204,6 @@
           setAppointment(prev => prev ? { ...prev, ...updates } : null);
           if (updates.sessionAnchor !== undefined) setSessionAnchorText(updates.sessionAnchor);
           if (updates.sessionNorthStar !== undefined) setSessionNorthStarText(updates.sessionNorthStar); // Update new state
-          if (updates.bodyYes !== undefined) setBodyYesState(updates.bodyYes);
-          if (updates.bodyNo !== undefined) setBodyNoState(updates.bodyNo);
 
         } catch (err: any) {
           console.error('Error updating Notion appointment:', err);
@@ -245,20 +235,6 @@
         if (appointment && sessionNorthStarText !== appointment.sessionNorthStar) {
           updateNotionAppointment({ sessionNorthStar: sessionNorthStarText });
         }
-      };
-
-      const handleToggleBodyYes = () => {
-        const newState = !bodyYesState;
-        setBodyYesState(newState);
-        setBodyNoState(false); // Ensure only one is active
-        updateNotionAppointment({ bodyYes: newState, bodyNo: false });
-      };
-
-      const handleToggleBodyNo = () => {
-        const newState = !bodyNoState;
-        setBodyNoState(newState);
-        setBodyYesState(false); // Ensure only one is active
-        updateNotionAppointment({ bodyYes: false, bodyNo: newState });
       };
 
       const handleCompleteSession = async () => {
@@ -476,38 +452,6 @@
                           <strong>Action Note:</strong> {selectedMode.actionNote}
                         </p>
                       )}
-                    </div>
-
-                    {/* Muscle Testing Toggles */}
-                    <div className="space-y-2">
-                      <Label className="flex items-center gap-2 font-semibold text-gray-700">
-                        <Hand className="w-4 h-4 text-indigo-600" />
-                        Muscle Testing
-                      </Label>
-                      <div className="grid grid-cols-2 gap-4">
-                        <Button
-                          className={cn(
-                            "h-20 text-xl font-bold transition-all duration-200",
-                            bodyYesState
-                              ? "bg-green-600 hover:bg-green-700 text-white shadow-lg scale-105"
-                              : "bg-gray-200 hover:bg-gray-300 text-gray-800 border-2 border-gray-300"
-                          )}
-                          onClick={handleToggleBodyYes}
-                        >
-                          BODY YES
-                        </Button>
-                        <Button
-                          className={cn(
-                            "h-20 text-xl font-bold transition-all duration-200",
-                            bodyNoState
-                              ? "bg-red-600 hover:bg-red-700 text-white shadow-lg scale-105"
-                              : "bg-gray-200 hover:bg-gray-300 text-gray-800 border-2 border-gray-300"
-                          )}
-                          onClick={handleToggleBodyNo}
-                        >
-                          BODY NO
-                        </Button>
-                      </div>
                     </div>
 
                     {/* Complete Session Button */}
