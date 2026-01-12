@@ -107,6 +107,7 @@ serve(async (req) => {
 
     const page = await notionAppointmentResponse.json()
     console.log("[get-single-appointment] Found appointment page:", page.id)
+    console.log("[get-single-appointment] All properties of the appointment page:", JSON.stringify(page.properties, null, 2)); // NEW DIAGNOSTIC LOG
 
     const properties = page.properties
 
