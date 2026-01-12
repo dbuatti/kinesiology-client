@@ -10,22 +10,24 @@ import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from '
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
-import { Search, Check, ChevronsUpDown, Settings, Loader2, Sparkles, PlusCircle } from 'lucide-react';
+import { Search, Check, ChevronsUpDown, Settings, Loader2, Sparkles, PlusCircle, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
 import { Chakra, GetChakrasPayload, GetChakrasResponse, LogSessionEventPayload, LogSessionEventResponse } from '@/types/api';
 
 interface ChakraSelectorProps {
   appointmentId: string;
+  onChakraSelected: (chakra: Chakra) => void; // New prop for notifying parent of selection
+  onClearSelection: () => void; // New prop for clearing selection
+  selectedChakra: Chakra | null; // New prop to receive selected chakra from parent
 }
 
-const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId }) => {
+const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakraSelected, onClearSelection, selectedChakra }) => {
   const [allChakras, setAllChakras] = useState<Chakra[]>([]);
   const [filteredChakras, setFilteredChakras] = useState<Chakra[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchType, setSearchType] = useState<'name' | 'element' | 'emotion' | 'organ'>('name');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [selectedChakra, setSelectedChakra] = useState<Chakra | null>(null);
 
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -98,7 +100,7 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId }) => {
   }, [searchTerm, allChakras, searchType]);
 
   const handleSelectChakra = (chakra: Chakra) => {
-    setSelectedChakra(chakra);
+    onChakraSelected(chakra); // Notify parent of selection
     setIsSearchOpen(false);
     setSearchTerm(chakra.name); // Pre-fill search with selected chakra name
   };
@@ -130,7 +132,7 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId }) => {
           title: 'Chakra Added',
           description: `${selectedChakra.name} logged to the current session.`,
         });
-        setSelectedChakra(null); // Clear selected chakra after logging
+        onClearSelection(); // Clear selected chakra after logging
         setSearchTerm('');
       }
     } else {
@@ -307,14 +309,20 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId }) => {
                 </div>
               )}
 
-              <Button
-                className="w-full mt-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white"
-                onClick={handleAddChakraToSession}
-                disabled={loggingSessionEvent}
-              >
-                <PlusCircle className="w-4 h-4 mr-2" />
-                {loggingSessionEvent ? 'Adding...' : 'Add to Session Log'}
-              </Button>
+              <div className="flex gap-2 mt-4">
+                <Button
+                  className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white"
+                  onClick={handleAddChakraToSession}
+                  disabled={loggingSessionEvent}
+                >
+                  <PlusCircle className="w-4 h-4 mr-2" />
+                  {loggingSessionEvent ? 'Adding...' : 'Add to Session Log'}
+                </Button>
+                <Button variant="outline" onClick={onClearSelection} disabled={loggingSessionEvent}>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Clear
+                </Button>
+              </div>
             </CardContent>
           </Card>
         )}

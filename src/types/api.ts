@@ -227,3 +227,13 @@ export interface LogSessionEventResponse {
   success: boolean;
   logId: string;
 }
+
+// New types for fetching session logs
+export interface GetSessionLogsPayload {
+  appointmentId: string;
+}
+
+export interface GetSessionLogsResponse {
+  sessionLogs: SessionLog[];
+  sessionMuscleLogs: SessionMuscleLog[];
+}

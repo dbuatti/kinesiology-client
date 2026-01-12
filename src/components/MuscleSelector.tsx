@@ -10,22 +10,23 @@ import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from '
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
-import { Search, Check, ChevronsUpDown, Hand, Info, Image, Settings, Loader2 } from 'lucide-react';
+import { Search, Check, ChevronsUpDown, Hand, Info, Image, Settings, Loader2, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
 import { Muscle, GetMusclesPayload, GetMusclesResponse, LogMuscleStrengthPayload, LogMuscleStrengthResponse } from '@/types/api';
 
 interface MuscleSelectorProps {
   onMuscleSelected: (muscle: Muscle) => void;
+  onClearSelection: () => void; // New prop for clearing selection
   appointmentId: string;
+  selectedMuscle: Muscle | null; // New prop to receive selected muscle from parent
 }
 
-const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, appointmentId }) => {
+const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onClearSelection, appointmentId, selectedMuscle }) => {
   const [muscles, setMuscles] = useState<Muscle[]>([]); // This will now hold the *filtered* results from the API
   const [searchTerm, setSearchTerm] = useState('');
   const [searchType, setSearchType] = useState<'muscle' | 'meridian' | 'organ' | 'emotion'>('muscle');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [selectedMuscle, setSelectedMuscle] = useState<Muscle | null>(null);
   const [showWeaknessChecklist, setShowWeaknessChecklist] = useState(false);
 
   const { toast } = useToast();
@@ -82,8 +83,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, appoi
   }, [searchTerm, searchType, fetchMuscles]);
 
   const handleSelectMuscle = (muscle: Muscle) => {
-    setSelectedMuscle(muscle);
-    onMuscleSelected(muscle);
+    onMuscleSelected(muscle); // Notify parent of selection
     setIsSearchOpen(false);
     setSearchTerm(muscle.name); // Pre-fill search with selected muscle name
     setShowWeaknessChecklist(false); // Reset checklist visibility
@@ -299,6 +299,10 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, appoi
                   disabled={loggingStrength}
                 >
                   Body No (Weak)
+                </Button>
+                <Button variant="outline" onClick={onClearSelection} disabled={loggingStrength}>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Clear
                 </Button>
               </div>
             </CardContent>

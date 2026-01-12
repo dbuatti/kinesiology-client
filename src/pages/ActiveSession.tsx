@@ -11,7 +11,7 @@
     import { Label } from '@/components/ui/label';
     import { Badge } from '@/components/ui/badge';
     import { Input } from '@/components/ui/input';
-    import { Calendar, User, Star, Target, Clock, Settings, AlertCircle, Check, ChevronsUpDown, Lightbulb, Hand, XCircle, PlusCircle, Search, Sparkles } from 'lucide-react';
+    import { Calendar, User, Star, Target, Clock, Settings, AlertCircle, Check, ChevronsUpDown, Lightbulb, Hand, XCircle, PlusCircle, Search, Sparkles, ListChecks, Trash2, Loader2 } from 'lucide-react';
     import { useToast } from '@/components/ui/use-toast';
     import { cn } from '@/lib/utils';
     import { format } from 'date-fns';
@@ -19,12 +19,13 @@
     import ChakraSelector from '@/components/ChakraSelector'; // Import the new ChakraSelector
     import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
     import {
-      Appointment, Mode, Acupoint, Muscle,
+      Appointment, Mode, Acupoint, Muscle, Chakra, SessionLog, SessionMuscleLog,
       GetSingleAppointmentPayload, GetSingleAppointmentResponse,
       GetNotionModesResponse,
       GetAcupointsPayload, GetAcupointsResponse,
       UpdateNotionAppointmentPayload, UpdateNotionAppointmentResponse,
-      LogSessionEventPayload, LogSessionEventResponse
+      LogSessionEventPayload, LogSessionEventResponse,
+      GetSessionLogsPayload, GetSessionLogsResponse
     } from '@/types/api';
 
     const ActiveSession = () => {
@@ -45,6 +46,12 @@
 
       // Muscle States
       const [selectedMuscle, setSelectedMuscle] = useState<Muscle | null>(null);
+
+      // Chakra States
+      const [selectedChakra, setSelectedChakra] = useState<Chakra | null>(null);
+
+      // Session Logs State
+      const [sessionLogs, setSessionLogs] = useState<(SessionLog | SessionMuscleLog)[]>([]);
 
 
       const navigate = useNavigate();
@@ -162,6 +169,7 @@
           requiresAuth: true,
           onSuccess: (data) => {
             console.log('Session event logged to Supabase:', data.logId);
+            if (appointmentId) fetchSessionLogs({ appointmentId }); // Refresh logs
           },
           onError: (msg) => {
             console.error('Failed to log session event to Supabase:', msg);
@@ -169,15 +177,40 @@
         }
       );
 
+      // New hook for fetching session logs
+      const onSessionLogsSuccess = useCallback((data: GetSessionLogsResponse) => {
+        const combinedLogs = [...data.sessionLogs, ...data.sessionMuscleLogs];
+        // Sort by created_at to display chronologically
+        combinedLogs.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        setSessionLogs(combinedLogs);
+      }, []);
+
+      const onSessionLogsError = useCallback((msg: string) => {
+        toast({ variant: 'destructive', title: 'Error', description: `Failed to load session history: ${msg}` });
+        setSessionLogs([]);
+      }, [toast]);
+
+      const {
+        loading: loadingSessionLogs,
+        execute: fetchSessionLogs,
+      } = useSupabaseEdgeFunction<GetSessionLogsPayload, GetSessionLogsResponse>(
+        'get-session-logs',
+        {
+          requiresAuth: true,
+          onSuccess: onSessionLogsSuccess,
+          onError: onSessionLogsError,
+        }
+      );
+
+
       useEffect(() => {
         if (appointmentId) {
           fetchSingleAppointment({ appointmentId });
           fetchModes();
-          // Initial fetch for acupoints when component mounts
-          // This will fetch all acupoints if no search term is provided
-          fetchAcupoints({ searchTerm: '', searchType: 'point' }); // Or 'symptom', 'point' is more general
+          fetchAcupoints({ searchTerm: '', searchType: 'point' });
+          fetchSessionLogs({ appointmentId }); // Fetch session logs on initial load
         }
-      }, [appointmentId, fetchSingleAppointment, fetchModes, fetchAcupoints]); // Added fetchAcupoints to dependencies
+      }, [appointmentId, fetchSingleAppointment, fetchModes, fetchAcupoints, fetchSessionLogs]);
 
       const handleSessionNorthStarChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         const newText = e.target.value;
@@ -229,6 +262,14 @@
         setFoundAcupoints([]); // Clear search results
       };
 
+      const handleClearAcupointSelection = () => {
+        setSelectedAcupoint(null);
+        setAcupointSearchTerm('');
+        setSymptomSearchTerm('');
+        setFoundAcupoints([]);
+        fetchAcupoints({ searchTerm: '', searchType: 'point' }); // Re-fetch all for next search
+      };
+
       const handleAddAcupointToSession = async () => {
         if (selectedAcupoint && appointmentId) {
           // 1. Update Notion (if property exists)
@@ -252,9 +293,7 @@
               title: 'Acupoint Added',
               description: `${selectedAcupoint.name} added to the current session.`,
             });
-            // Optionally clear selected acupoint after adding
-            setSelectedAcupoint(null);
-            setAcupointSearchTerm('');
+            handleClearAcupointSelection(); // Clear selected acupoint after adding
           }
         } else {
           toast({
@@ -268,6 +307,19 @@
       const handleMuscleSelected = (muscle: Muscle) => {
         setSelectedMuscle(muscle);
         console.log('Muscle selected:', muscle.name);
+      };
+
+      const handleClearMuscleSelection = () => {
+        setSelectedMuscle(null);
+      };
+
+      const handleChakraSelected = (chakra: Chakra) => {
+        setSelectedChakra(chakra);
+        console.log('Chakra selected:', chakra.name);
+      };
+
+      const handleClearChakraSelection = () => {
+        setSelectedChakra(null);
       };
 
       const handleSelectMode = (mode: Mode) => {
@@ -286,7 +338,11 @@
         }
       };
 
-      if (loadingAppointment || loadingModes || loadingAcupoints) {
+      const handleClearModeSelection = () => {
+        setSelectedMode(null);
+      };
+
+      if (loadingAppointment || loadingModes || loadingAcupoints || loadingSessionLogs) {
         return (
           <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6">
             <div className="max-w-2xl mx-auto space-y-6">
@@ -461,10 +517,16 @@
                           </Command>
                         </PopoverContent>
                       </Popover>
-                      {selectedMode?.actionNote && (
-                        <p className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg border border-blue-200 mt-2">
-                          <strong>Action Note:</strong> {selectedMode.actionNote}
-                        </p>
+                      {selectedMode && (
+                        <div className="flex items-center justify-between bg-purple-50 p-3 rounded-lg border border-purple-200 mt-2">
+                          <p className="text-sm text-purple-800">
+                            <strong>Selected:</strong> {selectedMode.name}
+                            {selectedMode.actionNote && <span className="ml-2">({selectedMode.actionNote})</span>}
+                          </p>
+                          <Button variant="ghost" size="sm" onClick={handleClearModeSelection} disabled={loggingSessionEvent}>
+                            <Trash2 className="h-4 w-4 text-purple-600" />
+                          </Button>
+                        </div>
                       )}
                     </div>
                   </CardContent>
@@ -626,14 +688,20 @@
                                   </Badge>
                                 )}
                               </div>
-                              <Button
-                                className="w-full mt-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white"
-                                onClick={handleAddAcupointToSession}
-                                disabled={updatingAppointment || loggingSessionEvent}
-                              >
-                                <PlusCircle className="w-4 h-4 mr-2" />
-                                {updatingAppointment || loggingSessionEvent ? 'Adding...' : 'Add to Session'}
-                              </Button>
+                              <div className="flex gap-2 mt-4">
+                                <Button
+                                  className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white"
+                                  onClick={handleAddAcupointToSession}
+                                  disabled={updatingAppointment || loggingSessionEvent}
+                                >
+                                  <PlusCircle className="w-4 h-4 mr-2" />
+                                  {updatingAppointment || loggingSessionEvent ? 'Adding...' : 'Add to Session'}
+                                </Button>
+                                <Button variant="outline" onClick={handleClearAcupointSelection} disabled={updatingAppointment || loggingSessionEvent}>
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Clear
+                                </Button>
+                              </div>
                             </CardContent>
                           </Card>
                         )}
@@ -645,13 +713,79 @@
                 {/* Muscle Selector Component */}
                 <MuscleSelector
                   onMuscleSelected={handleMuscleSelected}
+                  onClearSelection={handleClearMuscleSelection}
                   appointmentId={appointmentId || ''}
+                  selectedMuscle={selectedMuscle} // Pass selected muscle to MuscleSelector
                 />
 
                 {/* Chakra Selector Component */}
                 <ChakraSelector
                   appointmentId={appointmentId || ''}
+                  onChakraSelected={handleChakraSelected}
+                  onClearSelection={handleClearChakraSelection}
+                  selectedChakra={selectedChakra} // Pass selected chakra to ChakraSelector
                 />
+
+                {/* Session Log */}
+                <Card className="shadow-xl">
+                  <CardHeader className="bg-indigo-50 border-b border-indigo-200 rounded-t-lg p-4">
+                    <CardTitle className="text-xl font-bold text-indigo-800 flex items-center gap-2">
+                      <ListChecks className="w-5 h-5" />
+                      Session Log
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-6 space-y-4">
+                    {loadingSessionLogs ? (
+                      <div className="flex justify-center items-center h-20">
+                        <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+                      </div>
+                    ) : sessionLogs.length === 0 ? (
+                      <p className="text-gray-600 text-center">No events logged for this session yet.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {sessionLogs.map((log, index) => (
+                          <div key={index} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                            <span className="text-sm text-gray-500 flex-shrink-0">
+                              {format(new Date(log.created_at), 'HH:mm')}
+                            </span>
+                            <div className="flex-grow">
+                              {'log_type' in log ? ( // Check if it's a general session log
+                                <>
+                                  {log.log_type === 'mode_selected' && (
+                                    <p className="text-sm text-gray-800">
+                                      <Badge variant="secondary" className="bg-blue-100 text-blue-800 mr-2">Mode</Badge>
+                                      Selected Mode: <span className="font-semibold">{log.details?.modeName}</span>
+                                      {log.details?.actionNote && <span className="text-gray-600 ml-1">({log.details.actionNote})</span>}
+                                    </p>
+                                  )}
+                                  {log.log_type === 'acupoint_added' && (
+                                    <p className="text-sm text-gray-800">
+                                      <Badge variant="secondary" className="bg-green-100 text-green-800 mr-2">Acupoint</Badge>
+                                      Added Acupoint: <span className="font-semibold">{log.details?.acupointName}</span>
+                                      {log.details?.channel && <span className="text-gray-600 ml-1">({log.details.channel})</span>}
+                                    </p>
+                                  )}
+                                  {log.log_type === 'chakra_selected' && (
+                                    <p className="text-sm text-gray-800">
+                                      <Badge variant="secondary" className="bg-purple-100 text-purple-800 mr-2">Chakra</Badge>
+                                      Selected Chakra: <span className="font-semibold">{log.details?.chakraName}</span>
+                                      {log.details?.emotionalThemes && log.details.emotionalThemes.length > 0 && <span className="text-gray-600 ml-1">({log.details.emotionalThemes.join(', ')})</span>}
+                                    </p>
+                                  )}
+                                </>
+                              ) : ( // It's a muscle strength log
+                                <p className="text-sm text-gray-800">
+                                  <Badge variant="secondary" className={log.is_strong ? "bg-green-100 text-green-800 mr-2" : "bg-red-100 text-red-800 mr-2"}>Muscle Test</Badge>
+                                  Muscle <span className="font-semibold">{log.muscle_name}</span> tested <span className={log.is_strong ? "text-green-700 font-semibold" : "text-red-700 font-semibold"}>{log.is_strong ? 'Strong' : 'Weak'}</span>.
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
 
                 {/* Complete Session Button */}
                 <Button
