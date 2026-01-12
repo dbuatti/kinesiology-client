@@ -100,7 +100,7 @@ const ProfileSetup = () => {
         description: 'Profile updated successfully!',
       });
 
-      navigate('/active-session'); // Redirect to active session after saving
+      navigate('/'); // Redirect to home after saving
     } catch (error: any) {
       toast({
         variant: 'destructive',

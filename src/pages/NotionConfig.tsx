@@ -165,7 +165,7 @@ const NotionConfig = () => {
         description: 'Notion configuration saved securely!',
       });
 
-      navigate('/active-session');
+      navigate('/'); // Navigate to home after saving
     } catch (error: any) {
       console.error('[NotionConfig] Save error:', error)
       toast({
@@ -335,7 +335,7 @@ const NotionConfig = () => {
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => navigate('/active-session')}
+                      onClick={() => navigate('/')} // Navigate to home
                       disabled={loading}
                     >
                       Cancel

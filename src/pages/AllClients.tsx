@@ -217,9 +217,7 @@ const AllClients = () => {
             <p className="text-gray-600 mb-4">{error}</p>
             <div className="space-y-2">
               <Button onClick={fetchAllClients}>Try Again</Button>
-              <Button variant="outline" onClick={() => navigate('/notion-config')}>
-                Check Configuration
-              </Button>
+              {/* Removed redundant 'Check Configuration' button */}
             </div>
           </CardContent>
         </Card>
@@ -316,23 +314,7 @@ const AllClients = () => {
           </CardContent>
         </Card>
 
-        <div className="mt-6 flex gap-2 justify-center">
-          <Button
-            variant="outline"
-            onClick={() => navigate('/')}
-            className="text-indigo-600 hover:text-indigo-800"
-          >
-            ← Back to Home
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => navigate('/notion-config')}
-            className="text-indigo-600 hover:text-indigo-800"
-          >
-            <Settings className="w-4 h-4 mr-2" />
-            Configure Notion
-          </Button>
-        </div>
+        {/* Removed redundant navigation buttons */}
       </div>
     </div>
   );

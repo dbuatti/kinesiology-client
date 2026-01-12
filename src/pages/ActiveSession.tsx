@@ -11,7 +11,7 @@
     import { Label } from '@/components/ui/label';
     import { Badge } from '@/components/ui/badge'; // Import Badge for tags
     import { Input } from '@/components/ui/input'; // Added missing import for Input
-    import { Calendar, User, Star, Target, Clock, Settings, AlertCircle, Check, ChevronsUpDown, Lightbulb, Hand, XCircle, Search, PlusCircle } from 'lucide-react';
+    import { Calendar, User, Star, Target, Clock, Settings, AlertCircle, Check, ChevronsUpDown, Lightbulb, Hand, XCircle, CircleCheck, Info, Image, Search, PlusCircle } from 'lucide-react';
     import { useToast } from '@/components/ui/use-toast';
     import { supabase } from '@/integrations/supabase/client';
     import { cn } from '@/lib/utils';
@@ -475,9 +475,7 @@
                 <p className="text-gray-600 mb-4">{error}</p>
                 <div className="space-y-2">
                   <Button onClick={fetchSingleAppointment}>Try Again</Button>
-                  <Button variant="outline" onClick={() => navigate('/notion-config')}>
-                    Check Configuration
-                  </Button>
+                  {/* Removed redundant 'Check Configuration' button */}
                 </div>
               </CardContent>
             </Card>
@@ -812,23 +810,7 @@
               </Card>
             )}
 
-            <div className="mt-6 flex gap-2 justify-center">
-              <Button
-                variant="outline"
-                onClick={() => navigate('/')}
-                className="text-indigo-600 hover:text-indigo-800"
-              >
-                ← Back to Waiting Room
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => navigate('/notion-config')}
-                className="text-indigo-600 hover:text-indigo-800"
-              >
-                <Settings className="w-4 h-4 mr-2" />
-                Configure Notion
-              </Button>
-            </div>
+            {/* Removed redundant navigation buttons */}
           </div>
         </div>
       );

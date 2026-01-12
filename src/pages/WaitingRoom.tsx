@@ -203,9 +203,7 @@ const WaitingRoom = () => {
             <p className="text-gray-600 mb-4">{error}</p>
             <div className="space-y-2">
               <Button onClick={fetchTodaysAppointments}>Try Again</Button>
-              <Button variant="outline" onClick={() => navigate('/notion-config')}>
-                Check Configuration
-              </Button>
+              {/* Removed redundant 'Check Configuration' button */}
             </div>
           </CardContent>
         </Card>
@@ -260,24 +258,7 @@ const WaitingRoom = () => {
           </div>
         )}
 
-        <div className="mt-8 flex gap-2 justify-center">
-          <Button
-            variant="outline"
-            onClick={() => navigate('/all-appointments')}
-            className="text-indigo-600 hover:text-indigo-800"
-          >
-            <Clock className="w-4 h-4 mr-2" />
-            View All Appointments
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => navigate('/notion-config')}
-            className="text-indigo-600 hover:text-indigo-800"
-          >
-            <Settings className="w-4 h-4 mr-2" />
-            Configure Notion
-          </Button>
-        </div>
+        {/* Removed redundant navigation buttons */}
       </div>
     </div>
   );
