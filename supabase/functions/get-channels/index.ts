@@ -137,8 +137,9 @@ serve(async (req) => {
         return muscleNames;
       };
 
-      const akMuscles = await resolveMuscleNames(properties["AK Muscles"]);
-      const tcmMuscles = await resolveMuscleNames(properties["TCM Muscles"]);
+      // Corrected property names for AK Muscles and TCM Muscles
+      const akMuscles = await resolveMuscleNames(properties["Muscles (AK)"]);
+      const tcmMuscles = await resolveMuscleNames(properties["Muscles (TCM)"]);
 
       return {
         id: page.id,
