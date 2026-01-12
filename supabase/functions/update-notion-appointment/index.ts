@@ -48,7 +48,7 @@ serve(async (req) => {
     const { data: secretsData, error: secretsError } = await supabase
       .from('notion_secrets')
       .select('notion_integration_token, appointments_database_id')
-      .eq('user_id', user.id)
+      .eq('id', user.id) // Changed from 'user_id' to 'id'
       .single()
 
     if (secretsError) {
