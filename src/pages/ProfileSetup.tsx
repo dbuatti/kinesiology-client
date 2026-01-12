@@ -6,9 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Loader2 } from 'lucide-react';
+import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
 
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -33,7 +33,6 @@ type ProfileFormValues = z.infer<typeof profileFormSchema>;
 const ProfileSetup = () => {
   const [loadingInitial, setLoadingInitial] = useState(true);
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
@@ -70,18 +69,14 @@ const ProfileSetup = () => {
           });
         }
       } catch (error: any) {
-        toast({
-          variant: 'destructive',
-          title: 'Error loading profile',
-          description: error.message,
-        });
+        showError(`Error loading profile: ${error.message}`);
       } finally {
         setLoadingInitial(false);
       }
     };
 
     fetchProfile();
-  }, [navigate, toast, form]); // Added 'form' to dependency array
+  }, [navigate, form]); // Added 'form' to dependency array
 
   const onSubmit = async (values: ProfileFormValues) => {
     form.setValue('firstName', values.firstName.trim()); // Trim before saving
@@ -91,11 +86,7 @@ const ProfileSetup = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        toast({
-          variant: 'destructive',
-          title: 'Not authenticated',
-          description: 'Please log in first',
-        });
+        showError('Not authenticated. Please log in first.');
         navigate('/login');
         return;
       }
@@ -113,18 +104,10 @@ const ProfileSetup = () => {
         throw error;
       }
 
-      toast({
-        title: 'Success',
-        description: 'Profile updated successfully!',
-      });
-
+      showSuccess('Profile updated successfully!');
       navigate('/'); // Redirect to home after saving
     } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Save Failed',
-        description: error.message || 'An unknown error occurred',
-      });
+      showError(`Save Failed: ${error.message || 'An unknown error occurred'}`);
     }
   };
 

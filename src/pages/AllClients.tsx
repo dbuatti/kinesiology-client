@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { User, Settings, Loader2, Search, AlertCircle } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
 import { Client, GetAllClientsResponse, UpdateNotionClientPayload, UpdateNotionClientResponse } from '@/types/api';
 
@@ -18,7 +18,6 @@ const AllClients = () => {
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   const {
     data: fetchedClientsData,
@@ -36,7 +35,7 @@ const AllClients = () => {
         setFilteredClients(data.clients);
       },
       onError: (msg) => {
-        toast({ variant: 'destructive', title: 'Error', description: msg });
+        showError(msg);
       },
     }
   );
@@ -49,10 +48,10 @@ const AllClients = () => {
     {
       requiresAuth: true,
       onSuccess: () => {
-        toast({ title: 'Success', description: 'Client updated in Notion.' });
+        showSuccess('Client updated in Notion.');
       },
       onError: (msg) => {
-        toast({ variant: 'destructive', title: 'Update Failed', description: msg });
+        showError(`Update Failed: ${msg}`);
         fetchAllClients(); // Re-fetch to ensure data consistency if optimistic update failed
       }
     }

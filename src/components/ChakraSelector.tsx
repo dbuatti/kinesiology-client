@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/components/ui/use-toast';
+import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
 import { cn } from '@/lib/utils';
 import { Search, Check, ChevronsUpDown, Settings, Loader2, Sparkles, PlusCircle, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -29,7 +29,6 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
   const [searchType, setSearchType] = useState<'name' | 'element' | 'emotion' | 'organ'>('name');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
-  const { toast } = useToast();
   const navigate = useNavigate();
 
   // Memoized callbacks for fetchChakras
@@ -39,10 +38,10 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
   }, []);
 
   const onChakrasError = useCallback((msg: string) => {
-    toast({ variant: 'destructive', title: 'Error', description: `Failed to load chakras: ${msg}` });
+    showError(`Failed to load chakras: ${msg}`);
     setAllChakras([]);
     setFilteredChakras([]);
-  }, [toast]);
+  }, []);
 
   const {
     data: fetchedChakrasData,
@@ -73,7 +72,7 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
       },
       onError: (msg) => {
         console.error('Failed to log chakra selection to Supabase:', msg);
-        toast({ variant: 'destructive', title: 'Logging Failed', description: msg });
+        showError(`Logging Failed: ${msg}`);
       }
     }
   );
@@ -128,19 +127,12 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
       });
 
       if (!loggingSessionEvent) {
-        toast({
-          title: 'Chakra Added',
-          description: `${selectedChakra.name} logged to the current session.`,
-        });
+        showSuccess(`${selectedChakra.name} logged to the current session.`);
         onClearSelection(); // Clear selected chakra after logging
         setSearchTerm('');
       }
     } else {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Please select a chakra to add to the session.',
-      });
+      showError('Please select a chakra to add to the session.');
     }
   };
 

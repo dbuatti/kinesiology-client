@@ -2,12 +2,11 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
+import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
 
 const GoogleOAuthButton = () => {
-  const { toast } = useToast();
   const navigate = useNavigate();
 
   const handleGoogleSignIn = async () => {
@@ -23,16 +22,9 @@ const GoogleOAuthButton = () => {
         throw error;
       }
 
-      toast({
-        title: 'Redirecting to Google',
-        description: 'Please complete the sign-in process',
-      });
+      showSuccess('Redirecting to Google. Please complete the sign-in process.');
     } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Google Sign-In Failed',
-        description: error.message,
-      });
+      showError(`Google Sign-In Failed: ${error.message}`);
     }
   };
 

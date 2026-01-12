@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/components/ui/use-toast';
+import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
 import { NotionSecrets } from '@/types/api';
 
 interface UseSupabaseEdgeFunctionOptions {
@@ -35,7 +35,6 @@ export const useSupabaseEdgeFunction = <TRequest, TResponse>(
   const [error, setError] = useState<string | null>(null);
   const [needsConfig, setNeedsConfig] = useState(false);
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://hcriagmovotwuqbppcfm.supabase.co';
 
@@ -60,7 +59,7 @@ export const useSupabaseEdgeFunction = <TRequest, TResponse>(
         if (sessionError) throw sessionError;
         if (!currentSession) {
           console.log(`[useSupabaseEdgeFunction] No session found for ${functionName}, navigating to login.`);
-          toast({ variant: 'destructive', title: 'Authentication Required', description: 'Please log in to continue.' });
+          showError('Authentication Required: Please log in to continue.');
           navigate('/login');
           setLoading(false);
           return;
@@ -135,13 +134,13 @@ export const useSupabaseEdgeFunction = <TRequest, TResponse>(
         onError?.(errorMessage, errorCode);
 
         if (errorCode === 'PROFILE_NOT_FOUND' || errorCode === 'PRACTITIONER_NAME_MISSING') {
-          toast({ variant: 'destructive', title: 'Profile Required', description: errorMessage });
+          showError(`Profile Required: ${errorMessage}`);
           navigate('/profile-setup');
         } else if (errorData.error?.includes('Notion configuration not found')) {
           setNeedsConfig(true);
           onNotionConfigNeeded?.();
         } else {
-          toast({ variant: 'destructive', title: 'Error', description: errorMessage });
+          showError(`Error: ${errorMessage}`);
         }
         setLoading(false);
         return; // Stop execution here
@@ -157,12 +156,12 @@ export const useSupabaseEdgeFunction = <TRequest, TResponse>(
       const errorMessage = err.message || 'An unexpected error occurred.';
       setError(errorMessage);
       onError?.(errorMessage);
-      toast({ variant: 'destructive', title: 'Error', description: errorMessage });
+      showError(`Error: ${errorMessage}`);
     } finally {
       console.log(`[useSupabaseEdgeFunction] Finally block reached for ${functionName}. Setting loading to false.`);
       setLoading(false);
     }
-  }, [functionName, requiresAuth, requiresNotionConfig, onSuccess, onError, onNotionConfigNeeded, navigate, toast, supabaseUrl, needsConfig]);
+  }, [functionName, requiresAuth, requiresNotionConfig, onSuccess, onError, onNotionConfigNeeded, navigate, supabaseUrl, needsConfig]);
 
   return { data, loading, error, needsConfig, execute };
 };

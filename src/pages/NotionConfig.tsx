@@ -6,41 +6,74 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Settings, Key, Database, Shield, Loader2 } from 'lucide-react';
+import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
 import { SetNotionSecretsPayload, SetNotionSecretsResponse, NotionSecrets } from '@/types/api';
+
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 
 // Define a new response type for the get-notion-secrets edge function
 interface GetNotionSecretsResponse {
   secrets: NotionSecrets;
 }
 
+// Define the form schema using Zod
+const notionConfigFormSchema = z.object({
+  integrationToken: z.string().min(1, { message: "Integration Token is required." }),
+  appointmentsDbId: z.string().min(1, { message: "Appointments Database ID is required." }),
+  crmDbId: z.string().nullable(),
+  modesDbId: z.string().nullable(),
+  acupointsDbId: z.string().nullable(),
+  musclesDbId: z.string().nullable(),
+  channelsDbId: z.string().nullable(),
+  chakrasDbId: z.string().nullable(),
+});
+
+type NotionConfigFormValues = z.infer<typeof notionConfigFormSchema>;
+
 const NotionConfig = () => {
-  const [integrationToken, setIntegrationToken] = useState('');
-  const [appointmentsDbId, setAppointmentsDbId] = useState('');
-  const [crmDbId, setCrmDbId] = useState('');
-  const [modesDbId, setModesDbId] = useState('');
-  const [acupointsDbId, setAcupointsDbId] = useState('');
-  const [musclesDbId, setMusculesDbId] = useState('');
-  const [channelsDbId, setChannelsDbId] = useState('');
-  const [chakrasDbId, setChakrasDbId] = useState('');
   const navigate = useNavigate();
-  const { toast } = useToast();
+
+  const form = useForm<NotionConfigFormValues>({
+    resolver: zodResolver(notionConfigFormSchema),
+    defaultValues: {
+      integrationToken: '',
+      appointmentsDbId: '',
+      crmDbId: '',
+      modesDbId: '',
+      acupointsDbId: '',
+      musclesDbId: '',
+      channelsDbId: '',
+      chakrasDbId: '',
+    },
+  });
 
   // Memoized callback for successful fetch of Notion secrets
   const handleFetchSuccess = useCallback((data: GetNotionSecretsResponse) => {
     const secrets = data.secrets;
-    setIntegrationToken(secrets.notion_integration_token || '');
-    setAppointmentsDbId(secrets.appointments_database_id || '');
-    setCrmDbId(secrets.crm_database_id || '');
-    setModesDbId(secrets.modes_database_id || '');
-    setAcupointsDbId(secrets.acupoints_database_id || '');
-    setMusculesDbId(secrets.muscles_database_id || '');
-    setChannelsDbId(secrets.channels_database_id || '');
-    setChakrasDbId(secrets.chakras_database_id || '');
-  }, []);
+    form.reset({
+      integrationToken: secrets.notion_integration_token || '',
+      appointmentsDbId: secrets.appointments_database_id || '',
+      crmDbId: secrets.crm_database_id || '',
+      modesDbId: secrets.modes_database_id || '',
+      acupointsDbId: secrets.acupoints_database_id || '',
+      musclesDbId: secrets.muscles_database_id || '',
+      channelsDbId: secrets.channels_database_id || '',
+      chakrasDbId: secrets.chakras_database_id || '',
+    });
+  }, [form]);
 
   // Memoized callback for error during fetch of Notion secrets
   const handleFetchError = useCallback((msg: string, errorCode?: string) => {
@@ -48,9 +81,9 @@ const NotionConfig = () => {
       console.log('Notion config not found, starting with empty fields.');
       // This is expected if the user hasn't configured yet, so no toast error
     } else {
-      toast({ variant: 'destructive', title: 'Error loading configuration', description: msg });
+      showError(`Error loading configuration: ${msg}`);
     }
-  }, [toast]);
+  }, []);
 
   // Hook for saving Notion secrets
   const {
@@ -61,11 +94,11 @@ const NotionConfig = () => {
     {
       requiresAuth: true,
       onSuccess: () => {
-        toast({ title: 'Success', description: 'Notion configuration saved securely!' });
+        showSuccess('Notion configuration saved securely!');
         navigate('/');
       },
       onError: (msg) => {
-        toast({ variant: 'destructive', title: 'Save Failed', description: msg });
+        showError(`Save Failed: ${msg}`);
       }
     }
   );
@@ -88,27 +121,16 @@ const NotionConfig = () => {
     fetchNotionSecrets();
   }, [fetchNotionSecrets]); // fetchNotionSecrets is now stable due to useCallback dependencies
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!integrationToken.trim()) {
-      toast({ variant: 'destructive', title: 'Validation Error', description: 'Integration Token cannot be empty.' });
-      return;
-    }
-    if (!appointmentsDbId.trim()) {
-      toast({ variant: 'destructive', title: 'Validation Error', description: 'Appointments Database ID cannot be empty.' });
-      return;
-    }
-
+  const onSubmit = async (values: NotionConfigFormValues) => {
     await setNotionSecrets({
-      notionToken: integrationToken,
-      appointmentsDbId: appointmentsDbId,
-      crmDbId: crmDbId.trim() || null,
-      modesDbId: modesDbId.trim() || null,
-      acupointsDbId: acupointsDbId.trim() || null,
-      musclesDbId: musclesDbId.trim() || null,
-      channelsDbId: channelsDbId.trim() || null,
-      chakrasDbId: chakrasDbId.trim() || null,
+      notionToken: values.integrationToken.trim(),
+      appointmentsDbId: values.appointmentsDbId.trim(),
+      crmDbId: values.crmDbId?.trim() || null,
+      modesDbId: values.modesDbId?.trim() || null,
+      acupointsDbId: values.acupointsDbId?.trim() || null,
+      musclesDbId: values.musclesDbId?.trim() || null,
+      channelsDbId: values.channelsDbId?.trim() || null,
+      chakrasDbId: values.chakrasDbId?.trim() || null,
     });
   };
 
@@ -142,177 +164,243 @@ const NotionConfig = () => {
                   </div>
                 </div>
 
-                <form onSubmit={handleSave} className="space-y-6">
-                  {/* Integration Token */}
-                  <div className="space-y-2">
-                    <Label htmlFor="token" className="flex items-center gap-2 font-semibold">
-                      <Key className="w-4 h-4 text-indigo-600" />
-                      Integration Token <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      id="token"
-                      type="password"
-                      placeholder="secret_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                      value={integrationToken}
-                      onChange={(e) => setIntegrationToken(e.target.value)}
-                      disabled={savingConfig}
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                    {/* Integration Token */}
+                    <FormField
+                      control={form.control}
+                      name="integrationToken"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2 font-semibold">
+                            <Key className="w-4 h-4 text-indigo-600" />
+                            Integration Token <span className="text-red-500">*</span>
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              id="token"
+                              type="password"
+                              placeholder="secret_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                              disabled={savingConfig}
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                          <p className="text-xs text-gray-500">
+                            Find this in Notion → Settings & Members → Integrations → [Your Integration]
+                          </p>
+                        </FormItem>
+                      )}
                     />
-                    <p className="text-xs text-gray-500">
-                      Find this in Notion → Settings & Members → Integrations → [Your Integration]
-                    </p>
-                  </div>
 
-                  {/* Appointments Database ID */}
-                  <div className="space-y-2">
-                    <Label htmlFor="appointments" className="flex items-center gap-2 font-semibold">
-                      <Database className="w-4 h-4 text-indigo-600" />
-                      Appointments Database ID <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      id="appointments"
-                      type="text"
-                      placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                      value={appointmentsDbId}
-                      onChange={(e) => setAppointmentsDbId(e.target.value)}
-                      disabled={savingConfig}
+                    {/* Appointments Database ID */}
+                    <FormField
+                      control={form.control}
+                      name="appointmentsDbId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2 font-semibold">
+                            <Database className="w-4 h-4 text-indigo-600" />
+                            Appointments Database ID <span className="text-red-500">*</span>
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              id="appointments"
+                              type="text"
+                              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                              disabled={savingConfig}
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                          <p className="text-xs text-gray-500">
+                            Copy from Notion: Share → Copy link → Extract the 32-character ID from the URL
+                          </p>
+                        </FormItem>
+                      )}
                     />
-                    <p className="text-xs text-gray-500">
-                      Copy from Notion: Share → Copy link → Extract the 32-character ID from the URL
-                    </p>
-                  </div>
 
-                  {/* CRM Database ID (Optional) */}
-                  <div className="space-y-2">
-                    <Label htmlFor="crm" className="flex items-center gap-2 font-semibold">
-                      <Database className="w-4 h-4 text-indigo-600" />
-                      CRM Database ID (Optional)
-                    </Label>
-                    <Input
-                      id="crm"
-                      type="text"
-                      placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                      value={crmDbId}
-                      onChange={(e) => setCrmDbId(e.target.value)}
-                      disabled={savingConfig}
+                    {/* CRM Database ID (Optional) */}
+                    <FormField
+                      control={form.control}
+                      name="crmDbId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2 font-semibold">
+                            <Database className="w-4 h-4 text-indigo-600" />
+                            CRM Database ID (Optional)
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              id="crm"
+                              type="text"
+                              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                              disabled={savingConfig}
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                          <p className="text-xs text-gray-500">
+                            Used for client management and fetching client details like **Star Sign**. Can be added later.
+                          </p>
+                        </FormItem>
+                      )}
                     />
-                    <p className="text-xs text-gray-500">
-                      Used for client management and fetching client details like **Star Sign**. Can be added later.
-                    </p>
-                  </div>
 
-                  {/* Modes & Balances Database ID */}
-                  <div className="space-y-2">
-                    <Label htmlFor="modes" className="flex items-center gap-2 font-semibold">
-                      <Database className="w-4 h-4 text-indigo-600" />
-                      Modes & Balances Database ID (Optional)
-                    </Label>
-                    <Input
-                      id="modes"
-                      type="text"
-                      placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                      value={modesDbId}
-                      onChange={(e) => setModesDbId(e.target.value)}
-                      disabled={savingConfig}
+                    {/* Modes & Balances Database ID */}
+                    <FormField
+                      control={form.control}
+                      name="modesDbId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2 font-semibold">
+                            <Database className="w-4 h-4 text-indigo-600" />
+                            Modes & Balances Database ID (Optional)
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              id="modes"
+                              type="text"
+                              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                              disabled={savingConfig}
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                          <p className="text-xs text-gray-500">
+                            ID for your Modes & Balances reference database.
+                          </p>
+                        </FormItem>
+                      )}
                     />
-                    <p className="text-xs text-gray-500">
-                      ID for your Modes & Balances reference database.
-                    </p>
-                  </div>
 
-                  {/* Acupoints Database ID */}
-                  <div className="space-y-2">
-                    <Label htmlFor="acupoints" className="flex items-center gap-2 font-semibold">
-                      <Database className="w-4 h-4 text-indigo-600" />
-                      Acupoints Database ID (Optional)
-                    </Label>
-                    <Input
-                      id="acupoints"
-                      type="text"
-                      placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                      value={acupointsDbId}
-                      onChange={(e) => setAcupointsDbId(e.target.value)}
-                      disabled={savingConfig}
+                    {/* Acupoints Database ID */}
+                    <FormField
+                      control={form.control}
+                      name="acupointsDbId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2 font-semibold">
+                            <Database className="w-4 h-4 text-indigo-600" />
+                            Acupoints Database ID (Optional)
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              id="acupoints"
+                              type="text"
+                              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                              disabled={savingConfig}
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                          <p className="text-xs text-gray-500">
+                            ID for your Acupoints reference database.
+                          </p>
+                        </FormItem>
+                      )}
                     />
-                    <p className="text-xs text-gray-500">
-                      ID for your Acupoints reference database.
-                    </p>
-                  </div>
 
-                  {/* Muscles Database ID */}
-                  <div className="space-y-2">
-                    <Label htmlFor="muscles" className="flex items-center gap-2 font-semibold">
-                      <Database className="w-4 h-4 text-indigo-600" />
-                      Muscles Database ID (Optional)
-                    </Label>
-                    <Input
-                      id="muscles"
-                      type="text"
-                      placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                      value={musclesDbId}
-                      onChange={(e) => setMusculesDbId(e.target.value)}
-                      disabled={savingConfig}
+                    {/* Muscles Database ID */}
+                    <FormField
+                      control={form.control}
+                      name="musclesDbId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2 font-semibold">
+                            <Database className="w-4 h-4 text-indigo-600" />
+                            Muscles Database ID (Optional)
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              id="muscles"
+                              type="text"
+                              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                              disabled={savingConfig}
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                          <p className="text-xs text-gray-500">
+                            ID for your Muscles reference database.
+                          </p>
+                        </FormItem>
+                      )}
                     />
-                    <p className="text-xs text-gray-500">
-                      ID for your Muscles reference database.
-                    </p>
-                  </div>
 
-                  {/* Channels Database ID */}
-                  <div className="space-y-2">
-                    <Label htmlFor="channels" className="flex items-center gap-2 font-semibold">
-                      <Database className="w-4 h-4 text-indigo-600" />
-                      Channels Database ID (Optional)
-                    </Label>
-                    <Input
-                      id="channels"
-                      type="text"
-                      placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                      value={channelsDbId}
-                      onChange={(e) => setChannelsDbId(e.target.value)}
-                      disabled={savingConfig}
+                    {/* Channels Database ID */}
+                    <FormField
+                      control={form.control}
+                      name="channelsDbId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2 font-semibold">
+                            <Database className="w-4 h-4 text-indigo-600" />
+                            Channels Database ID (Optional)
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              id="channels"
+                              type="text"
+                              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                              disabled={savingConfig}
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                          <p className="text-xs text-gray-500">
+                            ID for your Channels reference database.
+                          </p>
+                        </FormItem>
+                      )}
                     />
-                    <p className="text-xs text-gray-500">
-                      ID for your Channels reference database.
-                    </p>
-                  </div>
 
-                  {/* Chakras Database ID (New Field) */}
-                  <div className="space-y-2">
-                    <Label htmlFor="chakras" className="flex items-center gap-2 font-semibold">
-                      <Database className="w-4 h-4 text-indigo-600" />
-                      Chakras Database ID (Optional)
-                    </Label>
-                    <Input
-                      id="chakras"
-                      type="text"
-                      placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                      value={chakrasDbId}
-                      onChange={(e) => setChakrasDbId(e.target.value)}
-                      disabled={savingConfig}
+                    {/* Chakras Database ID (New Field) */}
+                    <FormField
+                      control={form.control}
+                      name="chakrasDbId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2 font-semibold">
+                            <Database className="w-4 h-4 text-indigo-600" />
+                            Chakras Database ID (Optional)
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              id="chakras"
+                              type="text"
+                              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                              disabled={savingConfig}
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                          <p className="text-xs text-gray-500">
+                            ID for your Chakras reference database.
+                          </p>
+                        </FormItem>
+                      )}
                     />
-                    <p className="text-xs text-gray-500">
-                      ID for your Chakras reference database.
-                    </p>
-                  </div>
 
-                  <div className="flex gap-4 pt-4">
-                    <Button
-                      type="submit"
-                      className="flex-1 h-12 text-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
-                      disabled={savingConfig}
-                    >
-                      {savingConfig ? 'Saving...' : 'Save to Secrets'}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => navigate('/')}
-                      disabled={savingConfig}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </form>
+                    <div className="flex gap-4 pt-4">
+                      <Button
+                        type="submit"
+                        className="flex-1 h-12 text-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+                        disabled={savingConfig}
+                      >
+                        {savingConfig ? 'Saving...' : 'Save to Secrets'}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => navigate('/')}
+                        disabled={savingConfig}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
 
                 {/* Help Section */}
                 <div className="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-200">

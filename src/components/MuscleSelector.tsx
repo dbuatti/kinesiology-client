@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/components/ui/use-toast';
+import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
 import { cn } from '@/lib/utils';
 import { Search, Check, ChevronsUpDown, Hand, Info, Image, Settings, Loader2, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -29,7 +29,6 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onCle
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [showWeaknessChecklist, setShowWeaknessChecklist] = useState(false);
 
-  const { toast } = useToast();
   const navigate = useNavigate();
 
   // Memoized callbacks for fetchMuscles
@@ -38,9 +37,9 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onCle
   }, []);
 
   const onMusclesError = useCallback((msg: string) => {
-    toast({ variant: 'destructive', title: 'Error', description: `Failed to load muscles: ${msg}` });
+    showError(`Failed to load muscles: ${msg}`);
     setMuscles([]);
-  }, [toast]);
+  }, []);
 
   const {
     loading: loadingMuscles,
@@ -66,11 +65,11 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onCle
     {
       requiresAuth: true,
       onSuccess: (data) => {
-        toast({ title: 'Muscle Strength Logged', description: 'Strength status saved to session logs.' });
+        showSuccess('Strength status saved to session logs.');
         console.log('Muscle strength log ID:', data.logId);
       },
       onError: (msg) => {
-        toast({ variant: 'destructive', title: 'Logging Failed', description: msg });
+        showError(`Logging Failed: ${msg}`);
       }
     }
   );
@@ -104,11 +103,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onCle
         setShowWeaknessChecklist(false);
       }
     } else {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Please select a muscle and ensure an active appointment to log strength.',
-      });
+      showError('Please select a muscle and ensure an active appointment to log strength.');
     }
   };
 

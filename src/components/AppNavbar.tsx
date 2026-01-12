@@ -7,12 +7,11 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Menu, Home, Calendar, Users, Settings, LogOut, UserCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/components/ui/use-toast';
+import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const AppNavbar = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
   const isMobile = useIsMobile();
   const [userName, setUserName] = useState('Guest');
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -54,17 +53,10 @@ const AppNavbar = () => {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      toast({
-        title: 'Logged Out',
-        description: 'You have been successfully logged out.',
-      });
+      showSuccess('You have been successfully logged out.');
       navigate('/login');
     } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Logout Failed',
-        description: error.message,
-      });
+      showError(`Logout Failed: ${error.message}`);
     }
   };
 

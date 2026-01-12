@@ -6,17 +6,16 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Lock } from 'lucide-react';
 import GoogleOAuthButton from '@/components/GoogleOAuthButton';
+import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   useEffect(() => {
     // Check if user is already logged in
@@ -43,18 +42,10 @@ const Login = () => {
         throw error;
       }
 
-      toast({
-        title: 'Success',
-        description: 'Logged in successfully',
-      });
-
+      showSuccess('Logged in successfully');
       navigate('/active-session');
     } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Login Failed',
-        description: error.message,
-      });
+      showError(`Login Failed: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -62,11 +53,7 @@ const Login = () => {
 
   const handleSignUp = async () => {
     if (!email || !password) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Please enter email and password',
-      });
+      showError('Please enter email and password');
       return;
     }
 
@@ -82,16 +69,9 @@ const Login = () => {
         throw error;
       }
 
-      toast({
-        title: 'Success',
-        description: 'Account created! Please check your email to confirm.',
-      });
+      showSuccess('Account created! Please check your email to confirm.');
     } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Sign Up Failed',
-        description: error.message,
-      });
+      showError(`Sign Up Failed: ${error.message}`);
     } finally {
       setLoading(false);
     }

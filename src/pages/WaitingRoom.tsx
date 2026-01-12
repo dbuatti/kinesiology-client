@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Calendar, Settings, AlertCircle, PlayCircle, User, Star, Target, Lightbulb } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
 import { format } from 'date-fns';
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
 import { Appointment, GetTodaysAppointmentsResponse, UpdateNotionAppointmentPayload, UpdateNotionAppointmentResponse } from '@/types/api';
@@ -14,7 +14,6 @@ import { Appointment, GetTodaysAppointmentsResponse, UpdateNotionAppointmentPayl
 const WaitingRoom = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   const handleSuccess = useCallback((data: GetTodaysAppointmentsResponse) => {
     console.log('[WaitingRoom] Received appointments data:', data.appointments);
@@ -25,9 +24,9 @@ const WaitingRoom = () => {
     if (code === 'PROFILE_NOT_FOUND' || code === 'PRACTITIONER_NAME_MISSING') {
       // Navigation handled by hook's onError
     } else {
-      toast({ variant: 'destructive', title: 'Error', description: msg });
+      showError(msg);
     }
-  }, [toast]);
+  }, []);
 
   const handleNotionConfigNeeded = useCallback(() => {
     // This callback is now stable and can be passed to useSupabaseEdgeFunction
@@ -64,10 +63,10 @@ const WaitingRoom = () => {
     {
       requiresAuth: true,
       onSuccess: () => {
-        toast({ title: 'Session Started', description: 'Navigating to live session dashboard.' });
+        showSuccess('Navigating to live session dashboard.');
       },
       onError: (msg) => {
-        toast({ variant: 'destructive', title: 'Error', description: msg });
+        showError(msg);
       }
     }
   );

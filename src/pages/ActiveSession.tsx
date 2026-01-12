@@ -12,7 +12,7 @@
     import { Badge } from '@/components/ui/badge';
     import { Input } from '@/components/ui/input';
     import { Calendar, User, Star, Target, Clock, Settings, AlertCircle, Check, ChevronsUpDown, Lightbulb, Hand, XCircle, PlusCircle, Search, Sparkles, ListChecks, Trash2, Loader2 } from 'lucide-react';
-    import { useToast } from '@/components/ui/use-toast';
+    import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
     import { cn } from '@/lib/utils';
     import { format } from 'date-fns';
     import MuscleSelector from '@/components/MuscleSelector';
@@ -56,7 +56,6 @@
 
 
       const navigate = useNavigate();
-      const { toast } = useToast();
 
       // Memoized callbacks for fetchSingleAppointment
       const onSingleAppointmentSuccess = useCallback((data: GetSingleAppointmentResponse) => {
@@ -66,8 +65,8 @@
       }, []);
 
       const onSingleAppointmentError = useCallback((msg: string) => {
-        toast({ variant: 'destructive', title: 'Error', description: msg });
-      }, [toast]);
+        showError(msg);
+      }, []);
 
       // Fetch Single Appointment
       const {
@@ -92,8 +91,8 @@
       }, []);
 
       const onModesError = useCallback((msg: string) => {
-        toast({ variant: 'destructive', title: 'Error', description: `Failed to load modes: ${msg}` });
-      }, [toast]);
+        showError(`Failed to load modes: ${msg}`);
+      }, []);
 
       // Fetch Modes
       const {
@@ -117,9 +116,9 @@
       }, []);
 
       const onAcupointsError = useCallback((msg: string) => {
-        toast({ variant: 'destructive', title: 'Error', description: `Failed to search: ${msg}` });
+        showError(`Failed to search: ${msg}`);
         setFoundAcupoints([]);
-      }, [toast]);
+      }, []);
 
       // Fetch Acupoints
       const {
@@ -140,12 +139,12 @@
 
       // Memoized callbacks for updateNotionAppointment
       const onUpdateAppointmentSuccess = useCallback(() => {
-        toast({ title: 'Success', description: 'Appointment updated in Notion.' });
-      }, [toast]);
+        showSuccess('Appointment updated in Notion.');
+      }, []);
 
       const onUpdateAppointmentError = useCallback((msg: string) => {
-        toast({ variant: 'destructive', title: 'Update Failed', description: msg });
-      }, [toast]);
+        showError(`Update Failed: ${msg}`);
+      }, []);
 
       // Update Notion Appointment
       const {
@@ -191,9 +190,9 @@
       }, []);
 
       const onSessionLogsError = useCallback((msg: string) => {
-        toast({ variant: 'destructive', title: 'Error', description: `Failed to load session history: ${msg}` });
+        showError(`Failed to load session history: ${msg}`);
         setSessionLogs([]);
-      }, [toast]);
+      }, []);
 
       const {
         loading: loadingSessionLogs,
@@ -209,13 +208,13 @@
 
       // New hook for deleting session logs
       const onDeleteSessionLogSuccess = useCallback(() => {
-        toast({ title: 'Log Deleted', description: 'Session log entry removed.' });
+        showSuccess('Session log entry removed.');
         if (appointmentId) fetchSessionLogs({ appointmentId }); // Refresh logs after deletion
-      }, [toast, appointmentId, fetchSessionLogs]);
+      }, [appointmentId, fetchSessionLogs]);
 
       const onDeleteSessionLogError = useCallback((msg: string) => {
-        toast({ variant: 'destructive', title: 'Deletion Failed', description: msg });
-      }, [toast]);
+        showError(`Deletion Failed: ${msg}`);
+      }, []);
 
       const {
         loading: deletingSessionLog,
@@ -255,10 +254,7 @@
         if (appointment) {
           await updateNotionAppointment({ appointmentId: appointment.id, updates: { status: 'CH' } }); // Set status to Charged/Complete
           if (!updatingAppointment) { // Only navigate if update was successful and not still loading
-            toast({
-              title: 'Session Completed',
-              description: `${appointment.clientName}'s session marked as complete.`,
-            });
+            showSuccess(`${appointment.clientName}'s session marked as complete.`);
             navigate('/'); // Return to Waiting Room
           }
         }
@@ -316,18 +312,11 @@
           });
 
           if (!updatingAppointment && !loggingSessionEvent) { // Only show toast if both operations are not loading
-            toast({
-              title: 'Acupoint Added',
-              description: `${selectedAcupoint.name} added to the current session.`,
-            });
+            showSuccess(`${selectedAcupoint.name} added to the current session.`);
             handleClearAcupointSelection(); // Clear selected acupoint after adding
           }
         } else {
-          toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: 'No acupoint selected to add to session.',
-          });
+          showError('No acupoint selected to add to session.');
         }
       };
 
@@ -367,18 +356,11 @@
           });
 
           if (!loggingSessionEvent) {
-            toast({
-              title: 'Mode Added',
-              description: `${selectedMode.name} logged to the current session.`,
-            });
+            showSuccess(`${selectedMode.name} logged to the current session.`);
             handleClearModeSelection(); // Clear selected mode after logging
           }
         } else {
-          toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: 'Please select a mode to add to the session.',
-          });
+          showError('Please select a mode to add to the session.');
         }
       };
 

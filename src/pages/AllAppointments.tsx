@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
 import { Check, ChevronsUpDown, Calendar, User, Settings, Loader2, Search, AlertCircle } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
@@ -25,7 +25,6 @@ const AllAppointments = () => {
   const [filteredAppointments, setFilteredAppointments] = useState<Appointment[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   const {
     data: fetchedAppointmentsData,
@@ -43,7 +42,7 @@ const AllAppointments = () => {
         setFilteredAppointments(data.appointments);
       },
       onError: (msg) => {
-        toast({ variant: 'destructive', title: 'Error', description: msg });
+        showError(msg);
       },
     }
   );
@@ -56,10 +55,10 @@ const AllAppointments = () => {
     {
       requiresAuth: true,
       onSuccess: () => {
-        toast({ title: 'Success', description: 'Appointment updated in Notion.' });
+        showSuccess('Appointment updated in Notion.');
       },
       onError: (msg) => {
-        toast({ variant: 'destructive', title: 'Update Failed', description: msg });
+        showError(`Update Failed: ${msg}`);
         fetchAllAppointments(); // Re-fetch to ensure data consistency if optimistic update failed
       }
     }

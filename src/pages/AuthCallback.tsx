@@ -2,13 +2,12 @@
 
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
+import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
 
 const AuthCallback = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   useEffect(() => {
     const handleCallback = async () => {
@@ -21,27 +20,20 @@ const AuthCallback = () => {
         }
 
         if (session) {
-          toast({
-            title: 'Success',
-            description: 'Logged in with Google successfully!',
-          });
+          showSuccess('Logged in with Google successfully!');
           navigate('/active-session');
         } else {
           throw new Error('No session found');
         }
       } catch (error: any) {
         console.error('Auth callback error:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Authentication Failed',
-          description: error.message,
-        });
+        showError(`Authentication Failed: ${error.message}`);
         navigate('/login');
       }
     };
 
     handleCallback();
-  }, [navigate, toast]);
+  }, [navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-indigo-100">
