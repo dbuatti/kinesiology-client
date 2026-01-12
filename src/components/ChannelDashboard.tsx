@@ -511,7 +511,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                       {selectedChannelForDisplay.akMuscles.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
                           {selectedChannelForDisplay.akMuscles.map((muscle, i) => (
-                            <DialogTrigger asChild key={i} onClick={() => handleOpenMuscleModal(muscle.id)}> {/* Wrap Button with DialogTrigger */}
+                            <DialogTrigger asChild key={i}>
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -519,6 +519,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                                   "text-xs h-auto py-1 px-2 rounded-full bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200",
                                   getLoggedClass('channel_ak_muscle', muscle.name)
                                 )}
+                                onClick={() => handleOpenMuscleModal(muscle.id)}
                               >
                                 {muscle.name}
                               </Button>
@@ -535,7 +536,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                       {selectedChannelForDisplay.tcmMuscles.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
                           {selectedChannelForDisplay.tcmMuscles.map((muscle, i) => (
-                            <DialogTrigger asChild key={i} onClick={() => handleOpenMuscleModal(muscle.id)}> {/* Wrap Button with DialogTrigger */}
+                            <DialogTrigger asChild key={i}>
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -543,6 +544,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                                   "text-xs h-auto py-1 px-2 rounded-full bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200",
                                   getLoggedClass('channel_tcm_muscle', muscle.name)
                                 )}
+                                onClick={() => handleOpenMuscleModal(muscle.id)}
                               >
                                 {muscle.name}
                               </Button>
