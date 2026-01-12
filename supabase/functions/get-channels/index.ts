@@ -43,10 +43,11 @@ serve(async (req) => {
 
     const serviceRoleSupabase = createClient(supabaseUrl, supabaseServiceRoleKey)
 
+    // Fetch muscles_database_id along with other secrets
     const { data: secrets, error: secretsError } = await serviceRoleSupabase
       .from('notion_secrets')
-      .select('notion_integration_token, channels_database_id')
-      .eq('id', user.id) // Changed from 'user_id' to 'id'
+      .select('notion_integration_token, channels_database_id, muscles_database_id') // Added muscles_database_id
+      .eq('id', user.id)
       .single()
 
     if (secretsError || !secrets || !secrets.channels_database_id) {
@@ -60,6 +61,9 @@ serve(async (req) => {
     }
 
     console.log("[get-channels] Channels database ID loaded:", secrets.channels_database_id)
+    if (!secrets.muscles_database_id) {
+      console.warn("[get-channels] Muscles database ID not configured. AK Muscles and TCM Muscles will not be resolved.")
+    }
 
     const requestBody: any = {
       sorts: [
@@ -92,17 +96,54 @@ serve(async (req) => {
     const notionChannelsData = await notionChannelsResponse.json()
     console.log("[get-channels] Found", notionChannelsData.results.length, "channels")
 
-    const channels = notionChannelsData.results.map((page: any) => {
+    const channels = await Promise.all(notionChannelsData.results.map(async (page: any) => {
       const properties = page.properties
       
-      // Correctly read the 'Element' select property
       const element = properties.Element?.select?.name;
       const elementsArray = element ? [element] : [];
+
+      // Function to resolve muscle names from relation IDs
+      const resolveMuscleNames = async (relationProperty: any): Promise<string[]> => {
+        const muscleIds = relationProperty?.relation?.map((r: any) => r.id) || [];
+        if (muscleIds.length === 0 || !secrets.muscles_database_id) {
+          return [];
+        }
+
+        const muscleNames: string[] = [];
+        for (const muscleId of muscleIds) {
+          try {
+            const musclePageResponse = await fetch('https://api.notion.com/v1/pages/' + muscleId, {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${secrets.notion_integration_token}`,
+                'Content-Type': 'application/json',
+                'Notion-Version': '2022-06-28'
+              }
+            });
+            if (musclePageResponse.ok) {
+              const musclePageData = await musclePageResponse.json();
+              const muscleName = musclePageData.properties.Name?.title?.[0]?.plain_text;
+              if (muscleName) {
+                muscleNames.push(muscleName);
+              }
+            } else {
+              const errorText = await musclePageResponse.text();
+              console.warn(`[get-channels] Failed to fetch muscle page ${muscleId}:`, errorText);
+            }
+          } catch (muscleError) {
+            console.error(`[get-channels] Error fetching muscle page ${muscleId}:`, muscleError);
+          }
+        }
+        return muscleNames;
+      };
+
+      const akMuscles = await resolveMuscleNames(properties["AK Muscles"]);
+      const tcmMuscles = await resolveMuscleNames(properties["TCM Muscles"]);
 
       return {
         id: page.id,
         name: properties.Meridian?.title?.[0]?.plain_text || "Unknown Channel",
-        elements: elementsArray, // Use the correctly parsed elements array
+        elements: elementsArray,
         pathways: properties.Pathways?.rich_text?.[0]?.plain_text || "",
         functions: properties.Functions?.rich_text?.[0]?.plain_text || "",
         emotions: properties.Emotion?.multi_select?.map((s: any) => s.name) || [],
@@ -110,8 +151,8 @@ serve(async (req) => {
         heSea: properties["He Sea"]?.rich_text?.[0]?.plain_text || "",
         jingRiver: properties["Jing River"]?.rich_text?.[0]?.plain_text || "",
         jingWell: properties["Jing Well"]?.rich_text?.[0]?.plain_text || "",
-        akMuscles: properties["AK Muscles"]?.multi_select?.map((s: any) => s.name) || [],
-        tcmMuscles: properties["TCM Muscles"]?.multi_select?.map((s: any) => s.name) || [],
+        akMuscles: akMuscles, // Resolved names
+        tcmMuscles: tcmMuscles, // Resolved names
         yuanPoints: properties["Yuan Points"]?.rich_text?.[0]?.plain_text || "",
         sedate1: properties["Sedate 1"]?.rich_text?.[0]?.plain_text || "",
         sedate2: properties["Sedate 2"]?.rich_text?.[0]?.plain_text || "",
@@ -124,7 +165,7 @@ serve(async (req) => {
         time: properties["Time"]?.rich_text?.[0]?.plain_text || "",
         sound: properties["Sound"]?.select?.name || "",
       }
-    })
+    }))
 
     return new Response(JSON.stringify({ channels }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
