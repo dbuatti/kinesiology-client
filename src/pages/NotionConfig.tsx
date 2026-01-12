@@ -56,7 +56,7 @@ const NotionConfig = () => {
         const { data, error } = await supabase
           .from('notion_secrets')
           .select('*') // Changed to select all columns
-          .eq('user_id', user.id)
+          .eq('id', user.id) // Changed from 'user_id' to 'id'
           .single();
 
         if (error && error.code !== 'PGRST116') { // PGRST116 means "no rows found"

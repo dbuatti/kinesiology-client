@@ -48,7 +48,7 @@ serve(async (req) => {
     const { data: secretsData, error: secretsError } = await serviceRoleSupabase
       .from('notion_secrets')
       .select('notion_integration_token, appointments_database_id, crm_database_id, muscles_database_id, channels_database_id, chakras_database_id') // Added chakras_database_id
-      .eq('user_id', user.id)
+      .eq('id', user.id) // Changed from 'user_id' to 'id'
       .limit(1);
 
     if (secretsError) {

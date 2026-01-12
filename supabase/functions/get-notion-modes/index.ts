@@ -46,7 +46,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
         const { data: secrets, error: secretsError } = await serviceRoleSupabase
           .from('notion_secrets')
           .select('notion_integration_token, modes_database_id')
-          .eq('user_id', user.id)
+          .eq('id', user.id) // Changed from 'user_id' to 'id'
           .single()
 
         if (secretsError || !secrets || !secrets.modes_database_id) {
