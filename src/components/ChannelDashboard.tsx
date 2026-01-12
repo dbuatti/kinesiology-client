@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/components/ui/badge'; // Corrected import statement
 import { Separator } from '@/components/ui/separator';
 import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
@@ -107,7 +107,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
     // Sort non-meridian channels by name
     nonMeridian.sort((a, b) => a.name.localeCompare(b.name));
 
-    return { meridianChannels, nonMeridianChannels };
+    return { meridianChannels: meridian, nonMeridianChannels: nonMeridian };
   }, [allChannels]);
 
   const handleSelectChannel = (channel: Channel) => {
@@ -243,7 +243,6 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
                 <FlaskConical className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
                 <p><span className="font-semibold text-indigo-700">Functions:</span> {selectedChannelForDisplay.functions || 'N/A'}</p>
               </div>
-              {/* Emotional Themes - Always render, show N/A if empty */}
               <div className="flex items-start gap-2">
                 <Heart className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
                 <p><span className="font-semibold text-indigo-700">Emotional Themes:</span> {selectedChannelForDisplay.emotions.length > 0 ? selectedChannelForDisplay.emotions.map((emotion, i) => (
@@ -300,7 +299,6 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
                 <Mic className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
                 <p><span className="font-semibold text-indigo-700">Appropriate Sound:</span> {selectedChannelForDisplay.appropriateSound || 'N/A'}</p>
               </div>
-              {/* Tags - Always render, show N/A if empty */}
               <div className="flex items-start gap-2">
                 <Tag className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
                 <div className="flex flex-wrap gap-1">
@@ -311,7 +309,6 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
                   )) : 'N/A'}</p>
                 </div>
               </div>
-              {/* New fields */}
               <div className="flex items-start gap-2">
                 <Brain className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
                 <p><span className="font-semibold text-indigo-700">Brain Aspects:</span> {selectedChannelForDisplay.brainAspects || 'N/A'}</p>
