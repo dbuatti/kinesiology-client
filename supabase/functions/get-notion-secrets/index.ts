@@ -59,7 +59,6 @@ serve(async (req) => {
     console.log("[get-notion-secrets] User authenticated:", user.id)
 
     // Fetch Notion credentials from secure secrets table using service role
-    // This bypasses RLS, helping to diagnose the 406 error
     const { data: secrets, error: secretsError } = await supabase
       .from('notion_secrets')
       .select('*')
@@ -68,6 +67,18 @@ serve(async (req) => {
 
     if (secretsError) {
       console.error("[get-notion-secrets] Database error fetching secrets:", secretsError?.message)
+      // Check for "no rows found" error code (PGRST116)
+      if (secretsError.code === 'PGRST116') {
+        console.log("[get-notion-secrets] No Notion configuration found for user:", user.id)
+        return new Response(JSON.stringify({
+          error: 'Notion configuration not found.',
+          errorCode: 'NOTION_CONFIG_NOT_FOUND'
+        }), {
+          status: 404, // Return 404 for not found
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+      // For any other database error, return 500
       return new Response(JSON.stringify({
         error: 'Failed to fetch Notion configuration from database.',
         details: secretsError.message
@@ -77,8 +88,9 @@ serve(async (req) => {
       })
     }
 
+    // This check is mostly for robustness, as secretsError should catch the null case
     if (!secrets) {
-      console.log("[get-notion-secrets] No Notion configuration found for user:", user.id)
+      console.log("[get-notion-secrets] No Notion configuration found for user (data was null):", user.id)
       return new Response(JSON.stringify({
         error: 'Notion configuration not found.',
         errorCode: 'NOTION_CONFIG_NOT_FOUND'
