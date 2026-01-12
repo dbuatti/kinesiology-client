@@ -49,6 +49,17 @@
       const navigate = useNavigate();
       const { toast } = useToast();
 
+      // Memoized callbacks for fetchSingleAppointment
+      const onSingleAppointmentSuccess = useCallback((data: GetSingleAppointmentResponse) => {
+        setAppointment(data.appointment);
+        setSessionAnchorText(data.appointment.sessionAnchor || '');
+        setSessionNorthStarText(data.appointment.sessionNorthStar || '');
+      }, []);
+
+      const onSingleAppointmentError = useCallback((msg: string) => {
+        toast({ variant: 'destructive', title: 'Error', description: msg });
+      }, [toast]);
+
       // Fetch Single Appointment
       const {
         data: fetchedAppointmentData,
@@ -61,16 +72,19 @@
         {
           requiresAuth: true,
           requiresNotionConfig: true,
-          onSuccess: (data) => {
-            setAppointment(data.appointment);
-            setSessionAnchorText(data.appointment.sessionAnchor || '');
-            setSessionNorthStarText(data.appointment.sessionNorthStar || '');
-          },
-          onError: (msg) => {
-            toast({ variant: 'destructive', title: 'Error', description: msg });
-          },
+          onSuccess: onSingleAppointmentSuccess,
+          onError: onSingleAppointmentError,
         }
       );
+
+      // Memoized callbacks for fetchModes
+      const onModesSuccess = useCallback((data: GetNotionModesResponse) => {
+        setModes(data.modes);
+      }, []);
+
+      const onModesError = useCallback((msg: string) => {
+        toast({ variant: 'destructive', title: 'Error', description: `Failed to load modes: ${msg}` });
+      }, [toast]);
 
       // Fetch Modes
       const {
@@ -83,12 +97,20 @@
         {
           requiresAuth: true,
           requiresNotionConfig: true,
-          onSuccess: (data) => setModes(data.modes),
-          onError: (msg) => {
-            toast({ variant: 'destructive', title: 'Error', description: `Failed to load modes: ${msg}` });
-          },
+          onSuccess: onModesSuccess,
+          onError: onModesError,
         }
       );
+
+      // Memoized callbacks for fetchAcupoints
+      const onAcupointsSuccess = useCallback((data: GetAcupointsResponse) => {
+        setFoundAcupoints(data.acupoints);
+      }, []);
+
+      const onAcupointsError = useCallback((msg: string) => {
+        toast({ variant: 'destructive', title: 'Error', description: `Failed to search: ${msg}` });
+        setFoundAcupoints([]);
+      }, [toast]);
 
       // Fetch Acupoints
       const {
@@ -101,13 +123,19 @@
         {
           requiresAuth: true,
           requiresNotionConfig: true,
-          onSuccess: (data) => setFoundAcupoints(data.acupoints),
-          onError: (msg) => {
-            toast({ variant: 'destructive', title: 'Error', description: `Failed to search: ${msg}` });
-            setFoundAcupoints([]);
-          },
+          onSuccess: onAcupointsSuccess,
+          onError: onAcupointsError,
         }
       );
+
+      // Memoized callbacks for updateNotionAppointment
+      const onUpdateAppointmentSuccess = useCallback(() => {
+        toast({ title: 'Success', description: 'Appointment updated in Notion.' });
+      }, [toast]);
+
+      const onUpdateAppointmentError = useCallback((msg: string) => {
+        toast({ variant: 'destructive', title: 'Update Failed', description: msg });
+      }, [toast]);
 
       // Update Notion Appointment
       const {
@@ -117,12 +145,8 @@
         'update-notion-appointment',
         {
           requiresAuth: true,
-          onSuccess: () => {
-            toast({ title: 'Success', description: 'Appointment updated in Notion.' });
-          },
-          onError: (msg) => {
-            toast({ variant: 'destructive', title: 'Update Failed', description: msg });
-          }
+          onSuccess: onUpdateAppointmentSuccess,
+          onError: onUpdateAppointmentError,
         }
       );
 
@@ -403,7 +427,8 @@
                         </PopoverTrigger>
                         <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                           <Command>
-                            <CommandInput placeholder="Search mode..." />
+                            {loadingModes && <CommandInput value={selectedMode?.name || ""} onValueChange={() => {}} placeholder="Loading modes..." disabled />}
+                            {!loadingModes && <CommandInput value={selectedMode?.name || ""} onValueChange={(val) => setSelectedMode(modes.find(mode => mode.name === val) || null)} placeholder="Search mode..." />}
                             <CommandEmpty>No mode found.</CommandEmpty>
                             <CommandGroup>
                               {modes.map((mode) => (
