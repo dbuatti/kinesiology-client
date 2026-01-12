@@ -13,6 +13,8 @@ serve(async (req) => {
 
   try {
     console.log("[update-notion-appointment] Starting function execution")
+    console.log("[update-notion-appointment] Request method:", req.method);
+    console.log("[update-notion-appointment] Request headers:", JSON.stringify(Object.fromEntries(req.headers.entries())));
 
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
@@ -24,12 +26,13 @@ serve(async (req) => {
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')
     const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    
+    const supabase = createClient(supabaseUrl, supabaseServiceRoleKey)
 
-    const authSupabase = createClient(supabaseUrl, supabaseAnonKey)
-    const token = authHeader.replace('Bearer ', '')
-    const { data: { user }, error: userError } = await authSupabase.auth.getUser(token)
+    const { data: { user }, error: userError } = await supabase.auth.getUser(
+      authHeader.replace('Bearer ', '')
+    )
 
     if (userError || !user) {
       console.error("[update-notion-appointment] User authentication failed:", userError?.message)
@@ -41,31 +44,65 @@ serve(async (req) => {
 
     console.log("[update-notion-appointment] User authenticated:", user.id)
 
-    const serviceRoleSupabase = createClient(supabaseUrl, supabaseServiceRoleKey)
-
-    const { data: secrets, error: secretsError } = await serviceRoleSupabase
+    // Fetch Notion credentials from secure secrets table
+    const { data: secretsData, error: secretsError } = await supabase
       .from('notion_secrets')
       .select('notion_integration_token, appointments_database_id')
       .eq('user_id', user.id)
       .single()
 
-    if (secretsError || !secrets || !secrets.appointments_database_id) {
-      console.error("[update-notion-appointment] Appointments database ID not found for user:", user.id, secretsError?.message)
+    if (secretsError) {
+      console.error("[update-notion-appointment] Secrets fetch error:", user.id, secretsError?.message)
       return new Response(JSON.stringify({
-        error: 'Notion Appointments database ID not configured.'
+        error: 'Failed to fetch Notion configuration.',
+        details: secretsError.message
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    const secrets = secretsData; // `single()` returns the object directly or null
+
+    if (!secrets || !secrets.appointments_database_id) {
+      console.error("[update-notion-appointment] Notion configuration not found for user:", user.id)
+      return new Response(JSON.stringify({
+        error: 'Notion configuration not found. Please configure your Notion credentials first.'
       }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    console.log("[update-notion-appointment] Appointments database ID loaded:", secrets.appointments_database_id)
+    console.log("[update-notion-appointment] Secrets loaded successfully for user:", user.id)
 
-    const { appointmentId, updates } = await req.json()
+    // Read the request body as text first for debugging
+    const requestBodyText = await req.text();
+    console.log("[update-notion-appointment] Raw request body:", requestBodyText);
+
+    let parsedBody;
+    try {
+      parsedBody = JSON.parse(requestBodyText);
+    } catch (jsonError: any) {
+      console.error("[update-notion-appointment] Failed to parse JSON body:", jsonError?.message);
+      return new Response(JSON.stringify({ error: 'Invalid JSON in request body', details: jsonError?.message }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const { appointmentId, updates } = parsedBody;
+
+    console.log("[update-notion-appointment] Parsed appointmentId:", appointmentId);
+    console.log("[update-notion-appointment] Parsed updates:", updates);
 
     if (!appointmentId || !updates) {
-      console.warn("[update-notion-appointment] Bad request: Missing appointmentId or updates")
-      return new Response(JSON.stringify({ error: 'Missing appointmentId or updates in request body' }), {
+      console.warn("[update-notion-appointment] Bad request: Missing appointmentId or updates. appointmentId:", appointmentId, "updates:", updates)
+      return new Response(JSON.stringify({
+        error: 'Missing appointmentId or updates in request body',
+        receivedAppointmentId: appointmentId,
+        receivedUpdates: updates
+      }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
@@ -137,7 +174,7 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("[update-notion-appointment] Unexpected error:", error?.message)
     return new Response(JSON.stringify({ error: 'Internal server error', details: error.message }), {
       status: 500,

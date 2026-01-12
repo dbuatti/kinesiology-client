@@ -112,7 +112,6 @@
           setBodyNoState(fetchedAppointment.bodyNo);
         } catch (err: any) {
           console.error('Error fetching single appointment:', err);
-          setError(err.message);
           toast({
             variant: 'destructive',
             title: 'Error',
@@ -170,6 +169,8 @@
           });
           return;
         }
+
+        console.log("[ActiveSession] Attempting to update appointment:", appointment.id, "with updates:", updates);
 
         try {
           const { data: { session } } = await supabase.auth.getSession();
