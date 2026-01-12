@@ -14,6 +14,7 @@ import { Search, Check, ChevronsUpDown, Lightbulb, PlusCircle, Trash2, Info, Loa
 import { useNavigate } from 'react-router-dom';
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
 import { Acupoint, GetAcupointsPayload, GetAcupointsResponse, LogSessionEventPayload, LogSessionEventResponse } from '@/types/api';
+import { useDebounce } from '@/hooks/use-debounce'; // Import useDebounce
 
 interface AcupointSelectorProps {
   appointmentId: string;
@@ -31,6 +32,9 @@ const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLo
   const [isSymptomSearchOpen, setIsSymptomSearchOpen] = useState(false);
 
   const navigate = useNavigate();
+
+  const debouncedAcupointSearchTerm = useDebounce(acupointSearchTerm, 500); // Debounce acupoint search
+  const debouncedSymptomSearchTerm = useDebounce(symptomSearchTerm, 500);   // Debounce symptom search
 
   const onAcupointsSuccess = useCallback((data: GetAcupointsResponse) => {
     setFoundAcupoints(data.acupoints);
@@ -75,17 +79,17 @@ const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLo
     }
   );
 
-  // Effect to fetch acupoints based on search terms
+  // Effect to fetch acupoints based on debounced search terms
   useEffect(() => {
-    if (isAcupointSearchOpen && acupointSearchTerm.trim() !== '') {
-      fetchAcupoints({ searchTerm: acupointSearchTerm, searchType: 'point' });
-    } else if (isSymptomSearchOpen && symptomSearchTerm.trim() !== '') {
-      fetchAcupoints({ searchTerm: symptomSearchTerm, searchType: 'symptom' });
+    if (isAcupointSearchOpen && debouncedAcupointSearchTerm.trim() !== '') {
+      fetchAcupoints({ searchTerm: debouncedAcupointSearchTerm, searchType: 'point' });
+    } else if (isSymptomSearchOpen && debouncedSymptomSearchTerm.trim() !== '') {
+      fetchAcupoints({ searchTerm: debouncedSymptomSearchTerm, searchType: 'symptom' });
     } else if (!isAcupointSearchOpen && !isSymptomSearchOpen && !selectedAcupoint) {
       // Optionally fetch all if no search term and no selection, or clear results
       setFoundAcupoints([]);
     }
-  }, [acupointSearchTerm, symptomSearchTerm, isAcupointSearchOpen, isSymptomSearchOpen, selectedAcupoint, fetchAcupoints]);
+  }, [debouncedAcupointSearchTerm, debouncedSymptomSearchTerm, isAcupointSearchOpen, isSymptomSearchOpen, selectedAcupoint, fetchAcupoints]);
 
 
   const handleAcupointSearchChange = (value: string) => {

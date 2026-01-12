@@ -14,6 +14,7 @@ import { Search, Check, ChevronsUpDown, Settings, Loader2, Sparkles, PlusCircle,
 import { useNavigate } from 'react-router-dom';
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
 import { Chakra, GetChakrasPayload, GetChakrasResponse, LogSessionEventPayload, LogSessionEventResponse } from '@/types/api';
+import { useDebounce } from '@/hooks/use-debounce'; // Import useDebounce
 
 interface ChakraSelectorProps {
   appointmentId: string;
@@ -31,6 +32,7 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const navigate = useNavigate();
+  const debouncedSearchTerm = useDebounce(searchTerm, 500); // Debounce search term
 
   // Memoized callbacks for fetchChakras
   const onChakrasSuccess = useCallback((data: GetChakrasResponse) => {
@@ -79,8 +81,13 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
   );
 
   useEffect(() => {
-    fetchChakras({ searchTerm: '', searchType: 'name' }); // Fetch all chakras initially
-  }, [fetchChakras]);
+    // Fetch if debouncedSearchTerm is not empty, or if searchType is 'name' and searchTerm is empty (to get all)
+    if (debouncedSearchTerm.trim() !== '' || (searchType === 'name' && searchTerm.trim() === '')) {
+      fetchChakras({ searchTerm: debouncedSearchTerm, searchType });
+    } else if (debouncedSearchTerm.trim() === '' && searchType !== 'name') {
+      setFilteredChakras([]);
+    }
+  }, [debouncedSearchTerm, searchType, fetchChakras, searchTerm]);
 
   useEffect(() => {
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
@@ -237,7 +244,6 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
                   value={searchTerm}
                   onValueChange={(value) => {
                     setSearchTerm(value);
-                    fetchChakras({ searchTerm: value, searchType });
                   }}
                   disabled={loadingChakras}
                 />

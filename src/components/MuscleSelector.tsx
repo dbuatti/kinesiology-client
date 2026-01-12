@@ -14,6 +14,7 @@ import { Search, Check, ChevronsUpDown, Hand, Info, Image, Settings, Loader2, Tr
 import { useNavigate } from 'react-router-dom';
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
 import { Muscle, GetMusclesPayload, GetMusclesResponse } from '@/types/api';
+import { useDebounce } from '@/hooks/use-debounce'; // Import useDebounce
 
 interface MuscleSelectorProps {
   onMuscleSelected: (muscle: Muscle) => void;
@@ -33,6 +34,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
   const [showWeaknessChecklist, setShowWeaknessChecklist] = useState(false);
 
   const navigate = useNavigate();
+  const debouncedSearchTerm = useDebounce(searchTerm, 500); // Debounce search term
 
   const onMusclesSuccess = useCallback((data: GetMusclesResponse) => {
     setAllMuscles(data.muscles);
@@ -62,8 +64,14 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
 
   useEffect(() => {
     // Fetch all muscles initially, or filter based on current search term/type
-    fetchMuscles({ searchTerm, searchType });
-  }, [searchTerm, searchType, fetchMuscles]);
+    // Only fetch if debouncedSearchTerm is not empty or if searchType is 'muscle' and searchTerm is empty (to get all)
+    if (debouncedSearchTerm.trim() !== '' || (searchType === 'muscle' && searchTerm.trim() === '')) {
+      fetchMuscles({ searchTerm: debouncedSearchTerm, searchType });
+    } else if (debouncedSearchTerm.trim() === '' && searchType !== 'muscle') {
+      // If debounced search term is empty and not searching by muscle name, clear results
+      setFilteredMuscles([]);
+    }
+  }, [debouncedSearchTerm, searchType, fetchMuscles, searchTerm]); // Added searchTerm to dependencies to ensure initial fetch for 'muscle' type
 
   const handleSelectMuscle = (muscle: Muscle) => {
     setSelectedMuscle(muscle);
@@ -197,7 +205,6 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
                   value={searchTerm}
                   onValueChange={(value) => {
                     setSearchTerm(value);
-                    fetchMuscles({ searchTerm: value, searchType });
                   }}
                 />
                 <CommandEmpty>No muscles found.</CommandEmpty>
