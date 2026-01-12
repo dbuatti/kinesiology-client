@@ -87,6 +87,7 @@ export interface SessionMuscleLog {
 }
 
 export interface NotionSecrets {
+  id: string; // This is now the user_id and primary key
   notion_integration_token: string;
   appointments_database_id: string;
   crm_database_id: string | null;

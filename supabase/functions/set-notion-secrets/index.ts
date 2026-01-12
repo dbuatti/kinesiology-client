@@ -48,7 +48,7 @@ serve(async (req) => {
     const { error: insertError } = await supabase
       .from('notion_secrets')
       .upsert({
-        user_id: user.id,
+        id: user.id, // 'id' is now the user's ID and the primary key
         notion_integration_token: notionToken,
         appointments_database_id: appointmentsDbId,
         crm_database_id: crmDbId || null,
@@ -59,7 +59,7 @@ serve(async (req) => {
         chakras_database_id: chakrasDbId || null,
         updated_at: new Date().toISOString(), // Explicitly update timestamp
       }, {
-        onConflict: 'user_id'
+        onConflict: 'id' // Conflict target is now the primary key 'id'
       })
 
     if (insertError) {
