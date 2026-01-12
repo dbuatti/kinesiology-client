@@ -497,6 +497,9 @@
                   </CardContent>
                 </Card>
 
+                {/* Channel Dashboard Component - Moved to top */}
+                <ChannelDashboard appointmentId={appointmentId || ''} />
+
                 {/* Live Session Controls */}
                 <Card className="shadow-xl">
                   <CardHeader className="bg-indigo-50 border-b border-indigo-200 rounded-t-lg p-4">
@@ -794,9 +797,6 @@
                   onClearSelection={handleClearChakraSelection}
                   selectedChakra={selectedChakra} // Pass selected chakra to ChakraSelector
                 />
-
-                {/* Channel Dashboard Component */}
-                <ChannelDashboard appointmentId={appointmentId || ''} />
 
                 {/* Session Log */}
                 <Card className="shadow-xl">

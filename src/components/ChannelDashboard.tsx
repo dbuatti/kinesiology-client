@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,8 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator'; // Import Separator
 import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 import { Search, Check, ChevronsUpDown, Settings, Loader2, Sparkles, ExternalLink, Waves, Leaf, Flame, Gem, Droplet, Sun, Heart, Hand, Footprints, Bone, FlaskConical, Mic, Tag, XCircle, PlusCircle } from 'lucide-react';
@@ -21,14 +20,14 @@ interface ChannelDashboardProps {
   appointmentId: string;
 }
 
+const primaryElements = ['Wood', 'Fire', 'Earth', 'Metal', 'Water'];
+
 const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) => {
   const [allChannels, setAllChannels] = useState<Channel[]>([]);
-  const [filteredChannels, setFilteredChannels] = useState<Channel[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchType, setSearchType] = useState<'name' | 'element' | 'emotion'>('name');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
-  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+  const [selectedChannelForDisplay, setSelectedChannelForDisplay] = useState<Channel | null>(null);
 
   const navigate = useNavigate();
 
@@ -36,40 +35,38 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
     const primaryElement = elements[0]?.toLowerCase();
     switch (primaryElement) {
       case 'fire':
-        return 'bg-red-100 border-red-300 text-red-800';
+        return 'bg-red-100 border-red-300 text-red-800 hover:bg-red-200';
       case 'metal':
-        return 'bg-gray-100 border-gray-300 text-gray-800';
+        return 'bg-gray-100 border-gray-300 text-gray-800 hover:bg-gray-200';
       case 'wood':
-        return 'bg-green-100 border-green-300 text-green-800';
+        return 'bg-green-100 border-green-300 text-green-800 hover:bg-green-200';
       case 'water':
-        return 'bg-blue-100 border-blue-300 text-blue-800';
+        return 'bg-blue-100 border-blue-300 text-blue-800 hover:bg-blue-200';
       case 'earth':
-        return 'bg-yellow-100 border-yellow-300 text-yellow-800';
+        return 'bg-yellow-100 border-yellow-300 text-yellow-800 hover:bg-yellow-200';
       default:
-        return 'bg-indigo-100 border-indigo-300 text-indigo-800';
+        return 'bg-indigo-100 border-indigo-300 text-indigo-800 hover:bg-indigo-200';
     }
   };
 
   const getElementIcon = (element: string) => {
     switch (element.toLowerCase()) {
-      case 'fire': return <Flame className="w-4 h-4 text-red-600" />;
-      case 'metal': return <Gem className="w-4 h-4 text-gray-600" />;
-      case 'wood': return <Leaf className="w-4 h-4 text-green-600" />;
-      case 'water': return <Droplet className="w-4 h-4 text-blue-600" />;
-      case 'earth': return <Sun className="w-4 h-4 text-yellow-600" />;
-      default: return <Sparkles className="w-4 h-4 text-indigo-600" />;
+      case 'fire': return <Flame className="w-3 h-3 text-red-600" />;
+      case 'metal': return <Gem className="w-3 h-3 text-gray-600" />;
+      case 'wood': return <Leaf className="w-3 h-3 text-green-600" />;
+      case 'water': return <Droplet className="w-3 h-3 text-blue-600" />;
+      case 'earth': return <Sun className="w-3 h-3 text-yellow-600" />;
+      default: return <Sparkles className="w-3 h-3 text-indigo-600" />;
     }
   };
 
   const onChannelsSuccess = useCallback((data: GetChannelsResponse) => {
     setAllChannels(data.channels);
-    setFilteredChannels(data.channels);
   }, []);
 
   const onChannelsError = useCallback((msg: string) => {
     showError(`Failed to load channels: ${msg}`);
     setAllChannels([]);
-    setFilteredChannels([]);
   }, []);
 
   const {
@@ -91,9 +88,9 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
     fetchChannels({ searchTerm: '', searchType: 'name' }); // Fetch all channels initially
   }, [fetchChannels]);
 
-  useEffect(() => {
+  const filteredChannels = useMemo(() => {
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
-    const filtered = allChannels.filter(channel => {
+    return allChannels.filter(channel => {
       if (searchType === 'name') {
         return channel.name.toLowerCase().includes(lowerCaseSearchTerm);
       } else if (searchType === 'element') {
@@ -103,19 +100,47 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
       }
       return false;
     });
-    setFilteredChannels(filtered);
   }, [searchTerm, allChannels, searchType]);
+
+  const { meridianChannels, nonMeridianChannels } = useMemo(() => {
+    const meridian: Channel[] = [];
+    const nonMeridian: Channel[] = [];
+
+    filteredChannels.forEach(channel => {
+      const hasPrimaryElement = channel.elements.some(element => primaryElements.includes(element));
+      if (hasPrimaryElement) {
+        meridian.push(channel);
+      } else {
+        nonMeridian.push(channel);
+      }
+    });
+    return { meridianChannels: meridian, nonMeridianChannels: nonMeridian };
+  }, [filteredChannels]);
+
+  const groupedMeridianChannels = useMemo(() => {
+    const groups: { [key: string]: Channel[] } = {};
+    primaryElements.forEach(element => {
+      groups[element] = meridianChannels.filter(channel => channel.elements.includes(element));
+    });
+    return groups;
+  }, [meridianChannels]);
 
   const handleSearchTypeChange = (type: 'name' | 'element' | 'emotion') => {
     setSearchType(type);
     setSearchTerm(''); // Clear search term when type changes
-    setFilteredChannels(allChannels); // Reset filtered channels
     setIsSearchOpen(true); // Open popover for new search
   };
 
-  const handleCardClick = (channel: Channel) => {
-    setSelectedChannel(channel);
-    setIsDetailDialogOpen(true);
+  const handleSelectChannel = (channel: Channel) => {
+    setSelectedChannelForDisplay(channel);
+    setIsSearchOpen(false);
+    setSearchTerm(channel.name); // Keep selected name in search input
+  };
+
+  const handleClearSelection = () => {
+    setSelectedChannelForDisplay(null);
+    setSearchTerm('');
+    fetchChannels({ searchTerm: '', searchType: 'name' }); // Re-fetch all for next search
   };
 
   const handleConfigureNotion = () => {
@@ -210,11 +235,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
                     <CommandItem
                       key={channel.id}
                       value={channel.name}
-                      onSelect={() => {
-                        handleCardClick(channel); // Directly open detail dialog on select
-                        setIsSearchOpen(false);
-                        setSearchTerm(channel.name); // Keep selected name in search input
-                      }}
+                      onSelect={() => handleSelectChannel(channel)}
                     >
                       {channel.name}
                     </CommandItem>
@@ -240,7 +261,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
                   "cursor-pointer hover:shadow-lg transition-shadow duration-200",
                   getElementColorClass(channel.elements)
                 )}
-                onClick={() => handleCardClick(channel)}
+                onClick={() => handleSelectChannel(channel)} // Changed to handleSelectChannel
               >
                 <CardHeader className="flex flex-row items-center justify-between p-4 pb-2">
                   <CardTitle className="text-lg font-bold flex items-center gap-2">
@@ -270,188 +291,142 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
           </div>
         )}
 
-        {/* Channel Detail Dialog */}
-        <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-          <DialogContent className="sm:max-w-[800px] p-6">
-            <DialogHeader>
-              <DialogTitle className="text-2xl font-bold text-indigo-800 flex items-center gap-2">
-                {selectedChannel?.name}
-                {selectedChannel?.id && (
-                  <a
-                    href={`https://www.notion.so/${selectedChannel.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="ml-2 text-indigo-600 hover:text-indigo-800"
-                  >
-                    <ExternalLink className="w-5 h-5" />
-                  </a>
-                )}
-              </DialogTitle>
-              {selectedChannel?.elements.length > 0 && (
-                <DialogDescription className="flex items-center gap-2 text-lg font-medium text-gray-700">
-                  {getElementIcon(selectedChannel.elements[0])}
-                  {selectedChannel.elements[0]} Channel
-                </DialogDescription>
-              )}
-            </DialogHeader>
-            <ScrollArea className="h-[70vh] pr-4">
-              <div className="space-y-6 py-4">
-                {selectedChannel?.pathways && (
-                  <div>
-                    <h3 className="font-semibold text-indigo-700 flex items-center gap-2 mb-1">
-                      <Footprints className="w-4 h-4" /> Pathways
-                    </h3>
-                    <p className="text-gray-800 text-sm">{selectedChannel.pathways}</p>
-                  </div>
-                )}
-                {selectedChannel?.functions && (
-                  <div>
-                    <h3 className="font-semibold text-indigo-700 flex items-center gap-2 mb-1">
-                      <FlaskConical className="w-4 h-4" /> Functions
-                    </h3>
-                    <p className="text-gray-800 text-sm">{selectedChannel.functions}</p>
-                  </div>
-                )}
-                {selectedChannel?.emotions.length > 0 && (
-                  <div>
-                    <h3 className="font-semibold text-indigo-700 flex items-center gap-2 mb-1">
-                      <Heart className="w-4 h-4" /> Emotional Themes
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedChannel.emotions.map((emotion, i) => (
-                        <Badge key={i} variant="secondary" className="bg-indigo-100 text-indigo-700">
-                          {emotion}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {selectedChannel?.frontMu && (
-                  <div>
-                    <h3 className="font-semibold text-indigo-700 flex items-center gap-2 mb-1">
-                      <Hand className="w-4 h-4" /> Front Mu
-                    </h3>
-                    <p className="text-gray-800 text-sm">{selectedChannel.frontMu}</p>
-                  </div>
-                )}
-                {selectedChannel?.heSea && (
-                  <div>
-                    <h3 className="font-semibold text-indigo-700 flex items-center gap-2 mb-1">
-                      <Waves className="w-4 h-4" /> He Sea
-                    </h3>
-                    <p className="text-gray-800 text-sm">{selectedChannel.heSea}</p>
-                  </div>
-                )}
-                {selectedChannel?.jingRiver && (
-                  <div>
-                    <h3 className="font-semibold text-indigo-700 flex items-center gap-2 mb-1">
-                      <Droplet className="w-4 h-4" /> Jing River
-                    </h3>
-                    <p className="text-gray-800 text-sm">{selectedChannel.jingRiver}</p>
-                  </div>
-                )}
-                {selectedChannel?.jingWell && (
-                  <div>
-                    <h3 className="font-semibold text-indigo-700 flex items-center gap-2 mb-1">
-                      <Sparkles className="w-4 h-4" /> Jing Well
-                    </h3>
-                    <p className="text-gray-800 text-sm">{selectedChannel.jingWell}</p>
-                  </div>
-                )}
-                {selectedChannel?.akMuscles.length > 0 && (
-                  <div>
-                    <h3 className="font-semibold text-indigo-700 flex items-center gap-2 mb-1">
-                      <Hand className="w-4 h-4" /> AK Muscles
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedChannel.akMuscles.map((muscle, i) => (
-                        <Badge key={i} variant="secondary" className="bg-indigo-100 text-indigo-700">
-                          {muscle}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {selectedChannel?.tcmMuscles.length > 0 && (
-                  <div>
-                    <h3 className="font-semibold text-indigo-700 flex items-center gap-2 mb-1">
-                      <Bone className="w-4 h-4" /> TCM Muscles
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedChannel.tcmMuscles.map((muscle, i) => (
-                        <Badge key={i} variant="secondary" className="bg-indigo-100 text-indigo-700">
-                          {muscle}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {selectedChannel?.yuanPoints && (
-                  <div>
-                    <h3 className="font-semibold text-indigo-700 flex items-center gap-2 mb-1">
-                      <Sparkles className="w-4 h-4" /> Yuan Points
-                    </h3>
-                    <p className="text-gray-800 text-sm">{selectedChannel.yuanPoints}</p>
-                  </div>
-                )}
-                {selectedChannel?.sedate1 && (
-                  <div>
-                    <h3 className="font-semibold text-indigo-700 flex items-center gap-2 mb-1">
-                      <XCircle className="w-4 h-4" /> Sedate 1
-                    </h3>
-                    <p className="text-gray-800 text-sm">{selectedChannel.sedate1}</p>
-                  </div>
-                )}
-                {selectedChannel?.sedate2 && (
-                  <div>
-                    <h3 className="font-semibold text-indigo-700 flex items-center gap-2 mb-1">
-                      <XCircle className="w-4 h-4" /> Sedate 2
-                    </h3>
-                    <p className="text-gray-800 text-sm">{selectedChannel.sedate2}</p>
-                  </div>
-                )}
-                {selectedChannel?.tonify1 && (
-                  <div>
-                    <h3 className="font-semibold text-indigo-700 flex items-center gap-2 mb-1">
-                      <PlusCircle className="w-4 h-4" /> Tonify 1
-                    </h3>
-                    <p className="text-gray-800 text-sm">{selectedChannel.tonify1}</p>
-                  </div>
-                )}
-                {selectedChannel?.tonify2 && (
-                  <div>
-                    <h3 className="font-semibold text-indigo-700 flex items-center gap-2 mb-1">
-                      <PlusCircle className="w-4 h-4" /> Tonify 2
-                    </h3>
-                    <p className="text-gray-800 text-sm">{selectedChannel.tonify2}</p>
-                  </div>
-                )}
-                {selectedChannel?.appropriateSound && (
-                  <div>
-                    <h3 className="font-semibold text-indigo-700 flex items-center gap-2 mb-1">
-                      <Mic className="w-4 h-4" /> Appropriate Sound
-                    </h3>
-                    <p className="text-gray-800 text-sm">{selectedChannel.appropriateSound}</p>
-                  </div>
-                )}
-                {selectedChannel?.tags.length > 0 && (
-                  <div>
-                    <h3 className="font-semibold text-indigo-700 flex items-center gap-2 mb-1">
-                      <Tag className="w-4 h-4" /> Tags
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedChannel.tags.map((tag, i) => (
-                        <Badge key={i} variant="outline" className="bg-gray-100 text-gray-700">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
+        {/* Selected Channel Summary Display */}
+        {selectedChannelForDisplay && (
+          <Card className="border-2 border-indigo-300 bg-indigo-50 shadow-md mt-6">
+            <CardHeader className="flex flex-row items-center justify-between p-4 pb-2">
+              <CardTitle className="text-xl font-bold text-indigo-800 flex items-center gap-2">
+                {selectedChannelForDisplay.name}
+                <a
+                  href={`https://www.notion.so/${selectedChannelForDisplay.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ml-2 text-indigo-600 hover:text-indigo-800"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                </a>
+              </CardTitle>
+              <div className="flex gap-2">
+                {selectedChannelForDisplay.elements.map((element, i) => (
+                  <Badge key={i} variant="secondary" className="bg-indigo-200 text-indigo-800">
+                    {getElementIcon(element)}
+                    <span className="ml-1">{element}</span>
+                  </Badge>
+                ))}
               </div>
-            </ScrollArea>
-          </DialogContent>
-        </Dialog>
+            </CardHeader>
+            <CardContent className="pt-2 space-y-2 text-gray-800 text-sm">
+              {selectedChannelForDisplay.pathways && (
+                <div>
+                  <p className="font-semibold text-indigo-700">Pathways:</p>
+                  <p>{selectedChannelForDisplay.pathways}</p>
+                </div>
+              )}
+              {selectedChannelForDisplay.functions && (
+                <div>
+                  <p className="font-semibold text-indigo-700">Functions:</p>
+                  <p>{selectedChannelForDisplay.functions}</p>
+                </div>
+              )}
+              {selectedChannelForDisplay.emotions.length > 0 && (
+                <div>
+                  <p className="font-semibold text-indigo-700">Emotional Themes:</p>
+                  <p>{selectedChannelForDisplay.emotions.join(', ')}</p>
+                </div>
+              )}
+              {selectedChannelForDisplay.frontMu && (
+                <div>
+                  <p className="font-semibold text-indigo-700">Front Mu:</p>
+                  <p>{selectedChannelForDisplay.frontMu}</p>
+                </div>
+              )}
+              {selectedChannelForDisplay.heSea && (
+                <div>
+                  <p className="font-semibold text-indigo-700">He Sea:</p>
+                  <p>{selectedChannelForDisplay.heSea}</p>
+                </div>
+              )}
+              {selectedChannelForDisplay.jingRiver && (
+                <div>
+                  <p className="font-semibold text-indigo-700">Jing River:</p>
+                  <p>{selectedChannelForDisplay.jingRiver}</p>
+                </div>
+              )}
+              {selectedChannelForDisplay.jingWell && (
+                <div>
+                  <p className="font-semibold text-indigo-700">Jing Well:</p>
+                  <p>{selectedChannelForDisplay.jingWell}</p>
+                </div>
+              )}
+              {selectedChannelForDisplay.akMuscles.length > 0 && (
+                <div>
+                  <p className="font-semibold text-indigo-700">AK Muscles:</p>
+                  <p>{selectedChannelForDisplay.akMuscles.join(', ')}</p>
+                </div>
+              )}
+              {selectedChannelForDisplay.tcmMuscles.length > 0 && (
+                <div>
+                  <p className="font-semibold text-indigo-700">TCM Muscles:</p>
+                  <p>{selectedChannelForDisplay.tcmMuscles.join(', ')}</p>
+                </div>
+              )}
+              {selectedChannelForDisplay.yuanPoints && (
+                <div>
+                  <p className="font-semibold text-indigo-700">Yuan Points:</p>
+                  <p>{selectedChannelForDisplay.yuanPoints}</p>
+                </div>
+              )}
+              {selectedChannelForDisplay.sedate1 && (
+                <div>
+                  <p className="font-semibold text-indigo-700">Sedate 1:</p>
+                  <p>{selectedChannelForDisplay.sedate1}</p>
+                </div>
+              )}
+              {selectedChannelForDisplay.sedate2 && (
+                <div>
+                  <p className="font-semibold text-indigo-700">Sedate 2:</p>
+                  <p>{selectedChannelForDisplay.sedate2}</p>
+                </div>
+              )}
+              {selectedChannelForDisplay.tonify1 && (
+                <div>
+                  <p className="font-semibold text-indigo-700">Tonify 1:</p>
+                  <p>{selectedChannelForDisplay.tonify1}</p>
+                </div>
+              )}
+              {selectedChannelForDisplay.tonify2 && (
+                <div>
+                  <p className="font-semibold text-indigo-700">Tonify 2:</p>
+                  <p>{selectedChannelForDisplay.tonify2}</p>
+                </div>
+              )}
+              {selectedChannelForDisplay.appropriateSound && (
+                <div>
+                  <p className="font-semibold text-indigo-700">Appropriate Sound:</p>
+                  <p>{selectedChannelForDisplay.appropriateSound}</p>
+                </div>
+              )}
+              {selectedChannelForDisplay.tags.length > 0 && (
+                <div>
+                  <p className="font-semibold text-indigo-700">Tags:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {selectedChannelForDisplay.tags.map((tag, i) => (
+                      <Badge key={i} variant="outline" className="bg-gray-100 text-gray-700">
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="flex justify-end mt-4">
+                <Button variant="outline" onClick={handleClearSelection}>
+                  <XCircle className="h-4 w-4 mr-2" />
+                  Clear Selection
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </CardContent>
     </Card>
   );
