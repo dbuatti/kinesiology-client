@@ -29,6 +29,11 @@ const WaitingRoom = () => {
     }
   }, [toast]);
 
+  const handleNotionConfigNeeded = useCallback(() => {
+    // This callback is now stable and can be passed to useSupabaseEdgeFunction
+    // The needsConfig state will handle the UI redirect.
+  }, []);
+
   const {
     data: fetchedAppointmentsData,
     loading: loadingAppointments,
@@ -42,9 +47,7 @@ const WaitingRoom = () => {
       requiresNotionConfig: true,
       onSuccess: handleSuccess,
       onError: handleError,
-      onNotionConfigNeeded: () => {
-        // Handled by needsConfig state
-      }
+      onNotionConfigNeeded: handleNotionConfigNeeded, // Use the stable callback
     }
   );
 
