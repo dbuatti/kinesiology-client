@@ -7,7 +7,7 @@ const corsHeaders = {
 }
 
 // Helper function for exponential backoff retry
-async function retryFetch(url: string, options: RequestInit, retries = 3, delay = 1000): Promise<Response> {
+async function retryFetch(url: string, options: RequestInit, retries = 5, delay = 2000): Promise<Response> {
   for (let i = 0; i < retries; i++) {
     const response = await fetch(url, options);
     if (response.status !== 429) {
