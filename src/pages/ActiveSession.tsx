@@ -236,6 +236,13 @@
         }
       }, [appointmentId, fetchSessionLogs]);
 
+      // Callback for MuscleSelector to trigger log refresh
+      const handleMuscleLogSuccess = useCallback(() => {
+        if (appointmentId) {
+          fetchSessionLogs({ appointmentId });
+        }
+      }, [appointmentId, fetchSessionLogs]);
+
 
       useEffect(() => {
         if (appointmentId) {
@@ -794,10 +801,11 @@
 
                 {/* Muscle Selector Component */}
                 <MuscleSelector
+                  appointmentId={appointmentId || ''}
                   onMuscleSelected={handleMuscleSelected}
                   onClearSelection={handleClearMuscleSelection}
-                  appointmentId={appointmentId || ''}
                   selectedMuscle={selectedMuscle} // Pass selected muscle to MuscleSelector
+                  onLogSuccess={handleMuscleLogSuccess} // Pass the new callback
                 />
 
                 {/* Chakra Selector Component */}

@@ -20,9 +20,10 @@ interface MuscleSelectorProps {
   onClearSelection: () => void; // New prop for clearing selection
   appointmentId: string;
   selectedMuscle: Muscle | null; // New prop to receive selected muscle from parent
+  onLogSuccess: () => void; // New prop: callback to notify parent of successful log
 }
 
-const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onClearSelection, appointmentId, selectedMuscle }) => {
+const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onClearSelection, appointmentId, selectedMuscle, onLogSuccess }) => {
   const [muscles, setMuscles] = useState<Muscle[]>([]); // This will now hold the *filtered* results from the API
   const [searchTerm, setSearchTerm] = useState('');
   const [searchType, setSearchType] = useState<'muscle' | 'meridian' | 'organ' | 'emotion'>('muscle');
@@ -67,6 +68,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onCle
       onSuccess: (data) => {
         showSuccess('Strength status saved to session logs.');
         console.log('Muscle strength log ID:', data.logId);
+        onLogSuccess(); // Call the parent's log success callback
       },
       onError: (msg) => {
         showError(`Logging Failed: ${msg}`);
