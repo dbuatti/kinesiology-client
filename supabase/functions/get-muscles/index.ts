@@ -78,7 +78,7 @@ serve(async (req) => {
         filter = {
           or: [
             {
-              property: "Associated Meridian",
+              property: "Meridian", // Changed from "Associated Meridian" to "Meridian"
               select: {
                 equals: searchTerm
               }
@@ -149,7 +149,7 @@ serve(async (req) => {
       return {
         id: page.id,
         name: properties["Name"]?.title?.[0]?.plain_text || "Unknown Muscle", // Changed from "Muscle Name" to "Name"
-        meridian: properties["Associated Meridian"]?.select?.name || "",
+        meridian: properties["Meridian"]?.select?.name || "", // Changed from "Associated Meridian" to "Meridian"
         organSystem: properties["Organ System"]?.select?.name || "",
         nlPoints: properties["NL Points (Neurolymphatic)"]?.rich_text?.[0]?.plain_text || "",
         nvPoints: properties["NV Points (Neurovascular)"]?.rich_text?.[0]?.plain_text || "",
