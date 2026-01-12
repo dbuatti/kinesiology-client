@@ -305,7 +305,7 @@ const AllAppointments = () => {
                             className="min-h-[60px] w-full"
                           />
                         </TableCell>
-                        <TableCell> {/* New cell for Session North Star */}
+                        <TableCell>
                           <Textarea
                             value={app.sessionNorthStar}
                             onChange={(e) => handleFieldChange(app.id, 'sessionNorthStar', e.target.value)}
