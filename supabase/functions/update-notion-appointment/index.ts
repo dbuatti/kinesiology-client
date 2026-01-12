@@ -76,22 +76,8 @@ serve(async (req) => {
 
     console.log("[update-notion-appointment] Secrets loaded successfully for user:", user.id)
 
-    // Read the request body as text first for debugging
-    const requestBodyText = await req.text();
-    console.log("[update-notion-appointment] Raw request body:", requestBodyText);
-
-    let parsedBody;
-    try {
-      parsedBody = JSON.parse(requestBodyText);
-    } catch (jsonError: any) {
-      console.error("[update-notion-appointment] Failed to parse JSON body:", jsonError?.message);
-      return new Response(JSON.stringify({ error: 'Invalid JSON in request body', details: jsonError?.message }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
-
-    const { appointmentId, updates } = parsedBody;
+    // Use req.json() directly for parsing the request body
+    const { appointmentId, updates } = await req.json();
 
     console.log("[update-notion-appointment] Parsed appointmentId:", appointmentId);
     console.log("[update-notion-appointment] Parsed updates:", updates);
