@@ -147,12 +147,12 @@ serve(async (req) => {
     };
 
     // Corrected Notion property names based on logs
-    updateProperty("sessionAnchor", "Today we are really working with...", updates.sessionAnchor, 'rich_text');
+    updateProperty("sessionAnchor", "Session North Star", updates.sessionAnchor, 'rich_text'); // Map sessionAnchor to "Session North Star"
     updateProperty("status", "Status", updates.status, 'status');
     updateProperty("goal", "Goal", updates.goal, 'rich_text'); 
     updateProperty("priorityPattern", "Priority Pattern", updates.priorityPattern, 'select'); // Expecting 'select' type in Notion
     updateProperty("notes", "Additional Notes", updates.notes, 'rich_text'); 
-    updateProperty("sessionNorthStar", "Session North Star", updates.sessionNorthStar, 'rich_text');
+    // Removed updateProperty for "sessionNorthStar" as it's now handled by "sessionAnchor"
     
     if (updates.acupointId !== undefined) {
       updateProperty("acupointId", "🔺 Acupoints", updates.acupointId, 'relation'); 

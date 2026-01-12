@@ -29,8 +29,7 @@
     const ActiveSession = () => {
       const { appointmentId } = useParams<{ appointmentId: string }>();
       const [appointment, setAppointment] = useState<Appointment | null>(null);
-      const [sessionAnchorText, setSessionAnchorText] = useState('');
-      const [sessionNorthStarText, setSessionNorthStarText] = useState('');
+      const [sessionNorthStarText, setSessionNorthStarText] = useState(''); // This will now handle the combined "Session North Star"
       const [modes, setModes] = useState<Mode[]>([]);
       const [selectedMode, setSelectedMode] = useState<Mode | null>(null);
       const [isModeSelectOpen, setIsModeSelectOpen] = useState(false);
@@ -53,7 +52,7 @@
       // Memoized callbacks for fetchSingleAppointment
       const onSingleAppointmentSuccess = useCallback((data: GetSingleAppointmentResponse) => {
         setAppointment(data.appointment);
-        setSessionAnchorText(data.appointment.sessionAnchor || '');
+        // Initialize the single editable field from Notion's "Session North Star"
         setSessionNorthStarText(data.appointment.sessionNorthStar || '');
       }, []);
 
@@ -179,17 +178,6 @@
         }
       }, [appointmentId, fetchSingleAppointment, fetchModes, fetchAcupoints]); // Added fetchAcupoints to dependencies
 
-      const handleSessionAnchorChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-        const newText = e.target.value;
-        setSessionAnchorText(newText);
-      };
-
-      const handleSessionAnchorBlur = () => {
-        if (appointment && sessionAnchorText !== appointment.sessionAnchor) {
-          updateNotionAppointment({ appointmentId: appointment.id, updates: { sessionAnchor: sessionAnchorText } });
-        }
-      };
-
       const handleSessionNorthStarChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         const newText = e.target.value;
         setSessionNorthStarText(newText);
@@ -197,7 +185,8 @@
 
       const handleSessionNorthStarBlur = () => {
         if (appointment && sessionNorthStarText !== appointment.sessionNorthStar) {
-          updateNotionAppointment({ appointmentId: appointment.id, updates: { sessionNorthStar: sessionNorthStarText } });
+          // Now, `sessionAnchor` in the payload will update Notion's "Session North Star"
+          updateNotionAppointment({ appointmentId: appointment.id, updates: { sessionAnchor: sessionNorthStarText } });
         }
       };
 
@@ -387,23 +376,22 @@
                   </CardHeader>
 
                   <CardContent className="pt-6 space-y-4">
-                    {appointment.sessionNorthStar && (
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                          <Target className="w-4 h-4 text-indigo-600" />
-                          <span>Session North Star (Client Focus)</span>
-                        </div>
-                        <Textarea
-                          id="session-north-star"
-                          placeholder="e.g., 'Releasing tension in the shoulders related to stress.'"
-                          value={sessionNorthStarText}
-                          onChange={handleSessionNorthStarChange}
-                          onBlur={handleSessionNorthStarBlur}
-                          className="min-h-[80px]"
-                          disabled={updatingAppointment}
-                        />
+                    {/* Consolidated Session North Star input */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                        <Target className="w-4 h-4 text-indigo-600" />
+                        <span>Session North Star</span>
                       </div>
-                    )}
+                      <Textarea
+                        id="session-north-star"
+                        placeholder="e.g., 'Releasing tension in the shoulders related to stress.'"
+                        value={sessionNorthStarText}
+                        onChange={handleSessionNorthStarChange}
+                        onBlur={handleSessionNorthStarBlur}
+                        className="min-h-[80px]"
+                        disabled={updatingAppointment}
+                      />
+                    </div>
 
                     {appointment.goal && (
                       <div className="space-y-2">
@@ -428,23 +416,6 @@
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="pt-6 space-y-6">
-                    {/* Session Anchor */}
-                    <div className="space-y-2">
-                      <Label htmlFor="session-anchor" className="flex items-center gap-2 font-semibold text-gray-700">
-                        <Hand className="w-4 h-4 text-indigo-600" />
-                        Today we are really working with...
-                      </Label>
-                      <Textarea
-                        id="session-anchor"
-                        placeholder="e.g., 'Releasing tension in the shoulders related to stress.'"
-                        value={sessionAnchorText}
-                        onChange={handleSessionAnchorChange}
-                        onBlur={handleSessionAnchorBlur}
-                        className="min-h-[80px]"
-                        disabled={updatingAppointment}
-                      />
-                    </div>
-
                     {/* Mode Selection */}
                     <div className="space-y-2">
                       <Label htmlFor="mode-select" className="flex items-center gap-2 font-semibold text-gray-700">
