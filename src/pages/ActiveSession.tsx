@@ -25,7 +25,8 @@
       GetAcupointsPayload, GetAcupointsResponse,
       UpdateNotionAppointmentPayload, UpdateNotionAppointmentResponse,
       LogSessionEventPayload, LogSessionEventResponse,
-      GetSessionLogsPayload, GetSessionLogsResponse
+      GetSessionLogsPayload, GetSessionLogsResponse,
+      DeleteSessionLogPayload, DeleteSessionLogResponse // Import new types
     } from '@/types/api';
 
     const ActiveSession = () => {
@@ -179,7 +180,11 @@
 
       // New hook for fetching session logs
       const onSessionLogsSuccess = useCallback((data: GetSessionLogsResponse) => {
-        const combinedLogs = [...data.sessionLogs, ...data.sessionMuscleLogs];
+        // Add discriminator to each log type for easier identification in the UI
+        const generalLogsWithDiscriminator = data.sessionLogs.map(log => ({ ...log, log_type_discriminator: 'session_log' as const }));
+        const muscleLogsWithDiscriminator = data.sessionMuscleLogs.map(log => ({ ...log, log_type_discriminator: 'session_muscle_log' as const }));
+
+        const combinedLogs = [...generalLogsWithDiscriminator, ...muscleLogsWithDiscriminator];
         // Sort by created_at to display chronologically
         combinedLogs.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
         setSessionLogs(combinedLogs);
@@ -202,6 +207,28 @@
         }
       );
 
+      // New hook for deleting session logs
+      const onDeleteSessionLogSuccess = useCallback(() => {
+        toast({ title: 'Log Deleted', description: 'Session log entry removed.' });
+        if (appointmentId) fetchSessionLogs({ appointmentId }); // Refresh logs after deletion
+      }, [toast, appointmentId, fetchSessionLogs]);
+
+      const onDeleteSessionLogError = useCallback((msg: string) => {
+        toast({ variant: 'destructive', title: 'Deletion Failed', description: msg });
+      }, [toast]);
+
+      const {
+        loading: deletingSessionLog,
+        execute: deleteSessionLog,
+      } = useSupabaseEdgeFunction<DeleteSessionLogPayload, DeleteSessionLogResponse>(
+        'delete-session-log',
+        {
+          requiresAuth: true,
+          onSuccess: onDeleteSessionLogSuccess,
+          onError: onDeleteSessionLogError,
+        }
+      );
+
 
       useEffect(() => {
         if (appointmentId) {
@@ -220,7 +247,7 @@
       const handleSessionNorthStarBlur = () => {
         if (appointment && sessionNorthStarText !== appointment.sessionNorthStar) {
           // Now, `sessionAnchor` in the payload will update Notion's "Session North Star"
-          updateNotionAppointment({ appointmentId: appointment.id, updates: { sessionAnchor: sessionNorthStarText } });
+          updateNotionAppointment({ appointmentId: appointment.id, updates: { sessionNorthStar: sessionNorthStarText } });
         }
       };
 
@@ -340,6 +367,12 @@
 
       const handleClearModeSelection = () => {
         setSelectedMode(null);
+      };
+
+      const handleDeleteLogEntry = async (logId: string, logTypeDiscriminator: 'session_log' | 'session_muscle_log') => {
+        if (window.confirm('Are you sure you want to delete this log entry?')) {
+          await deleteSessionLog({ logId, logType: logTypeDiscriminator });
+        }
       };
 
       if (loadingAppointment || loadingModes || loadingAcupoints || loadingSessionLogs) {
@@ -749,37 +782,46 @@
                               {format(new Date(log.created_at), 'HH:mm')}
                             </span>
                             <div className="flex-grow">
-                              {'log_type' in log ? ( // Check if it's a general session log
+                              {log.log_type_discriminator === 'session_log' ? ( // Check if it's a general session log
                                 <>
                                   {log.log_type === 'mode_selected' && (
                                     <p className="text-sm text-gray-800">
                                       <Badge variant="secondary" className="bg-blue-100 text-blue-800 mr-2">Mode</Badge>
-                                      Selected Mode: <span className="font-semibold">{log.details?.modeName}</span>
-                                      {log.details?.actionNote && <span className="text-gray-600 ml-1">({log.details.actionNote})</span>}
+                                      Selected Mode: <span className="font-semibold">{(log as SessionLog).details?.modeName}</span>
+                                      {(log as SessionLog).details?.actionNote && <span className="text-gray-600 ml-1">({(log as SessionLog).details.actionNote})</span>}
                                     </p>
                                   )}
                                   {log.log_type === 'acupoint_added' && (
                                     <p className="text-sm text-gray-800">
                                       <Badge variant="secondary" className="bg-green-100 text-green-800 mr-2">Acupoint</Badge>
-                                      Added Acupoint: <span className="font-semibold">{log.details?.acupointName}</span>
-                                      {log.details?.channel && <span className="text-gray-600 ml-1">({log.details.channel})</span>}
+                                      Added Acupoint: <span className="font-semibold">{(log as SessionLog).details?.acupointName}</span>
+                                      {(log as SessionLog).details?.channel && <span className="text-gray-600 ml-1">({(log as SessionLog).details.channel})</span>}
                                     </p>
                                   )}
                                   {log.log_type === 'chakra_selected' && (
                                     <p className="text-sm text-gray-800">
                                       <Badge variant="secondary" className="bg-purple-100 text-purple-800 mr-2">Chakra</Badge>
-                                      Selected Chakra: <span className="font-semibold">{log.details?.chakraName}</span>
-                                      {log.details?.emotionalThemes && log.details.emotionalThemes.length > 0 && <span className="text-gray-600 ml-1">({log.details.emotionalThemes.join(', ')})</span>}
+                                      Selected Chakra: <span className="font-semibold">{(log as SessionLog).details?.chakraName}</span>
+                                      {(log as SessionLog).details?.emotionalThemes && (log as SessionLog).details.emotionalThemes.length > 0 && <span className="text-gray-600 ml-1">({(log as SessionLog).details.emotionalThemes.join(', ')})</span>}
                                     </p>
                                   )}
                                 </>
                               ) : ( // It's a muscle strength log
                                 <p className="text-sm text-gray-800">
-                                  <Badge variant="secondary" className={log.is_strong ? "bg-green-100 text-green-800 mr-2" : "bg-red-100 text-red-800 mr-2"}>Muscle Test</Badge>
-                                  Muscle <span className="font-semibold">{log.muscle_name}</span> tested <span className={log.is_strong ? "text-green-700 font-semibold" : "text-red-700 font-semibold"}>{log.is_strong ? 'Strong' : 'Weak'}</span>.
+                                  <Badge variant="secondary" className={(log as SessionMuscleLog).is_strong ? "bg-green-100 text-green-800 mr-2" : "bg-red-100 text-red-800 mr-2"}>Muscle Test</Badge>
+                                  Muscle <span className="font-semibold">{(log as SessionMuscleLog).muscle_name}</span> tested <span className={(log as SessionMuscleLog).is_strong ? "text-green-700 font-semibold" : "text-red-700 font-semibold"}>{(log as SessionMuscleLog).is_strong ? 'Strong' : 'Weak'}</span>.
                                 </p>
                               )}
                             </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteLogEntry(log.id, log.log_type_discriminator)}
+                              disabled={deletingSessionLog}
+                              className="flex-shrink-0"
+                            >
+                              <Trash2 className="h-4 w-4 text-gray-500 hover:text-red-500" />
+                            </Button>
                           </div>
                         ))}
                       </div>

@@ -84,6 +84,8 @@ export interface SessionMuscleLog {
   muscle_name: string;
   is_strong: boolean;
   notes: string | null;
+  // Add a discriminator for union types
+  log_type_discriminator: 'session_muscle_log';
 }
 
 export interface SessionLog {
@@ -93,6 +95,8 @@ export interface SessionLog {
   appointment_id: string;
   log_type: string;
   details: Record<string, any> | null; // JSONB type for flexible details
+  // Add a discriminator for union types
+  log_type_discriminator: 'session_log';
 }
 
 export interface NotionSecrets {
@@ -236,4 +240,15 @@ export interface GetSessionLogsPayload {
 export interface GetSessionLogsResponse {
   sessionLogs: SessionLog[];
   sessionMuscleLogs: SessionMuscleLog[];
+}
+
+// New types for deleting session logs
+export interface DeleteSessionLogPayload {
+  logId: string;
+  logType: 'session_log' | 'session_muscle_log';
+}
+
+export interface DeleteSessionLogResponse {
+  success: boolean;
+  deletedLogId: string;
 }
