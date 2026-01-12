@@ -1,5 +1,7 @@
+/// <reference path="../_shared/starSignCalculator.ts" />
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
+import { calculateStarSign } from '../_shared/starSignCalculator.ts'; // Import the new utility
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -93,14 +95,16 @@ serve(async (req) => {
 
     const clients = notionClientsData.results.map((page: any) => {
       const properties = page.properties
+      const birthDate = properties["Born"]?.date?.start || null; // Fetch 'Born' date
+      const starSign = calculateStarSign(birthDate); // Calculate star sign
+
       return {
         id: page.id,
         name: properties.Name?.title?.[0]?.plain_text || "Unknown Client",
         focus: properties.Focus?.rich_text?.[0]?.plain_text || "",
         email: properties.Email?.email || "",
         phone: properties.Phone?.phone_number || "",
-        // Correctly parse Star Sign from an equation property
-        starSign: properties["Star Sign"]?.formula?.string || "Unknown",
+        starSign: starSign, // Use the calculated star sign
       }
     })
 

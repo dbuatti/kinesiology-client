@@ -1,5 +1,7 @@
+/// <reference path="../_shared/starSignCalculator.ts" />
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
+import { calculateStarSign } from '../_shared/starSignCalculator.ts'; // Import the new utility
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -133,9 +135,9 @@ serve(async (req) => {
         const clientProperties = clientData.properties
 
         clientName = clientProperties.Name?.title?.[0]?.plain_text || clientName
-        // Correctly parse Star Sign from an equation property
-        starSign = clientProperties["Star Sign"]?.formula?.string || "Unknown"
-        console.log(`[get-single-appointment] CRM details fetched for ${clientName}, starSign from CRM: ${starSign}`)
+        const birthDate = clientProperties["Born"]?.date?.start || null; // Fetch 'Born' date
+        starSign = calculateStarSign(birthDate); // Calculate star sign
+        console.log(`[get-single-appointment] CRM details fetched for ${clientName}, starSign calculated: ${starSign}`)
       } else {
         const errorText = await notionClientResponse.text()
         console.warn(`[get-single-appointment] Failed to fetch CRM details for client ID ${clientCrmRelation}:`, errorText)
