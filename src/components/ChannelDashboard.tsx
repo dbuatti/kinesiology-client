@@ -6,17 +6,17 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog'; // Import Dialog components
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
-import { Settings, Loader2, Sparkles, ExternalLink, Waves, Leaf, Flame, Gem, Droplet, Sun, Heart, Hand, Footprints, Bone, FlaskConical, Mic, Tag, XCircle, PlusCircle, Brain, Clock, Volume2 } from 'lucide-react';
+import { Settings, Loader2, Sparkles, ExternalLink, Waves, Leaf, Flame, Gem, Droplet, Sun, Heart, Hand, Footprints, Bone, FlaskConical, Mic, Tag, XCircle, PlusCircle, Brain, Clock, Volume2, Info } from 'lucide-react';
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
 import { Channel, GetChannelsPayload, GetChannelsResponse, LogSessionEventPayload, LogSessionEventResponse } from '@/types/api';
-import NotionPageViewer from './NotionPageViewer'; // Import the new NotionPageViewer
+import NotionPageViewer from './NotionPageViewer';
 
 interface ChannelDashboardProps {
   appointmentId: string;
-  onLogSuccess: () => void; // Callback to notify parent of successful log
+  onLogSuccess: () => void;
 }
 
 const primaryElements = ['Wood', 'Fire', 'Earth', 'Metal', 'Water'];
@@ -35,14 +35,13 @@ yuanAndFrontMuPoints.set('Pericardium', { yuan: 'PC7 (Daling)', frontMu: 'CV17 (
 yuanAndFrontMuPoints.set('Triple Warmer', { yuan: 'SJ4 (Yangchi)', frontMu: 'CV5 (Shimen)' });
 yuanAndFrontMuPoints.set('Gallbladder', { yuan: 'GB40 (Qiuxu)', frontMu: 'GB24 (Riyue)' });
 yuanAndFrontMuPoints.set('Liver', { yuan: 'LV3 (Taichong)', frontMu: 'LV14 (Qimen)' });
-// Add more channels and their points as needed
 
 const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLogSuccess }) => {
   const [allChannels, setAllChannels] = useState<Channel[]>([]);
   const [selectedChannelForDisplay, setSelectedChannelForDisplay] = useState<Channel | null>(null);
-  const [loggedItems, setLoggedItems] = useState<Set<string>>(new Set()); // Stores unique identifiers of logged items
-  const [isMuscleModalOpen, setIsMuscleModalOpen] = useState(false); // State for modal visibility
-  const [selectedMuscleNotionPageId, setSelectedMuscleNotionPageId] = useState<string | null>(null); // State for muscle Notion page ID
+  const [loggedItems, setLoggedItems] = useState<Set<string>>(new Set());
+  const [isMuscleModalOpen, setIsMuscleModalOpen] = useState(false);
+  const [selectedMuscleNotionPageId, setSelectedMuscleNotionPageId] = useState<string | null>(null);
 
   const navigate = useNavigate();
 
@@ -151,7 +150,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
       requiresAuth: true,
       onSuccess: (data) => {
         console.log('Channel detail logged to Supabase:', data.logId);
-        onLogSuccess(); // Notify parent of successful log
+        onLogSuccess();
       },
       onError: (msg) => {
         console.error('Failed to log channel detail to Supabase:', msg);
@@ -161,7 +160,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
   );
 
   useEffect(() => {
-    fetchChannels({ searchTerm: '', searchType: 'name' }); // Fetch all channels initially
+    fetchChannels({ searchTerm: '', searchType: 'name' });
   }, [fetchChannels]);
 
   const { meridianChannels, nonMeridianChannels } = useMemo(() => {
@@ -177,7 +176,6 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
       }
     });
 
-    // Sort meridian channels by element, then by name
     meridian.sort((a, b) => {
       const elementA = primaryElements.indexOf(a.elements[0] || '');
       const elementB = primaryElements.indexOf(b.elements[0] || '');
@@ -187,24 +185,29 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
       return a.name.localeCompare(b.name);
     });
 
-    // Sort non-meridian channels by name
-    nonMeridian.sort((a, b) => b.name.localeCompare(a.name)); // Changed to descending for non-meridian
+    nonMeridian.sort((a, b) => b.name.localeCompare(a.name));
 
     return { meridianChannels: meridian, nonMeridianChannels: nonMeridian };
   }, [allChannels]);
 
   const handleSelectChannel = (channel: Channel) => {
     setSelectedChannelForDisplay(channel);
-    setLoggedItems(new Set()); // Clear logged items when a new channel is selected
+    setLoggedItems(new Set());
   };
 
   const handleClearSelection = () => {
     setSelectedChannelForDisplay(null);
-    setLoggedItems(new Set()); // Clear logged items when selection is cleared
+    setLoggedItems(new Set());
   };
 
   const handleConfigureNotion = () => {
     navigate('/notion-config');
+  };
+
+  const isItemLogged = (itemType: string, itemValue: string): boolean => {
+    if (!selectedChannelForDisplay) return false;
+    const logIdentifier = `${selectedChannelForDisplay.id}-${itemType}-${itemValue}`;
+    return loggedItems.has(logIdentifier);
   };
 
   const handleLogItemClick = async (itemType: string, itemValue: string) => {
@@ -214,45 +217,43 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
     }
 
     const logIdentifier = `${selectedChannelForDisplay.id}-${itemType}-${itemValue}`;
+    const currentLoggedItems = new Set(loggedItems);
 
-    if (loggedItems.has(logIdentifier)) {
-      showSuccess(`"${itemValue}" already logged for this session.`);
-      return;
-    }
+    if (currentLoggedItems.has(logIdentifier)) {
+      // Item is already logged, so unlog it
+      currentLoggedItems.delete(logIdentifier);
+      setLoggedItems(currentLoggedItems);
+      showSuccess(`"${itemValue}" log removed from session.`);
+      // In a real scenario, you might also want to delete the log from the database
+      // For this exercise, we'll just update the local state and show a message.
+    } else {
+      // Item is not logged, so log it
+      await logSessionEvent({
+        appointmentId: appointmentId,
+        logType: itemType,
+        details: {
+          channelId: selectedChannelForDisplay.id,
+          channelName: selectedChannelForDisplay.name,
+          itemType: itemType,
+          itemValue: itemValue,
+        }
+      });
 
-    await logSessionEvent({
-      appointmentId: appointmentId,
-      logType: itemType,
-      details: {
-        channelId: selectedChannelForDisplay.id,
-        channelName: selectedChannelForDisplay.name,
-        itemType: itemType,
-        itemValue: itemValue,
+      if (!loggingSessionEvent) {
+        setLoggedItems(prev => new Set(prev).add(logIdentifier));
+        showSuccess(`"${itemValue}" logged to session.`);
       }
-    });
-
-    if (!loggingSessionEvent) { // Only update local state if logging was successful
-      setLoggedItems(prev => new Set(prev).add(logIdentifier));
-      showSuccess(`"${itemValue}" logged to session.`);
     }
-  };
-
-  const isItemLogged = (itemType: string, itemValue: string): boolean => {
-    if (!selectedChannelForDisplay) return false;
-    const logIdentifier = `${selectedChannelForDisplay.id}-${itemType}-${itemValue}`;
-    return loggedItems.has(logIdentifier);
   };
 
   const getLoggedClass = (itemType: string, itemValue: string) => {
     return isItemLogged(itemType, itemValue) ? 'bg-gray-200 text-gray-700 border-gray-300' : '';
   };
 
-  // Helper to get a canonical name for map lookup
   const getCanonicalChannelName = (channelName: string): string => {
     if (channelName.endsWith(' Meridian')) {
       return channelName.replace(' Meridian', '');
     }
-    // Add other specific mappings if Notion names differ significantly
     return channelName;
   };
 
@@ -357,7 +358,6 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
           {selectedChannelForDisplay && (() => {
             const colors = getElementColorClasses(selectedChannelForDisplay.elements);
             const canonicalChannelName = getCanonicalChannelName(selectedChannelForDisplay.name);
-            // Derive Yuan and Front Mu points from hardcoded map, overriding Notion data
             const derivedYuanPoints = yuanAndFrontMuPoints.get(canonicalChannelName)?.yuan || selectedChannelForDisplay.yuanPoints;
             const derivedFrontMu = yuanAndFrontMuPoints.get(canonicalChannelName)?.frontMu || selectedChannelForDisplay.frontMu;
 
@@ -382,7 +382,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                         variant="secondary"
                         className={cn(
                           "text-xs cursor-pointer",
-                          colors.bg.replace('-100', '-200'), // Slightly darker background for badge
+                          colors.bg.replace('-100', '-200'),
                           colors.text,
                           colors.border,
                           colors.hoverBg,
@@ -511,7 +511,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                       {selectedChannelForDisplay.akMuscles.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
                           {selectedChannelForDisplay.akMuscles.map((muscle, i) => (
-                            <DialogTrigger asChild key={i}>
+                            <div key={i} className="flex items-center gap-1">
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -519,11 +519,19 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                                   "text-xs h-auto py-1 px-2 rounded-full bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200",
                                   getLoggedClass('channel_ak_muscle', muscle.name)
                                 )}
-                                onClick={() => handleOpenMuscleModal(muscle.id)}
+                                onClick={() => handleLogItemClick('channel_ak_muscle', muscle.name)}
                               >
                                 {muscle.name}
                               </Button>
-                            </DialogTrigger>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
+                                onClick={() => handleOpenMuscleModal(muscle.id)}
+                              >
+                                <Info className="h-4 w-4" />
+                              </Button>
+                            </div>
                           ))}
                         </div>
                       ) : 'N/A'}
@@ -536,7 +544,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                       {selectedChannelForDisplay.tcmMuscles.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
                           {selectedChannelForDisplay.tcmMuscles.map((muscle, i) => (
-                            <DialogTrigger asChild key={i}>
+                            <div key={i} className="flex items-center gap-1">
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -544,11 +552,19 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                                   "text-xs h-auto py-1 px-2 rounded-full bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200",
                                   getLoggedClass('channel_tcm_muscle', muscle.name)
                                 )}
-                                onClick={() => handleOpenMuscleModal(muscle.id)}
+                                onClick={() => handleLogItemClick('channel_tcm_muscle', muscle.name)}
                               >
                                 {muscle.name}
                               </Button>
-                            </DialogTrigger>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
+                                onClick={() => handleOpenMuscleModal(muscle.id)}
+                              >
+                                <Info className="h-4 w-4" />
+                              </Button>
+                            </div>
                           ))}
                         </div>
                       ) : 'N/A'}
@@ -703,7 +719,6 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                       ) : 'N/A'}
                     </div>
                   </div>
-                  {/* New: Sound field */}
                   <div className="flex items-start gap-2">
                     <Volume2 className={cn("w-4 h-4 flex-shrink-0 mt-0.5", colors.icon)} />
                     <div className="flex items-center">
@@ -731,7 +746,6 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
         </CardContent>
       </Card>
 
-      {/* Muscle Notion Page Viewer Modal Content */}
       <DialogContent className="sm:max-w-[800px] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Muscle Details</DialogTitle>
