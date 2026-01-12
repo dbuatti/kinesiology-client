@@ -10,7 +10,7 @@ import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from '
 import { Badge } from '@/components/ui/badge';
 import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
 import { cn } from '@/lib/utils';
-import { Search, Check, ChevronsUpDown, Hand, Info, Image, Settings, Loader2, Trash2 } from 'lucide-react';
+import { Search, Check, ChevronsUpDown, Hand, Info, Image, Settings, Loader2, Trash2, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
 import { Muscle, GetMusclesPayload, GetMusclesResponse, LogMuscleStrengthPayload, LogMuscleStrengthResponse } from '@/types/api';
@@ -216,8 +216,16 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onCle
         {selectedMuscle && (
           <Card className="border-2 border-purple-300 bg-purple-50 shadow-md">
             <CardHeader className="flex flex-row items-center justify-between p-4 pb-2">
-              <CardTitle className="text-xl font-bold text-purple-800">
+              <CardTitle className="text-xl font-bold text-purple-800 flex items-center gap-2">
                 {selectedMuscle.name}
+                <a
+                  href={`https://www.notion.so/${selectedMuscle.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ml-2 text-purple-600 hover:text-purple-800"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                </a>
               </CardTitle>
               <div className="flex gap-2">
                 {selectedMuscle.meridian && (

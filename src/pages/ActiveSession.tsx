@@ -11,7 +11,7 @@
     import { Label } from '@/components/ui/label';
     import { Badge } from '@/components/ui/badge';
     import { Input } from '@/components/ui/input';
-    import { Calendar, User, Star, Target, Clock, Settings, AlertCircle, Check, ChevronsUpDown, Lightbulb, Hand, XCircle, PlusCircle, Search, Sparkles, ListChecks, Trash2, Loader2 } from 'lucide-react';
+    import { Calendar, User, Star, Target, Clock, Settings, AlertCircle, Check, ChevronsUpDown, Lightbulb, Hand, XCircle, PlusCircle, Search, Sparkles, ListChecks, Trash2, Loader2, ExternalLink } from 'lucide-react';
     import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
     import { cn } from '@/lib/utils';
     import { format } from 'date-fns';
@@ -552,8 +552,16 @@
                       {selectedMode && (
                         <Card className="border-2 border-purple-300 bg-purple-50 shadow-md mt-4">
                           <CardHeader className="flex flex-row items-center justify-between p-4 pb-2">
-                            <CardTitle className="text-xl font-bold text-purple-800">
+                            <CardTitle className="text-xl font-bold text-purple-800 flex items-center gap-2">
                               {selectedMode.name}
+                              <a
+                                href={`https://www.notion.so/${selectedMode.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="ml-2 text-purple-600 hover:text-purple-800"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                              </a>
                             </CardTitle>
                           </CardHeader>
                           <CardContent className="pt-2 space-y-3 text-gray-800">
@@ -693,8 +701,16 @@
                         {selectedAcupoint && (
                           <Card className="border-2 border-purple-300 bg-purple-50 shadow-md">
                             <CardHeader className="flex flex-row items-center justify-between p-4 pb-2">
-                              <CardTitle className="text-xl font-bold text-purple-800">
+                              <CardTitle className="text-xl font-bold text-purple-800 flex items-center gap-2">
                                 {selectedAcupoint.name}
+                                <a
+                                  href={`https://www.notion.so/${selectedAcupoint.id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="ml-2 text-purple-600 hover:text-purple-800"
+                                >
+                                  <ExternalLink className="w-4 h-4" />
+                                </a>
                               </CardTitle>
                               <div className="flex gap-2">
                                 {selectedAcupoint.channel && (
