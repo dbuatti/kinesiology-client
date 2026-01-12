@@ -14,7 +14,6 @@ interface UseSupabaseEdgeFunctionOptions {
   onNotionConfigNeeded?: () => void;
 }
 
-// Define a new response type for the get-notion-secrets edge function
 interface GetNotionSecretsResponse {
   secrets: NotionSecrets;
 }
@@ -41,10 +40,17 @@ export const useSupabaseEdgeFunction = <TRequest, TResponse>(
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://hcriagmovotwuqbppcfm.supabase.co';
 
   const execute = useCallback(async (payload?: TRequest) => {
+    // Prevent re-execution if already in a 'needs config' state and not explicitly trying to save config
+    if (needsConfig && functionName !== 'set-notion-secrets') {
+      console.log(`[useSupabaseEdgeFunction] Skipping execution for ${functionName} because Notion config is needed.`);
+      setLoading(false); // Ensure loading is false
+      return;
+    }
+
     console.log(`[useSupabaseEdgeFunction] Executing ${functionName} with payload:`, payload);
     setLoading(true);
     setError(null);
-    setNeedsConfig(false);
+    // setNeedsConfig(false); // Only reset if we are actually going to try fetching config again
     setData(null);
 
     try {
@@ -56,6 +62,7 @@ export const useSupabaseEdgeFunction = <TRequest, TResponse>(
           console.log(`[useSupabaseEdgeFunction] No session found for ${functionName}, navigating to login.`);
           toast({ variant: 'destructive', title: 'Authentication Required', description: 'Please log in to continue.' });
           navigate('/login');
+          setLoading(false);
           return;
         }
         session = currentSession;
@@ -65,7 +72,6 @@ export const useSupabaseEdgeFunction = <TRequest, TResponse>(
       if (requiresNotionConfig && session) {
         console.log(`[useSupabaseEdgeFunction] Checking Notion config for ${functionName} using get-notion-secrets edge function.`);
         
-        // Use the new edge function to fetch secrets
         const secretsResponse = await fetch(
           `${supabaseUrl}/functions/v1/get-notion-secrets`,
           {
@@ -84,7 +90,7 @@ export const useSupabaseEdgeFunction = <TRequest, TResponse>(
             setNeedsConfig(true);
             onNotionConfigNeeded?.();
             setLoading(false);
-            return;
+            return; // Stop execution here
           } else {
             console.error(`[useSupabaseEdgeFunction] Error fetching Notion secrets via edge function for ${functionName}:`, errorData);
             throw new Error(errorData.error || 'Failed to fetch Notion configuration.');
@@ -98,8 +104,10 @@ export const useSupabaseEdgeFunction = <TRequest, TResponse>(
           setNeedsConfig(true);
           onNotionConfigNeeded?.();
           setLoading(false);
-          return;
+          return; // Stop execution here
         }
+        // If config is found, ensure needsConfig is false
+        if (needsConfig) setNeedsConfig(false); // Reset if it was true from a previous state
         console.log(`[useSupabaseEdgeFunction] Notion config found for ${functionName}.`);
       }
 
@@ -135,8 +143,8 @@ export const useSupabaseEdgeFunction = <TRequest, TResponse>(
         } else {
           toast({ variant: 'destructive', title: 'Error', description: errorMessage });
         }
-        setLoading(false); // Ensure loading is false on error
-        return;
+        setLoading(false);
+        return; // Stop execution here
       }
 
       const result = await response.json();
@@ -154,7 +162,7 @@ export const useSupabaseEdgeFunction = <TRequest, TResponse>(
       console.log(`[useSupabaseEdgeFunction] Finally block reached for ${functionName}. Setting loading to false.`);
       setLoading(false);
     }
-  }, [functionName, requiresAuth, requiresNotionConfig, onSuccess, onError, onNotionConfigNeeded, navigate, toast, supabaseUrl]);
+  }, [functionName, requiresAuth, requiresNotionConfig, onSuccess, onError, onNotionConfigNeeded, navigate, toast, supabaseUrl, needsConfig]);
 
   return { data, loading, error, needsConfig, execute };
 };
