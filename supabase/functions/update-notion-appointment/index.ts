@@ -117,9 +117,12 @@ serve(async (req) => {
     }
     const currentAppointmentData = await currentAppointmentResponse.json();
     const existingNotionProperties = currentAppointmentData.properties;
+    console.log("[update-notion-appointment] Existing Notion properties:", JSON.stringify(existingNotionProperties, null, 2));
+
 
     const updateProperty = (propertyName: string, notionKey: string, value: any, type: 'rich_text' | 'status' | 'select' | 'relation') => {
       if (existingNotionProperties[notionKey]) {
+        console.log(`[update-notion-appointment] Property '${notionKey}' exists. Attempting to update.`);
         if (value !== undefined) {
           if (type === 'rich_text') {
             notionProperties[notionKey] = { rich_text: [{ type: "text", text: { content: value } }] };

@@ -86,6 +86,15 @@ export interface SessionMuscleLog {
   notes: string | null;
 }
 
+export interface SessionLog {
+  id: string;
+  created_at: string;
+  user_id: string;
+  appointment_id: string;
+  log_type: string;
+  details: Record<string, any> | null; // JSONB type for flexible details
+}
+
 export interface NotionSecrets {
   id: string; // This is now the user_id and primary key
   notion_integration_token: string;
