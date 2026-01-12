@@ -64,6 +64,17 @@ export interface Channel {
   emotions: string[];
 }
 
+export interface Chakra {
+  id: string;
+  name: string;
+  location: string;
+  color: string | null;
+  elements: string[];
+  associatedOrgans: string[];
+  emotionalThemes: string[];
+  affirmations: string;
+}
+
 export interface SessionMuscleLog {
   id: string;
   created_at: string;
@@ -82,7 +93,8 @@ export interface NotionSecrets {
   modes_database_id: string | null;
   acupoints_database_id: string | null;
   muscles_database_id: string | null;
-  channels_database_id: string | null; // New: Channels Database ID
+  channels_database_id: string | null;
+  chakras_database_id: string | null; // New: Chakras Database ID
 }
 
 // Edge Function Payloads and Responses
@@ -157,6 +169,15 @@ export interface GetChannelsResponse {
   channels: Channel[];
 }
 
+export interface GetChakrasPayload {
+  searchTerm?: string;
+  searchType?: 'name' | 'element' | 'emotion' | 'organ';
+}
+
+export interface GetChakrasResponse {
+  chakras: Chakra[];
+}
+
 export interface SetNotionSecretsPayload {
   notionToken: string;
   appointmentsDbId: string;
@@ -164,7 +185,8 @@ export interface SetNotionSecretsPayload {
   modesDbId: string | null;
   acupointsDbId: string | null;
   musclesDbId: string | null;
-  channelsDbId: string | null; // New: Channels Database ID
+  channelsDbId: string | null;
+  chakrasDbId: string | null; // New: Chakras Database ID
 }
 
 export interface SetNotionSecretsResponse {

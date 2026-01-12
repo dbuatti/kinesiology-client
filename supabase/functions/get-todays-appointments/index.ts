@@ -96,7 +96,7 @@ serve(async (req) => {
     // Fetch Notion credentials from secure secrets table
     const { data: secrets, error: secretsError } = await serviceRoleSupabase
       .from('notion_secrets')
-      .select('notion_integration_token, appointments_database_id, crm_database_id')
+      .select('notion_integration_token, appointments_database_id, crm_database_id, chakras_database_id') // Added chakras_database_id
       .eq('user_id', user.id)
       .single()
 

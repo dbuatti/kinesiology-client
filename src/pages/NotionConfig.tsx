@@ -19,7 +19,8 @@ const NotionConfig = () => {
   const [modesDbId, setModesDbId] = useState('');
   const [acupointsDbId, setAcupointsDbId] = useState('');
   const [musclesDbId, setMusclesDbId] = useState('');
-  const [channelsDbId, setChannelsDbId] = useState(''); // New state for Channels DB ID
+  const [channelsDbId, setChannelsDbId] = useState('');
+  const [chakrasDbId, setChakrasDbId] = useState(''); // New state for Chakras DB ID
   const [loadingInitial, setLoadingInitial] = useState(true); // Separate loading for initial fetch
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -54,7 +55,7 @@ const NotionConfig = () => {
 
         const { data, error } = await supabase
           .from('notion_secrets')
-          .select('notion_integration_token, appointments_database_id, crm_database_id, modes_database_id, acupoints_database_id, muscles_database_id, channels_database_id') // Include new channels_database_id
+          .select('notion_integration_token, appointments_database_id, crm_database_id, modes_database_id, acupoints_database_id, muscles_database_id, channels_database_id, chakras_database_id') // Include new chakras_database_id
           .eq('user_id', user.id)
           .single();
 
@@ -70,7 +71,8 @@ const NotionConfig = () => {
           setModesDbId(secrets.modes_database_id || '');
           setAcupointsDbId(secrets.acupoints_database_id || '');
           setMusclesDbId(secrets.muscles_database_id || '');
-          setChannelsDbId(secrets.channels_database_id || ''); // Set new channelsDbId
+          setChannelsDbId(secrets.channels_database_id || '');
+          setChakrasDbId(secrets.chakras_database_id || ''); // Set new chakrasDbId
         }
       } catch (error: any) {
         toast({
@@ -109,8 +111,12 @@ const NotionConfig = () => {
       toast({ variant: 'destructive', title: 'Validation Error', description: 'Muscles Database ID cannot be empty.' });
       return;
     }
-    if (!channelsDbId.trim()) { // New validation for Channels DB ID
+    if (!channelsDbId.trim()) {
       toast({ variant: 'destructive', title: 'Validation Error', description: 'Channels Database ID cannot be empty.' });
+      return;
+    }
+    if (!chakrasDbId.trim()) { // New validation for Chakras DB ID
+      toast({ variant: 'destructive', title: 'Validation Error', description: 'Chakras Database ID cannot be empty.' });
       return;
     }
 
@@ -121,7 +127,8 @@ const NotionConfig = () => {
       modesDbId: modesDbId || null,
       acupointsDbId: acupointsDbId || null,
       musclesDbId: musclesDbId || null,
-      channelsDbId: channelsDbId || null, // Include new channelsDbId
+      channelsDbId: channelsDbId || null,
+      chakrasDbId: chakrasDbId || null, // Include new chakrasDbId
     });
   };
 
@@ -252,7 +259,7 @@ const NotionConfig = () => {
                     </p>
                   </div>
 
-                  {/* Muscles Database ID (New Field) */}
+                  {/* Muscles Database ID */}
                   <div className="space-y-2">
                     <Label htmlFor="muscles" className="flex items-center gap-2 font-semibold">
                       <Database className="w-4 h-4 text-indigo-600" />
@@ -271,7 +278,7 @@ const NotionConfig = () => {
                     </p>
                   </div>
 
-                  {/* Channels Database ID (New Field) */}
+                  {/* Channels Database ID */}
                   <div className="space-y-2">
                     <Label htmlFor="channels" className="flex items-center gap-2 font-semibold">
                       <Database className="w-4 h-4 text-indigo-600" />
@@ -287,6 +294,25 @@ const NotionConfig = () => {
                     />
                     <p className="text-xs text-gray-500">
                       ID for your Channels reference database.
+                    </p>
+                  </div>
+
+                  {/* Chakras Database ID (New Field) */}
+                  <div className="space-y-2">
+                    <Label htmlFor="chakras" className="flex items-center gap-2 font-semibold">
+                      <Database className="w-4 h-4 text-indigo-600" />
+                      Chakras Database ID
+                    </Label>
+                    <Input
+                      id="chakras"
+                      type="text"
+                      placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                      value={chakrasDbId}
+                      onChange={(e) => setChakrasDbId(e.target.value)}
+                      disabled={savingConfig}
+                    />
+                    <p className="text-xs text-gray-500">
+                      ID for your Chakras reference database.
                     </p>
                   </div>
 
@@ -315,7 +341,7 @@ const NotionConfig = () => {
                   <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
                     <li>Create a Notion integration at notion.com/my-integrations</li>
                     <li>Copy the "Internal Integration Token"</li>
-                    <li>Share your databases (Appointments, CRM, Modes, Acupoints, Muscles, Channels) with the integration</li>
+                    <li>Share your databases (Appointments, CRM, Modes, Acupoints, Muscles, Channels, Chakras) with the integration</li>
                     <li>Copy each database ID from its share link</li>
                     <li>Paste all values above and save</li>
                   </ol>
