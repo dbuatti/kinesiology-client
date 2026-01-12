@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Calendar, Settings, AlertCircle, PlayCircle, User, Star, Target, Lightbulb } from 'lucide-react';
+import { Calendar, Settings, AlertCircle, PlayCircle, User, Star, Target, Lightbulb, Loader2 } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
 import { format } from 'date-fns';
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
@@ -202,7 +202,7 @@ const WaitingRoom = () => {
                     onClick={() => handleStartSession(appointment.id)}
                     disabled={updatingAppointment}
                   >
-                    <PlayCircle className="w-5 h-5 mr-2" />
+                    {updatingAppointment ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <PlayCircle className="w-5 h-5 mr-2" />}
                     {updatingAppointment ? 'Starting Session...' : 'Start Session'}
                   </Button>
                 </CardContent>

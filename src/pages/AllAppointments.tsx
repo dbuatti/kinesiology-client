@@ -177,7 +177,8 @@ const AllAppointments = () => {
                 />
               </div>
               <Button onClick={() => fetchAllAppointments()} variant="outline" disabled={loadingAppointments}>
-                {loadingAppointments ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Refresh'}
+                {loadingAppointments ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                {loadingAppointments ? 'Refreshing...' : 'Refresh'}
               </Button>
             </div>
 

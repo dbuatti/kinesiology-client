@@ -388,6 +388,7 @@ const NotionConfig = () => {
                         className="flex-1 h-12 text-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
                         disabled={savingConfig}
                       >
+                        {savingConfig ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : null}
                         {savingConfig ? 'Saving...' : 'Save to Secrets'}
                       </Button>
                       <Button

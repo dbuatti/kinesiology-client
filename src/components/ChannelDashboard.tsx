@@ -717,8 +717,8 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                 </div>
               </div>
               <div className="flex justify-end mt-4">
-                <Button variant="outline" onClick={handleClearSelection} size="sm">
-                  <XCircle className="h-4 w-4 mr-2" />
+                <Button variant="outline" onClick={handleClearSelection} size="sm" disabled={loggingSessionEvent}>
+                  {loggingSessionEvent ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />}
                   Clear Selection
                 </Button>
               </div>

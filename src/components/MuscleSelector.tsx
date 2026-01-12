@@ -304,6 +304,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onCle
                   onClick={() => handleLogStrength(true)}
                   disabled={loggingStrength}
                 >
+                  {loggingStrength ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                   Body Yes (Strong)
                 </Button>
                 <Button
@@ -311,6 +312,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onCle
                   onClick={() => handleLogStrength(false)}
                   disabled={loggingStrength}
                 >
+                  {loggingStrength ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                   Body No (Weak)
                 </Button>
                 <Button variant="outline" onClick={handleClearAll} disabled={loggingStrength}>

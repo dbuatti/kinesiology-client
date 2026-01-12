@@ -7,8 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
-import { User, Loader2 } from 'lucide-react';
-import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
+import { User, Loader2 } from 'lucide-react'; // Import Loader2
 
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -21,6 +20,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
 
 // Define the form schema using Zod
 const profileFormSchema = z.object({
@@ -182,6 +182,7 @@ const ProfileSetup = () => {
                 className="w-full h-12 text-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
                 disabled={form.formState.isSubmitting}
               >
+                {form.formState.isSubmitting ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : null}
                 {form.formState.isSubmitting ? 'Saving...' : 'Save Profile'}
               </Button>
             </form>

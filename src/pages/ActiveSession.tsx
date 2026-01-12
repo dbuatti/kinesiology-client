@@ -11,7 +11,7 @@
     import { Label } from '@/components/ui/label';
     import { Badge } from '@/components/ui/badge';
     import { Input } from '@/components/ui/input';
-    import { Calendar, User, Star, Target, Clock, Settings, AlertCircle, Check, ChevronsUpDown, Lightbulb, Hand, XCircle, PlusCircle, Search, Sparkles, ListChecks, Trash2, Loader2, ExternalLink, Waves, ArrowLeft } from 'lucide-react'; // Added ArrowLeft icon
+    import { Calendar, User, Star, Target, Clock, Settings, AlertCircle, Check, ChevronsUpDown, Lightbulb, Hand, XCircle, PlusCircle, Search, Sparkles, ListChecks, Trash2, Loader2, ExternalLink, Waves, ArrowLeft } from 'lucide-react';
     import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
     import { cn } from '@/lib/utils';
     import { format } from 'date-fns';
@@ -609,7 +609,7 @@
                                 onClick={handleAddModeToSession}
                                 disabled={loggingSessionEvent}
                               >
-                                <PlusCircle className="w-4 h-4 mr-2" />
+                                {loggingSessionEvent ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <PlusCircle className="w-4 h-4 mr-2" />}
                                 {loggingSessionEvent ? 'Adding...' : 'Add to Session Log'}
                               </Button>
                               <Button variant="outline" onClick={handleClearModeSelection} disabled={loggingSessionEvent}>
@@ -641,7 +641,7 @@
                           Please configure your Notion Acupoints Database ID in the Notion Configuration page to use this feature.
                         </p>
                         <Button
-                          className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+                          className="w-full h-12 text-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
                           onClick={handleConfigureNotion}
                         >
                           Configure Notion
@@ -794,7 +794,7 @@
                                   onClick={handleAddAcupointToSession}
                                   disabled={updatingAppointment || loggingSessionEvent}
                                 >
-                                  <PlusCircle className="w-4 h-4 mr-2" />
+                                  {updatingAppointment || loggingSessionEvent ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <PlusCircle className="w-4 h-4 mr-2" />}
                                   {updatingAppointment || loggingSessionEvent ? 'Adding...' : 'Add to Session'}
                                 </Button>
                                 <Button variant="outline" onClick={handleClearAcupointSelection} disabled={updatingAppointment || loggingSessionEvent}>
@@ -895,7 +895,7 @@
                               disabled={deletingSessionLog}
                               className="flex-shrink-0"
                             >
-                              <Trash2 className="h-4 w-4 text-gray-500 hover:text-red-500" />
+                              {deletingSessionLog ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4 text-gray-500 hover:text-red-500" />}
                             </Button>
                           </div>
                         ))}
@@ -910,7 +910,7 @@
                   onClick={handleCompleteSession}
                   disabled={updatingAppointment}
                 >
-                  <XCircle className="w-5 h-5 mr-2" />
+                  {updatingAppointment ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <XCircle className="w-5 h-5 mr-2" />}
                   {updatingAppointment ? 'Completing...' : 'Complete Session'}
                 </Button>
               </div>

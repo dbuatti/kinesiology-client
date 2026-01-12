@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
-import { User, Lock } from 'lucide-react';
+import { User, Lock, Loader2 } from 'lucide-react'; // Import Loader2
 import GoogleOAuthButton from '@/components/GoogleOAuthButton';
 import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
 
@@ -139,6 +139,7 @@ const Login = () => {
               className="w-full h-12 text-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
               disabled={loading}
             >
+              {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : null}
               {loading ? 'Signing in...' : 'Sign In'}
             </Button>
 
@@ -152,6 +153,7 @@ const Login = () => {
                   disabled={loading}
                   className="text-indigo-600 hover:text-indigo-800 p-0 h-auto"
                 >
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                   Sign Up
                 </Button>
               </p>

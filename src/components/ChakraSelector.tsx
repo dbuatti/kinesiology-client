@@ -321,7 +321,7 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
                   onClick={handleAddChakraToSession}
                   disabled={loggingSessionEvent}
                 >
-                  <PlusCircle className="w-4 h-4 mr-2" />
+                  {loggingSessionEvent ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <PlusCircle className="w-4 h-4 mr-2" />}
                   {loggingSessionEvent ? 'Adding...' : 'Add to Session Log'}
                 </Button>
                 <Button variant="outline" onClick={handleClearAll} disabled={loggingSessionEvent}>
