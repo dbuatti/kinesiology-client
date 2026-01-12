@@ -785,32 +785,32 @@
                               {log.log_type_discriminator === 'session_log' ? ( // Check if it's a general session log
                                 <>
                                   {log.log_type === 'mode_selected' && (
-                                    <p className="text-sm text-gray-800">
+                                    <div className="text-sm text-gray-800">
                                       <Badge variant="secondary" className="bg-blue-100 text-blue-800 mr-2">Mode</Badge>
                                       Selected Mode: <span className="font-semibold">{(log as SessionLog).details?.modeName}</span>
                                       {(log as SessionLog).details?.actionNote && <span className="text-gray-600 ml-1">({(log as SessionLog).details.actionNote})</span>}
-                                    </p>
+                                    </div>
                                   )}
                                   {log.log_type === 'acupoint_added' && (
-                                    <p className="text-sm text-gray-800">
+                                    <div className="text-sm text-gray-800">
                                       <Badge variant="secondary" className="bg-green-100 text-green-800 mr-2">Acupoint</Badge>
                                       Added Acupoint: <span className="font-semibold">{(log as SessionLog).details?.acupointName}</span>
                                       {(log as SessionLog).details?.channel && <span className="text-gray-600 ml-1">({(log as SessionLog).details.channel})</span>}
-                                    </p>
+                                    </div>
                                   )}
                                   {log.log_type === 'chakra_selected' && (
-                                    <p className="text-sm text-gray-800">
+                                    <div className="text-sm text-gray-800">
                                       <Badge variant="secondary" className="bg-purple-100 text-purple-800 mr-2">Chakra</Badge>
                                       Selected Chakra: <span className="font-semibold">{(log as SessionLog).details?.chakraName}</span>
                                       {(log as SessionLog).details?.emotionalThemes && (log as SessionLog).details.emotionalThemes.length > 0 && <span className="text-gray-600 ml-1">({(log as SessionLog).details.emotionalThemes.join(', ')})</span>}
-                                    </p>
+                                    </div>
                                   )}
                                 </>
                               ) : ( // It's a muscle strength log
-                                <p className="text-sm text-gray-800">
+                                <div className="text-sm text-gray-800">
                                   <Badge variant="secondary" className={(log as SessionMuscleLog).is_strong ? "bg-green-100 text-green-800 mr-2" : "bg-red-100 text-red-800 mr-2"}>Muscle Test</Badge>
                                   Muscle <span className="font-semibold">{(log as SessionMuscleLog).muscle_name}</span> tested <span className={(log as SessionMuscleLog).is_strong ? "text-green-700 font-semibold" : "text-red-700 font-semibold"}>{(log as SessionMuscleLog).is_strong ? 'Strong' : 'Weak'}</span>.
-                                </p>
+                                </div>
                               )}
                             </div>
                             <Button
