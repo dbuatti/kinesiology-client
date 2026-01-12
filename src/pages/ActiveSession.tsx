@@ -9,61 +9,25 @@
     import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
     import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
     import { Label } from '@/components/ui/label';
-    import { Badge } from '@/components/ui/badge'; // Import Badge for tags
-    import { Input } from '@/components/ui/input'; // Added missing import for Input
-    import { Calendar, User, Star, Target, Clock, Settings, AlertCircle, Check, ChevronsUpDown, Lightbulb, Hand, XCircle, CircleCheck, Info, Image, Search, PlusCircle } from 'lucide-react';
+    import { Badge } from '@/components/ui/badge';
+    import { Input } from '@/components/ui/input';
+    import { Calendar, User, Star, Target, Clock, Settings, AlertCircle, Check, ChevronsUpDown, Lightbulb, Hand, XCircle, PlusCircle, Search } from 'lucide-react';
     import { useToast } from '@/components/ui/use-toast';
-    import { supabase } from '@/integrations/supabase/client';
     import { cn } from '@/lib/utils';
     import { format } from 'date-fns';
-    import MuscleSelector from '@/components/MuscleSelector'; // Import the new MuscleSelector
-
-    interface Appointment {
-      id: string; // Notion page ID
-      clientName: string;
-      starSign: string;
-      sessionNorthStar: string; // Changed from 'focus' to 'sessionNorthStar'
-      goal: string;
-      sessionAnchor: string; // Today we are really working with...
-      status: string; // Added status to the interface
-    }
-
-    interface Mode {
-      id: string;
-      name: string;
-      actionNote: string;
-    }
-
-    interface Acupoint {
-      id: string;
-      name: string;
-      for: string;
-      kinesiology: string;
-      psychology: string;
-      akMuscles: string[];
-      channel: string;
-      typeOfPoint: string[];
-      time: string[];
-    }
-
-    interface Muscle {
-      id: string;
-      name: string;
-      meridian: string;
-      organSystem: string;
-      nlPoints: string;
-      nvPoints: string;
-      emotionalTheme: string[];
-      nutritionSupport: string[];
-      testPosition: string;
-    }
+    import MuscleSelector from '@/components/MuscleSelector';
+    import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
+    import {
+      Appointment, Mode, Acupoint, Muscle,
+      GetSingleAppointmentPayload, GetSingleAppointmentResponse,
+      GetNotionModesResponse,
+      GetAcupointsPayload, GetAcupointsResponse,
+      UpdateNotionAppointmentPayload, UpdateNotionAppointmentResponse
+    } from '@/types/api';
 
     const ActiveSession = () => {
       const { appointmentId } = useParams<{ appointmentId: string }>();
       const [appointment, setAppointment] = useState<Appointment | null>(null);
-      const [loading, setLoading] = useState(true);
-      const [error, setError] = useState<string | null>(null);
-      const [needsConfig, setNeedsConfig] = useState(false);
       const [sessionAnchorText, setSessionAnchorText] = useState('');
       const [sessionNorthStarText, setSessionNorthStarText] = useState('');
       const [modes, setModes] = useState<Mode[]>([]);
@@ -77,7 +41,6 @@
       const [selectedAcupoint, setSelectedAcupoint] = useState<Acupoint | null>(null);
       const [isAcupointSearchOpen, setIsAcupointSearchOpen] = useState(false);
       const [isSymptomSearchOpen, setIsSymptomSearchOpen] = useState(false);
-      const [isAcupointSearching, setIsAcupointSearching] = useState(false);
 
       // Muscle States
       const [selectedMuscle, setSelectedMuscle] = useState<Muscle | null>(null);
@@ -86,254 +49,89 @@
       const navigate = useNavigate();
       const { toast } = useToast();
 
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://hcriagmovotwuqbppcfm.supabase.co';
-
-      const fetchSingleAppointment = useCallback(async () => {
-        if (!appointmentId) {
-          setError('No appointment ID provided.');
-          setLoading(false);
-          return;
+      // Fetch Single Appointment
+      const {
+        data: fetchedAppointmentData,
+        loading: loadingAppointment,
+        error: appointmentError,
+        needsConfig: needsAppointmentConfig,
+        execute: fetchSingleAppointment,
+      } = useSupabaseEdgeFunction<GetSingleAppointmentPayload, GetSingleAppointmentResponse>(
+        'get-single-appointment',
+        {
+          requiresAuth: true,
+          requiresNotionConfig: true,
+          onSuccess: (data) => {
+            setAppointment(data.appointment);
+            setSessionAnchorText(data.appointment.sessionAnchor || '');
+            setSessionNorthStarText(data.appointment.sessionNorthStar || '');
+          },
+          onError: (msg) => {
+            toast({ variant: 'destructive', title: 'Error', description: msg });
+          },
         }
+      );
 
-        try {
-          setLoading(true);
-          setError(null);
-          setNeedsConfig(false);
-
-          const { data: { session } } = await supabase.auth.getSession();
-
-          if (!session) {
-            setError('Please log in to view appointments');
-            navigate('/login');
-            return;
-          }
-
-          const { data: secrets, error: secretsError } = await supabase
-            .from('notion_secrets')
-            .select('*') // Changed from 'id' to '*'
-            .eq('user_id', session.user.id)
-            .single();
-
-          if (secretsError && secretsError.code !== 'PGRST116') {
-            throw secretsError;
-          }
-          if (!secrets) {
-            setNeedsConfig(true);
-            setLoading(false);
-            return;
-          }
-
-          const response = await fetch(
-            `${supabaseUrl}/functions/v1/get-single-appointment`,
-            {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${session.access_token}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({ appointmentId })
-            }
-          );
-
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Failed to fetch appointment');
-          }
-
-          const data = await response.json();
-          const fetchedAppointment = data.appointment;
-          setAppointment(fetchedAppointment);
-          setSessionAnchorText(fetchedAppointment.sessionAnchor || '');
-          setSessionNorthStarText(fetchedAppointment.sessionNorthStar || '');
-        } catch (err: any) {
-          console.error('Error fetching single appointment:', err);
-          toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: err.message
-          });
-        } finally {
-          setLoading(false);
+      // Fetch Modes
+      const {
+        data: fetchedModesData,
+        loading: loadingModes,
+        error: modesError,
+        execute: fetchModes,
+      } = useSupabaseEdgeFunction<void, GetNotionModesResponse>(
+        'get-notion-modes',
+        {
+          requiresAuth: true,
+          requiresNotionConfig: true,
+          onSuccess: (data) => setModes(data.modes),
+          onError: (msg) => {
+            toast({ variant: 'destructive', title: 'Error', description: `Failed to load modes: ${msg}` });
+          },
         }
-      }, [appointmentId, navigate, toast, supabaseUrl]);
+      );
 
-      const fetchModes = useCallback(async () => {
-        try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (!session) return;
-
-          const response = await fetch(
-            `${supabaseUrl}/functions/v1/get-notion-modes`,
-            {
-              method: 'GET',
-              headers: {
-                'Authorization': `Bearer ${session.access_token}`,
-                'Content-Type': 'application/json'
-              }
-            }
-          );
-
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Failed to fetch modes');
-          }
-
-          const data = await response.json();
-          setModes(data.modes);
-        } catch (err: any) {
-          console.error('Error fetching modes:', err);
-          toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: `Failed to load modes: ${err.message}`
-          });
+      // Fetch Acupoints
+      const {
+        data: fetchedAcupointsData,
+        loading: loadingAcupoints,
+        error: acupointsError,
+        execute: fetchAcupoints,
+      } = useSupabaseEdgeFunction<GetAcupointsPayload, GetAcupointsResponse>(
+        'get-acupoints',
+        {
+          requiresAuth: true,
+          requiresNotionConfig: true,
+          onSuccess: (data) => setFoundAcupoints(data.acupoints),
+          onError: (msg) => {
+            toast({ variant: 'destructive', title: 'Error', description: `Failed to search: ${msg}` });
+            setFoundAcupoints([]);
+          },
         }
-      }, [toast, supabaseUrl]);
+      );
 
-      const fetchAcupoints = useCallback(async (term: string, type: 'point' | 'symptom') => {
-        console.log('[ActiveSession][fetchAcupoints] Function called with term:', term, 'and type:', type);
-        if (!term.trim()) {
-          console.log('[ActiveSession][fetchAcupoints] Search term is empty, clearing results.');
-          setFoundAcupoints([]);
-          return;
+      // Update Notion Appointment
+      const {
+        loading: updatingAppointment,
+        execute: updateNotionAppointment,
+      } = useSupabaseEdgeFunction<UpdateNotionAppointmentPayload, UpdateNotionAppointmentResponse>(
+        'update-notion-appointment',
+        {
+          requiresAuth: true,
+          onSuccess: () => {
+            toast({ title: 'Success', description: 'Appointment updated in Notion.' });
+          },
+          onError: (msg) => {
+            toast({ variant: 'destructive', title: 'Update Failed', description: msg });
+          }
         }
-        setIsAcupointSearching(true);
-        try {
-          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-          if (sessionError) {
-            console.error('[ActiveSession][fetchAcupoints] Supabase session error:', sessionError.message);
-            throw sessionError;
-          }
-          if (!session) {
-            console.warn('[ActiveSession][fetchAcupoints] No active session, redirecting to login.');
-            toast({
-              variant: 'destructive',
-              title: 'Not authenticated',
-              description: 'Please log in first',
-            });
-            navigate('/login');
-            return;
-          }
-          console.log('[ActiveSession][fetchAcupoints] User session found:', session.user?.id);
-
-          const edgeFunctionUrl = `${supabaseUrl}/functions/v1/get-acupoints`;
-          const requestBody = JSON.stringify({ searchTerm: term, searchType: type });
-          console.log('[ActiveSession][fetchAcupoints] Calling edge function:', edgeFunctionUrl);
-          console.log('[ActiveSession][fetchAcupoints] Request body:', requestBody);
-
-          const response = await fetch(
-            edgeFunctionUrl,
-            {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${session.access_token}`,
-                'Content-Type': 'application/json'
-              },
-              body: requestBody
-            }
-          );
-
-          console.log('[ActiveSession][fetchAcupoints] Edge function response status:', response.status);
-
-          if (!response.ok) {
-            const errorData = await response.json();
-            console.error('[ActiveSession][fetchAcupoints] Edge function error response:', errorData);
-            throw new Error(errorData.error || `Failed to search for ${type === 'point' ? 'acupoints' : 'symptoms'}`);
-          }
-
-          const data = await response.json();
-          console.log('[ActiveSession][fetchAcupoints] Edge function success data:', data);
-          setFoundAcupoints(data.acupoints);
-        } catch (err: any) {
-          console.error(`[ActiveSession][fetchAcupoints] Error fetching acupoints by ${type}:`, err);
-          toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: `Failed to search: ${err.message}`
-          });
-          setFoundAcupoints([]);
-        } finally {
-          setIsAcupointSearching(false);
-          console.log('[ActiveSession][fetchAcupoints] Function execution finished.');
-        }
-      }, [navigate, toast, supabaseUrl]);
+      );
 
       useEffect(() => {
-        fetchSingleAppointment();
-        fetchModes();
-      }, [fetchSingleAppointment, fetchModes]);
-
-      const updateNotionAppointment = useCallback(async (updates: any) => {
-        if (!appointment?.id) {
-          toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: 'No active appointment to update.'
-          });
-          return;
+        if (appointmentId) {
+          fetchSingleAppointment({ appointmentId });
+          fetchModes();
         }
-
-        try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (!session) {
-            toast({
-              variant: 'destructive',
-              title: 'Not authenticated',
-              description: 'Please log in first',
-            });
-            navigate('/login');
-            return;
-          }
-
-          const payload = {
-            appointmentId: appointment.id,
-            updates: updates
-          };
-          console.log('[ActiveSession] Sending payload to edge function:', JSON.stringify(payload, null, 2));
-
-          const response = await fetch(
-            `${supabaseUrl}/functions/v1/update-notion-appointment`,
-            {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${session.access_token}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify(payload)
-            }
-          );
-
-          if (!response.ok) {
-            console.error('[ActiveSession] Raw response not OK:', response);
-            let errorDetails = 'No details provided by server.';
-            try {
-              const errorData = await response.json();
-              errorDetails = errorData.error || errorData.details || errorDetails;
-            } catch (jsonError) {
-              console.error('[ActiveSession] Failed to parse error JSON:', jsonError);
-              errorDetails = `Server responded with status ${response.status} but no valid JSON error body.`;
-            }
-            throw new Error(errorDetails);
-          }
-
-          toast({
-            title: 'Success',
-            description: 'Appointment updated in Notion.',
-          });
-          
-          setAppointment(prev => prev ? { ...prev, ...updates } : null);
-          if (updates.sessionAnchor !== undefined) setSessionAnchorText(updates.sessionAnchor);
-          if (updates.sessionNorthStar !== undefined) setSessionNorthStarText(updates.sessionNorthStar);
-
-        } catch (err: any) {
-          console.error('Error updating Notion appointment:', err);
-          toast({
-            variant: 'destructive',
-            title: 'Update Failed',
-            description: err.message
-          });
-        }
-      }, [appointment, navigate, toast, supabaseUrl]);
+      }, [appointmentId, fetchSingleAppointment, fetchModes]);
 
       const handleSessionAnchorChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         const newText = e.target.value;
@@ -342,7 +140,7 @@
 
       const handleSessionAnchorBlur = () => {
         if (appointment && sessionAnchorText !== appointment.sessionAnchor) {
-          updateNotionAppointment({ sessionAnchor: sessionAnchorText });
+          updateNotionAppointment({ appointmentId: appointment.id, updates: { sessionAnchor: sessionAnchorText } });
         }
       };
 
@@ -353,18 +151,20 @@
 
       const handleSessionNorthStarBlur = () => {
         if (appointment && sessionNorthStarText !== appointment.sessionNorthStar) {
-          updateNotionAppointment({ sessionNorthStar: sessionNorthStarText });
+          updateNotionAppointment({ appointmentId: appointment.id, updates: { sessionNorthStar: sessionNorthStarText } });
         }
       };
 
       const handleCompleteSession = async () => {
         if (appointment) {
-          await updateNotionAppointment({ status: 'CH' }); // Set status to Charged/Complete
-          toast({
-            title: 'Session Completed',
-            description: `${appointment.clientName}'s session marked as complete.`,
-          });
-          navigate('/'); // Return to Waiting Room
+          await updateNotionAppointment({ appointmentId: appointment.id, updates: { status: 'CH' } }); // Set status to Charged/Complete
+          if (!updatingAppointment) { // Only navigate if update was successful and not still loading
+            toast({
+              title: 'Session Completed',
+              description: `${appointment.clientName}'s session marked as complete.`,
+            });
+            navigate('/'); // Return to Waiting Room
+          }
         }
       };
 
@@ -375,13 +175,13 @@
       const handleAcupointSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const term = e.target.value;
         setAcupointSearchTerm(term);
-        fetchAcupoints(term, 'point');
+        fetchAcupoints({ searchTerm: term, searchType: 'point' });
       };
 
       const handleSymptomSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const term = e.target.value;
         setSymptomSearchTerm(term);
-        fetchAcupoints(term, 'symptom');
+        fetchAcupoints({ searchTerm: term, searchType: 'symptom' });
       };
 
       const handleSelectAcupoint = (acupoint: Acupoint) => {
@@ -395,14 +195,16 @@
 
       const handleAddAcupointToSession = async () => {
         if (selectedAcupoint && appointmentId) {
-          await updateNotionAppointment({ acupointId: selectedAcupoint.id });
-          toast({
-            title: 'Acupoint Added',
-            description: `${selectedAcupoint.name} added to the current session.`,
-          });
-          // Optionally clear selected acupoint after adding
-          setSelectedAcupoint(null);
-          setAcupointSearchTerm('');
+          await updateNotionAppointment({ appointmentId: appointmentId, updates: { acupointId: selectedAcupoint.id } });
+          if (!updatingAppointment) {
+            toast({
+              title: 'Acupoint Added',
+              description: `${selectedAcupoint.name} added to the current session.`,
+            });
+            // Optionally clear selected acupoint after adding
+            setSelectedAcupoint(null);
+            setAcupointSearchTerm('');
+          }
         } else {
           toast({
             variant: 'destructive',
@@ -414,18 +216,24 @@
 
       const handleMuscleSelected = (muscle: Muscle) => {
         setSelectedMuscle(muscle);
-        // You might want to log this selection or update other UI elements
         console.log('Muscle selected:', muscle.name);
       };
 
-      const handleMuscleStrengthLogged = (muscle: Muscle, isStrong: boolean) => {
-        // Here you would typically log this to your database or Notion
-        console.log(`Muscle ${muscle.name} logged as ${isStrong ? 'Strong' : 'Weak'}`);
-        // For now, the MuscleSelector component handles its own toast and state for the checklist
+      const handleMuscleStrengthLogged = async (muscle: Muscle, isStrong: boolean) => {
+        if (appointmentId) {
+          await updateNotionAppointment({
+            appointmentId: appointmentId,
+            updates: {
+              bodyYes: isStrong,
+              bodyNo: !isStrong,
+            }
+          });
+          // The MuscleSelector component handles its own toast and state for the checklist
+        }
       };
 
 
-      if (loading) {
+      if (loadingAppointment || loadingModes || loadingAcupoints) {
         return (
           <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6">
             <div className="max-w-2xl mx-auto space-y-6">
@@ -437,7 +245,7 @@
         );
       }
 
-      if (needsConfig) {
+      if (needsAppointmentConfig) {
         return (
           <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center p-6">
             <Card className="max-w-md w-full shadow-xl">
@@ -463,7 +271,7 @@
         );
       }
 
-      if (error && !appointment) {
+      if (appointmentError && !appointment) {
         return (
           <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center p-6">
             <Card className="max-w-md w-full shadow-lg">
@@ -472,10 +280,9 @@
                   <AlertCircle className="w-12 h-12 mx-auto" />
                 </div>
                 <h2 className="xl font-bold mb-2">Error Loading Appointment</h2>
-                <p className="text-gray-600 mb-4">{error}</p>
+                <p className="text-gray-600 mb-4">{appointmentError}</p>
                 <div className="space-y-2">
-                  <Button onClick={fetchSingleAppointment}>Try Again</Button>
-                  {/* Removed redundant 'Check Configuration' button */}
+                  <Button onClick={() => appointmentId && fetchSingleAppointment({ appointmentId })}>Try Again</Button>
                 </div>
               </CardContent>
             </Card>
@@ -530,6 +337,7 @@
                           onChange={handleSessionNorthStarChange}
                           onBlur={handleSessionNorthStarBlur}
                           className="min-h-[80px]"
+                          disabled={updatingAppointment}
                         />
                       </div>
                     )}
@@ -570,6 +378,7 @@
                         onChange={handleSessionAnchorChange}
                         onBlur={handleSessionAnchorBlur}
                         className="min-h-[80px]"
+                        disabled={updatingAppointment}
                       />
                     </div>
 
@@ -586,6 +395,7 @@
                             role="combobox"
                             aria-expanded={isModeSelectOpen}
                             className="w-full justify-between"
+                            disabled={loadingModes || updatingAppointment}
                           >
                             {selectedMode ? selectedMode.name : "Select mode..."}
                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -652,12 +462,13 @@
                             onChange={handleAcupointSearchChange}
                             onFocus={() => setIsAcupointSearchOpen(true)}
                             className="w-full"
+                            disabled={loadingAcupoints || updatingAppointment}
                           />
                         </PopoverTrigger>
                         <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                           <Command>
-                            {isAcupointSearching && <CommandInput value={acupointSearchTerm} onValueChange={setAcupointSearchTerm} placeholder="Searching..." />}
-                            {!isAcupointSearching && <CommandInput value={acupointSearchTerm} onValueChange={setAcupointSearchTerm} placeholder="Search acupoint..." />}
+                            {loadingAcupoints && <CommandInput value={acupointSearchTerm} onValueChange={setAcupointSearchTerm} placeholder="Searching..." disabled />}
+                            {!loadingAcupoints && <CommandInput value={acupointSearchTerm} onValueChange={setAcupointSearchTerm} placeholder="Search acupoint..." />}
                             <CommandEmpty>No acupoint found.</CommandEmpty>
                             <CommandGroup>
                               {foundAcupoints.map((point) => (
@@ -691,12 +502,13 @@
                             onChange={handleSymptomSearchChange}
                             onFocus={() => setIsSymptomSearchOpen(true)}
                             className="w-full"
+                            disabled={loadingAcupoints || updatingAppointment}
                           />
                         </PopoverTrigger>
                         <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                           <Command>
-                            {isAcupointSearching && <CommandInput value={symptomSearchTerm} onValueChange={setSymptomSearchTerm} placeholder="Searching..." />}
-                            {!isAcupointSearching && <CommandInput value={symptomSearchTerm} onValueChange={setSymptomSearchTerm} placeholder="Search symptom..." />}
+                            {loadingAcupoints && <CommandInput value={symptomSearchTerm} onValueChange={setSymptomSearchTerm} placeholder="Searching..." disabled />}
+                            {!loadingAcupoints && <CommandInput value={symptomSearchTerm} onValueChange={setSymptomSearchTerm} placeholder="Search symptom..." />}
                             <CommandEmpty>No suggestions found.</CommandEmpty>
                             <CommandGroup>
                               {foundAcupoints.map((point) => (
@@ -768,9 +580,10 @@
                           <Button
                             className="w-full mt-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white"
                             onClick={handleAddAcupointToSession}
+                            disabled={updatingAppointment}
                           >
                             <PlusCircle className="w-4 h-4 mr-2" />
-                            Add to Session
+                            {updatingAppointment ? 'Adding...' : 'Add to Session'}
                           </Button>
                         </CardContent>
                       </Card>
@@ -782,16 +595,17 @@
                 <MuscleSelector
                   onMuscleSelected={handleMuscleSelected}
                   onMuscleStrengthLogged={handleMuscleStrengthLogged}
-                  appointmentId={appointmentId || ''} // Pass appointmentId if needed for logging
+                  appointmentId={appointmentId || ''}
                 />
 
                 {/* Complete Session Button */}
                 <Button
                   className="w-full h-12 text-lg bg-red-500 hover:bg-red-600 text-white"
                   onClick={handleCompleteSession}
+                  disabled={updatingAppointment}
                 >
                   <XCircle className="w-5 h-5 mr-2" />
-                  Complete Session
+                  {updatingAppointment ? 'Completing...' : 'Complete Session'}
                 </Button>
               </div>
             ) : (
@@ -809,8 +623,6 @@
                 </CardContent>
               </Card>
             )}
-
-            {/* Removed redundant navigation buttons */}
           </div>
         </div>
       );

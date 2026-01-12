@@ -9,6 +9,8 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Settings, Key, Database, Shield, Loader2 } from 'lucide-react';
+import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
+import { SetNotionSecretsPayload, SetNotionSecretsResponse, NotionSecrets } from '@/types/api';
 
 const NotionConfig = () => {
   const [integrationToken, setIntegrationToken] = useState('');
@@ -16,38 +18,57 @@ const NotionConfig = () => {
   const [crmDbId, setCrmDbId] = useState('');
   const [modesDbId, setModesDbId] = useState('');
   const [acupointsDbId, setAcupointsDbId] = useState('');
-  const [musclesDbId, setMusclesDbId] = useState(''); // New state for Muscles DB ID
-  const [loading, setLoading] = useState(true);
+  const [musclesDbId, setMusclesDbId] = useState('');
+  const [loadingInitial, setLoadingInitial] = useState(true); // Separate loading for initial fetch
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  const {
+    loading: savingConfig,
+    error: saveError,
+    execute: setNotionSecrets,
+  } = useSupabaseEdgeFunction<SetNotionSecretsPayload, SetNotionSecretsResponse>(
+    'set-notion-secrets',
+    {
+      requiresAuth: true,
+      onSuccess: () => {
+        toast({ title: 'Success', description: 'Notion configuration saved securely!' });
+        navigate('/');
+      },
+      onError: (msg) => {
+        toast({ variant: 'destructive', title: 'Save Failed', description: msg });
+      }
+    }
+  );
+
   useEffect(() => {
     const fetchSecrets = async () => {
-      setLoading(true);
+      setLoadingInitial(true);
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
           navigate('/login');
           return;
         }
 
         const { data, error } = await supabase
           .from('notion_secrets')
-          .select('notion_integration_token, appointments_database_id, crm_database_id, modes_database_id, acupoints_database_id, muscles_database_id') // Select new column
-          .eq('user_id', session.user.id)
+          .select('notion_integration_token, appointments_database_id, crm_database_id, modes_database_id, acupoints_database_id, muscles_database_id')
+          .eq('user_id', user.id)
           .single();
 
-        if (error && error.code !== 'PGRST116') {
+        if (error && error.code !== 'PGRST116') { // PGRST116 means "no rows found"
           throw error;
         }
 
         if (data) {
-          setIntegrationToken(data.notion_integration_token || '');
-          setAppointmentsDbId(data.appointments_database_id || '');
-          setCrmDbId(data.crm_database_id || '');
-          setModesDbId(data.modes_database_id || '');
-          setAcupointsDbId(data.acupoints_database_id || '');
-          setMusclesDbId(data.muscles_database_id || ''); // Set new state
+          const secrets = data as NotionSecrets;
+          setIntegrationToken(secrets.notion_integration_token || '');
+          setAppointmentsDbId(secrets.appointments_database_id || '');
+          setCrmDbId(secrets.crm_database_id || '');
+          setModesDbId(secrets.modes_database_id || '');
+          setAcupointsDbId(secrets.acupoints_database_id || '');
+          setMusclesDbId(secrets.muscles_database_id || '');
         }
       } catch (error: any) {
         toast({
@@ -56,7 +77,7 @@ const NotionConfig = () => {
           description: error.message,
         });
       } finally {
-        setLoading(false);
+        setLoadingInitial(false);
       }
     };
 
@@ -65,117 +86,36 @@ const NotionConfig = () => {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
 
     if (!integrationToken.trim()) {
-      toast({
-        variant: 'destructive',
-        title: 'Validation Error',
-        description: 'Integration Token cannot be empty.',
-      });
-      setLoading(false);
+      toast({ variant: 'destructive', title: 'Validation Error', description: 'Integration Token cannot be empty.' });
       return;
     }
     if (!appointmentsDbId.trim()) {
-      toast({
-        variant: 'destructive',
-        title: 'Validation Error',
-        description: 'Appointments Database ID cannot be empty.',
-      });
-      setLoading(false);
+      toast({ variant: 'destructive', title: 'Validation Error', description: 'Appointments Database ID cannot be empty.' });
       return;
     }
     if (!modesDbId.trim()) {
-      toast({
-        variant: 'destructive',
-        title: 'Validation Error',
-        description: 'Modes & Balances Database ID cannot be empty.',
-      });
-      setLoading(false);
+      toast({ variant: 'destructive', title: 'Validation Error', description: 'Modes & Balances Database ID cannot be empty.' });
       return;
     }
     if (!acupointsDbId.trim()) {
-      toast({
-        variant: 'destructive',
-        title: 'Validation Error',
-        description: 'Acupoints Database ID cannot be empty.',
-      });
-      setLoading(false);
+      toast({ variant: 'destructive', title: 'Validation Error', description: 'Acupoints Database ID cannot be empty.' });
       return;
     }
-    if (!musclesDbId.trim()) { // New validation for Muscles DB ID
-      toast({
-        variant: 'destructive',
-        title: 'Validation Error',
-        description: 'Muscles Database ID cannot be empty.',
-      });
-      setLoading(false);
+    if (!musclesDbId.trim()) {
+      toast({ variant: 'destructive', title: 'Validation Error', description: 'Muscles Database ID cannot be empty.' });
       return;
     }
 
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        toast({
-          variant: 'destructive',
-          title: 'Not authenticated',
-          description: 'Please log in first',
-        });
-        navigate('/login');
-        return;
-      }
-
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://hcriagmovotwuqbppcfm.supabase.co';
-
-      console.log('[NotionConfig] Calling edge function with URL:', `${supabaseUrl}/functions/v1/set-notion-secrets`)
-
-      const response = await fetch(
-        `${supabaseUrl}/functions/v1/set-notion-secrets`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            notionToken: integrationToken,
-            appointmentsDbId: appointmentsDbId,
-            crmDbId: crmDbId || null,
-            modesDbId: modesDbId || null,
-            acupointsDbId: acupointsDbId || null,
-            musclesDbId: musclesDbId || null, // Send new ID
-          })
-        }
-      );
-
-      console.log('[NotionConfig] Response status:', response.status)
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('[NotionConfig] Edge function error:', errorData)
-        throw new Error(errorData.error || errorData.details || 'Failed to save secrets');
-      }
-
-      const result = await response.json();
-      console.log('[NotionConfig] Success:', result)
-
-      toast({
-        title: 'Success',
-        description: 'Notion configuration saved securely!',
-      });
-
-      navigate('/'); // Navigate to home after saving
-    } catch (error: any) {
-      console.error('[NotionConfig] Save error:', error)
-      toast({
-        variant: 'destructive',
-        title: 'Save Failed',
-        description: error.message || 'An unknown error occurred',
-      });
-    } finally {
-      setLoading(false);
-    }
+    await setNotionSecrets({
+      notionToken: integrationToken,
+      appointmentsDbId: appointmentsDbId,
+      crmDbId: crmDbId || null,
+      modesDbId: modesDbId || null,
+      acupointsDbId: acupointsDbId || null,
+      musclesDbId: musclesDbId || null,
+    });
   };
 
   return (
@@ -195,12 +135,12 @@ const NotionConfig = () => {
           </CardHeader>
           
           <CardContent className="pt-6">
-            {loading && (
+            {(loadingInitial || savingConfig) && (
               <div className="flex justify-center items-center h-40">
                 <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
               </div>
             )}
-            {!loading && (
+            {!loadingInitial && (
               <>
                 <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-start gap-3">
                   <Shield className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
@@ -222,7 +162,7 @@ const NotionConfig = () => {
                       placeholder="secret_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
                       value={integrationToken}
                       onChange={(e) => setIntegrationToken(e.target.value)}
-                      disabled={loading}
+                      disabled={savingConfig}
                     />
                     <p className="text-xs text-gray-500">
                       Find this in Notion → Settings & Members → Integrations → [Your Integration]
@@ -241,7 +181,7 @@ const NotionConfig = () => {
                       placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
                       value={appointmentsDbId}
                       onChange={(e) => setAppointmentsDbId(e.target.value)}
-                      disabled={loading}
+                      disabled={savingConfig}
                     />
                     <p className="text-xs text-gray-500">
                       Copy from Notion: Share → Copy link → Extract the 32-character ID from the URL
@@ -260,7 +200,7 @@ const NotionConfig = () => {
                       placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
                       value={crmDbId}
                       onChange={(e) => setCrmDbId(e.target.value)}
-                      disabled={loading}
+                      disabled={savingConfig}
                     />
                     <p className="text-xs text-gray-500">
                       Used for client management. Can be added later.
@@ -279,7 +219,7 @@ const NotionConfig = () => {
                       placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
                       value={modesDbId}
                       onChange={(e) => setModesDbId(e.target.value)}
-                      disabled={loading}
+                      disabled={savingConfig}
                     />
                     <p className="text-xs text-gray-500">
                       ID for your Modes & Balances reference database.
@@ -298,7 +238,7 @@ const NotionConfig = () => {
                       placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
                       value={acupointsDbId}
                       onChange={(e) => setAcupointsDbId(e.target.value)}
-                      disabled={loading}
+                      disabled={savingConfig}
                     />
                     <p className="text-xs text-gray-500">
                       ID for your Acupoints reference database.
@@ -317,7 +257,7 @@ const NotionConfig = () => {
                       placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
                       value={musclesDbId}
                       onChange={(e) => setMusclesDbId(e.target.value)}
-                      disabled={loading}
+                      disabled={savingConfig}
                     />
                     <p className="text-xs text-gray-500">
                       ID for your Muscles reference database.
@@ -328,15 +268,15 @@ const NotionConfig = () => {
                     <Button
                       type="submit"
                       className="flex-1 h-12 text-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
-                      disabled={loading}
+                      disabled={savingConfig}
                     >
-                      {loading ? 'Saving...' : 'Save to Secrets'}
+                      {savingConfig ? 'Saving...' : 'Save to Secrets'}
                     </Button>
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => navigate('/')} // Navigate to home
-                      disabled={loading}
+                      onClick={() => navigate('/')}
+                      disabled={savingConfig}
                     >
                       Cancel
                     </Button>

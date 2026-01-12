@@ -9,22 +9,11 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
-import { Search, Check, ChevronsUpDown, Hand, Heart, Brain, FlaskConical, XCircle, CircleCheck, Info, Image, Settings } from 'lucide-react';
-import { useNavigate } from 'react-router-dom'; // Import useNavigate
-
-interface Muscle {
-  id: string;
-  name: string;
-  meridian: string;
-  organSystem: string;
-  nlPoints: string;
-  nvPoints: string;
-  emotionalTheme: string[];
-  nutritionSupport: string[];
-  testPosition: string; // URL to image
-}
+import { Search, Check, ChevronsUpDown, Hand, Info, Image, Settings, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
+import { Muscle, GetMusclesPayload, GetMusclesResponse } from '@/types/api';
 
 interface MuscleSelectorProps {
   onMuscleSelected: (muscle: Muscle) => void;
@@ -38,91 +27,37 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
   const [searchTerm, setSearchTerm] = useState('');
   const [searchType, setSearchType] = useState<'muscle' | 'meridian' | 'organ' | 'emotion'>('muscle');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [selectedMuscle, setSelectedMuscle] = useState<Muscle | null>(null);
   const [showWeaknessChecklist, setShowWeaknessChecklist] = useState(false);
-  const [needsConfig, setNeedsConfig] = useState(false); // New state for config check
 
   const { toast } = useToast();
-  const navigate = useNavigate(); // Initialize useNavigate
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://hcriagmovotwuqbppcfm.supabase.co';
+  const navigate = useNavigate();
 
-  const fetchMuscles = useCallback(async (term: string = '', type: 'muscle' | 'meridian' | 'organ' | 'emotion' = 'muscle') => {
-    console.log('[MuscleSelector][fetchMuscles] Function called with term:', term, 'and type:', type);
-    setLoading(true);
-    setNeedsConfig(false); // Reset config state
-    try {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) {
-        console.error('[MuscleSelector][fetchMuscles] Supabase session error:', error.message);
-        throw error;
-      }
-      if (!session) {
-        console.warn('[MuscleSelector][fetchMuscles] No active session, showing toast.');
-        toast({ variant: 'destructive', title: 'Not authenticated', description: 'Please log in first' });
-        return;
-      }
-      console.log('[MuscleSelector][fetchMuscles] User session found:', session.user?.id);
-
-      // Check Notion secrets for muscles_database_id
-      const { data: secrets, error: secretsError } = await supabase
-        .from('notion_secrets')
-        .select('muscles_database_id')
-        .eq('user_id', session.user.id)
-        .single();
-
-      if (secretsError && secretsError.code !== 'PGRST116') { // PGRST116 means "no rows found"
-        throw secretsError;
-      }
-      if (!secrets || !secrets.muscles_database_id) {
-        setNeedsConfig(true);
-        setLoading(false);
-        return;
-      }
-
-
-      const edgeFunctionUrl = `${supabaseUrl}/functions/v1/get-muscles`;
-      const requestBody = JSON.stringify({ searchTerm: term, searchType: type });
-      console.log('[MuscleSelector][fetchMuscles] Calling edge function:', edgeFunctionUrl);
-      console.log('[MuscleSelector][fetchMuscles] Request body:', requestBody);
-
-      const response = await fetch(
-        edgeFunctionUrl,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json'
-          },
-          body: requestBody
-        }
-      );
-
-      console.log('[MuscleSelector][fetchMuscles] Edge function response status:', response.status);
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('[MuscleSelector][fetchMuscles] Edge function error response:', errorData);
-        throw new Error(errorData.error || 'Failed to fetch muscles');
-      }
-
-      const data = await response.json();
-      console.log('[MuscleSelector][fetchMuscles] Edge function success data:', data);
-      setAllMuscles(data.muscles);
-      setFilteredMuscles(data.muscles);
-    } catch (err: any) {
-      console.error('[MuscleSelector][fetchMuscles] Error fetching muscles:', err);
-      toast({ variant: 'destructive', title: 'Error', description: `Failed to load muscles: ${err.message}` });
-      setAllMuscles([]);
-      setFilteredMuscles([]);
-    } finally {
-      setLoading(false);
-      console.log('[MuscleSelector][fetchMuscles] Function execution finished.');
+  const {
+    data: fetchedMusclesData,
+    loading: loadingMuscles,
+    error: musclesError,
+    needsConfig,
+    execute: fetchMuscles,
+  } = useSupabaseEdgeFunction<GetMusclesPayload, GetMusclesResponse>(
+    'get-muscles',
+    {
+      requiresAuth: true,
+      requiresNotionConfig: true,
+      onSuccess: (data) => {
+        setAllMuscles(data.muscles);
+        setFilteredMuscles(data.muscles);
+      },
+      onError: (msg) => {
+        toast({ variant: 'destructive', title: 'Error', description: `Failed to load muscles: ${msg}` });
+        setAllMuscles([]);
+        setFilteredMuscles([]);
+      },
     }
-  }, [toast, supabaseUrl, navigate]);
+  );
 
   useEffect(() => {
-    fetchMuscles(); // Fetch all muscles initially
+    fetchMuscles({ searchTerm: '', searchType: 'muscle' }); // Fetch all muscles initially
   }, [fetchMuscles]);
 
   useEffect(() => {
@@ -216,6 +151,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
               variant={searchType === 'muscle' ? 'default' : 'outline'}
               onClick={() => handleSearchTypeChange('muscle')}
               className={cn(searchType === 'muscle' ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'text-indigo-600 border-indigo-300 hover:bg-indigo-50')}
+              disabled={loadingMuscles}
             >
               Muscle Name
             </Button>
@@ -223,6 +159,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
               variant={searchType === 'organ' ? 'default' : 'outline'}
               onClick={() => handleSearchTypeChange('organ')}
               className={cn(searchType === 'organ' ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'text-indigo-600 border-indigo-300 hover:bg-indigo-50')}
+              disabled={loadingMuscles}
             >
               Organ System
             </Button>
@@ -230,6 +167,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
               variant={searchType === 'emotion' ? 'default' : 'outline'}
               onClick={() => handleSearchTypeChange('emotion')}
               className={cn(searchType === 'emotion' ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'text-indigo-600 border-indigo-300 hover:bg-indigo-50')}
+              disabled={loadingMuscles}
             >
               Emotion
             </Button>
@@ -244,12 +182,13 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onFocus={() => setIsSearchOpen(true)}
                 className="w-full"
+                disabled={loadingMuscles}
               />
             </PopoverTrigger>
             <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
               <Command>
-                {loading && <CommandInput value={searchTerm} onValueChange={setSearchTerm} placeholder="Loading muscles..." disabled />}
-                {!loading && <CommandInput value={searchTerm} onValueChange={setSearchTerm} placeholder={`Search ${searchType}...`} />}
+                {loadingMuscles && <CommandInput value={searchTerm} onValueChange={setSearchTerm} placeholder="Loading muscles..." disabled />}
+                {!loadingMuscles && <CommandInput value={searchTerm} onValueChange={setSearchTerm} placeholder={`Search ${searchType}...`} />}
                 <CommandEmpty>No muscles found.</CommandEmpty>
                 <CommandGroup>
                   {filteredMuscles.map((muscle) => (
@@ -340,14 +279,12 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
                   className="flex-1 bg-green-500 hover:bg-green-600 text-white"
                   onClick={() => handleLogStrength(true)}
                 >
-                  <CircleCheck className="w-4 h-4 mr-2" />
                   Body Yes (Strong)
                 </Button>
                 <Button
                   className="flex-1 bg-red-500 hover:bg-red-600 text-white"
                   onClick={() => handleLogStrength(false)}
                 >
-                  <XCircle className="w-4 h-4 mr-2" />
                   Body No (Weak)
                 </Button>
               </div>

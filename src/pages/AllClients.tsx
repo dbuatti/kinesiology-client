@@ -10,86 +10,53 @@ import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { User, Settings, Loader2, Search, AlertCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-
-interface Client {
-  id: string;
-  name: string;
-  focus: string;
-  email: string;
-  phone: string;
-  starSign: string;
-}
+import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
+import { Client, GetAllClientsResponse, UpdateNotionClientPayload, UpdateNotionClientResponse } from '@/types/api';
 
 const AllClients = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [needsConfig, setNeedsConfig] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://hcriagmovotwuqbppcfm.supabase.co';
-
-  const fetchAllClients = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      setNeedsConfig(false);
-
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (!session) {
-        setError('Please log in to view clients');
-        navigate('/login');
-        return;
-      }
-
-      const { data: secrets, error: secretsError } = await supabase
-        .from('notion_secrets')
-        .select('*') // Changed from 'id' to '*'
-        .eq('user_id', session.user.id)
-        .single();
-
-      if (secretsError || !secrets) {
-        setNeedsConfig(true);
-        setLoading(false);
-        return;
-      }
-
-      const response = await fetch(
-        `${supabaseUrl}/functions/v1/get-all-clients`,
-        {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch all clients');
-      }
-
-      const data = await response.json();
-      setClients(data.clients);
-      setFilteredClients(data.clients);
-    } catch (err: any) {
-      console.error('Error fetching all clients:', err);
-      setError(err.message);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: err.message
-      });
-    } finally {
-      setLoading(false);
+  const {
+    data: fetchedClientsData,
+    loading: loadingClients,
+    error: clientsError,
+    needsConfig,
+    execute: fetchAllClients,
+  } = useSupabaseEdgeFunction<void, GetAllClientsResponse>(
+    'get-all-clients',
+    {
+      requiresAuth: true,
+      requiresNotionConfig: true,
+      onSuccess: (data) => {
+        setClients(data.clients);
+        setFilteredClients(data.clients);
+      },
+      onError: (msg) => {
+        toast({ variant: 'destructive', title: 'Error', description: msg });
+      },
     }
-  }, [navigate, toast, supabaseUrl]);
+  );
+
+  const {
+    loading: updatingClient,
+    execute: updateNotionClient,
+  } = useSupabaseEdgeFunction<UpdateNotionClientPayload, UpdateNotionClientResponse>(
+    'update-notion-client',
+    {
+      requiresAuth: true,
+      onSuccess: () => {
+        toast({ title: 'Success', description: 'Client updated in Notion.' });
+      },
+      onError: (msg) => {
+        toast({ variant: 'destructive', title: 'Update Failed', description: msg });
+        fetchAllClients(); // Re-fetch to ensure data consistency if optimistic update failed
+      }
+    }
+  );
 
   useEffect(() => {
     fetchAllClients();
@@ -107,71 +74,19 @@ const AllClients = () => {
     setFilteredClients(filtered);
   }, [searchTerm, clients]);
 
-  const updateNotionClient = useCallback(async (clientId: string, updates: Partial<Client>) => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast({
-          variant: 'destructive',
-          title: 'Not authenticated',
-          description: 'Please log in first',
-        });
-        navigate('/login');
-        return;
-      }
-
-      const response = await fetch(
-        `${supabaseUrl}/functions/v1/update-notion-client`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            clientId: clientId,
-            updates: updates
-          })
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update client in Notion');
-      }
-
-      toast({
-        title: 'Success',
-        description: 'Client updated in Notion.',
-      });
-
-      // Optimistically update local state
-      setClients(prev => prev.map(client =>
-        client.id === clientId ? { ...client, ...updates } : client
-      ));
-
-    } catch (err: any) {
-      console.error('Error updating Notion client:', err);
-      toast({
-        variant: 'destructive',
-        title: 'Update Failed',
-        description: err.message
-      });
-      // Re-fetch to ensure data consistency if optimistic update failed
-      fetchAllClients();
-    }
-  }, [navigate, toast, supabaseUrl, fetchAllClients]);
-
-  const handleFieldChange = (id: string, field: keyof Client, value: any) => {
+  const handleLocalFieldChange = (id: string, field: keyof Client, value: any) => {
     // Update local state immediately for responsive UI
     setClients(prev => prev.map(client =>
       client.id === id ? { ...client, [field]: value } : client
     ));
-    // Debounce or save on blur for performance, for now, saving immediately
-    updateNotionClient(id, { [field]: value });
   };
 
-  if (loading) {
+  const handleFieldBlur = (id: string, field: keyof Client, value: any) => {
+    // Trigger API update only on blur
+    updateNotionClient({ clientId: id, updates: { [field]: value } });
+  };
+
+  if (loadingClients) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6 flex items-center justify-center">
         <Loader2 className="w-12 h-12 animate-spin text-indigo-600" />
@@ -205,7 +120,7 @@ const AllClients = () => {
     );
   }
 
-  if (error) {
+  if (clientsError) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center p-6">
         <Card className="max-w-md w-full shadow-lg">
@@ -214,10 +129,9 @@ const AllClients = () => {
               <AlertCircle className="w-12 h-12 mx-auto" />
             </div>
             <h2 className="text-xl font-bold mb-2">Error Loading Clients</h2>
-            <p className="text-gray-600 mb-4">{error}</p>
+            <p className="text-gray-600 mb-4">{clientsError}</p>
             <div className="space-y-2">
-              <Button onClick={fetchAllClients}>Try Again</Button>
-              {/* Removed redundant 'Check Configuration' button */}
+              <Button onClick={() => fetchAllClients()}>Try Again</Button>
             </div>
           </CardContent>
         </Card>
@@ -249,8 +163,8 @@ const AllClients = () => {
                   className="pl-10 pr-4 py-2 border rounded-md w-full"
                 />
               </div>
-              <Button onClick={fetchAllClients} variant="outline">
-                Refresh
+              <Button onClick={() => fetchAllClients()} variant="outline" disabled={loadingClients}>
+                {loadingClients ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Refresh'}
               </Button>
             </div>
 
@@ -281,27 +195,30 @@ const AllClients = () => {
                         <TableCell>
                           <Textarea
                             value={client.focus}
-                            onChange={(e) => handleFieldChange(client.id, 'focus', e.target.value)}
-                            onBlur={(e) => updateNotionClient(client.id, { focus: e.target.value })}
+                            onChange={(e) => handleLocalFieldChange(client.id, 'focus', e.target.value)}
+                            onBlur={(e) => handleFieldBlur(client.id, 'focus', e.target.value)}
                             className="min-h-[60px] w-full"
+                            disabled={updatingClient}
                           />
                         </TableCell>
                         <TableCell>
                           <Input
                             type="email"
                             value={client.email}
-                            onChange={(e) => handleFieldChange(client.id, 'email', e.target.value)}
-                            onBlur={(e) => updateNotionClient(client.id, { email: e.target.value })}
+                            onChange={(e) => handleLocalFieldChange(client.id, 'email', e.target.value)}
+                            onBlur={(e) => handleFieldBlur(client.id, 'email', e.target.value)}
                             className="w-full"
+                            disabled={updatingClient}
                           />
                         </TableCell>
                         <TableCell>
                           <Input
                             type="tel"
                             value={client.phone}
-                            onChange={(e) => handleFieldChange(client.id, 'phone', e.target.value)}
-                            onBlur={(e) => updateNotionClient(client.id, { phone: e.target.value })}
+                            onChange={(e) => handleLocalFieldChange(client.id, 'phone', e.target.value)}
+                            onBlur={(e) => handleFieldBlur(client.id, 'phone', e.target.value)}
                             className="w-full"
+                            disabled={updatingClient}
                           />
                         </TableCell>
                         <TableCell>{client.starSign}</TableCell>
@@ -313,8 +230,6 @@ const AllClients = () => {
             )}
           </CardContent>
         </Card>
-
-        {/* Removed redundant navigation buttons */}
       </div>
     </div>
   );

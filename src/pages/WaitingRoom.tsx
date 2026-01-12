@@ -5,154 +5,73 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Calendar, User, Clock, Settings, AlertCircle, PlayCircle } from 'lucide-react';
+import { Calendar, Settings, AlertCircle, PlayCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
-
-interface Appointment {
-  id: string; // Notion page ID
-  clientName: string;
-  starSign: string;
-  sessionNorthStar: string; // Changed from 'focus' to 'sessionNorthStar'
-  goal: string;
-  status: string; // To display in the waiting room
-}
+import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
+import { Appointment, GetTodaysAppointmentsResponse, UpdateNotionAppointmentPayload, UpdateNotionAppointmentResponse } from '@/types/api';
 
 const WaitingRoom = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [needsConfig, setNeedsConfig] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://hcriagmovotwuqbppcfm.supabase.co';
-
-  const fetchTodaysAppointments = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      setNeedsConfig(false);
-
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (!session) {
-        setError('Please log in to view appointments');
-        navigate('/login');
-        return;
-      }
-
-      const { data: secrets, error: secretsError } = await supabase
-        .from('notion_secrets')
-        .select('*') // Changed from 'id' to '*'
-        .eq('user_id', session.user.id)
-        .single();
-
-      if (secretsError && secretsError.code !== 'PGRST116') {
-        throw secretsError;
-      }
-      if (!secrets) {
-        setNeedsConfig(true);
-        setLoading(false);
-        return;
-      }
-
-      const response = await fetch(
-        `${supabaseUrl}/functions/v1/get-todays-appointments`,
-        {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json'
-          }
+  const {
+    data: fetchedAppointmentsData,
+    loading: loadingAppointments,
+    error: appointmentsError,
+    needsConfig,
+    execute: fetchTodaysAppointments,
+  } = useSupabaseEdgeFunction<void, GetTodaysAppointmentsResponse>(
+    'get-todays-appointments',
+    {
+      requiresAuth: true,
+      requiresNotionConfig: true,
+      onSuccess: (data) => setAppointments(data.appointments),
+      onError: (msg, code) => {
+        if (code === 'PROFILE_NOT_FOUND' || code === 'PRACTITIONER_NAME_MISSING') {
+          // Navigation handled by hook's onError
+        } else {
+          toast({ variant: 'destructive', title: 'Error', description: msg });
         }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        if (errorData.errorCode === 'PROFILE_NOT_FOUND' || errorData.errorCode === 'PRACTITIONER_NAME_MISSING') {
-          toast({
-            variant: 'destructive',
-            title: 'Profile Required',
-            description: errorData.error || 'Please complete your profile to access sessions.',
-          });
-          navigate('/profile-setup');
-          return;
-        }
-        throw new Error(errorData.error || 'Failed to fetch appointments');
+      },
+      onNotionConfigNeeded: () => {
+        // Handled by needsConfig state
       }
-
-      const data = await response.json();
-      setAppointments(data.appointments);
-    } catch (err: any) {
-      console.error('Error fetching today\'s appointments:', err);
-      setError(err.message);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: err.message
-      });
-    } finally {
-      setLoading(false);
     }
-  }, [navigate, toast, supabaseUrl]);
+  );
+
+  const {
+    loading: updatingAppointment,
+    execute: updateNotionAppointment,
+  } = useSupabaseEdgeFunction<UpdateNotionAppointmentPayload, UpdateNotionAppointmentResponse>(
+    'update-notion-appointment',
+    {
+      requiresAuth: true,
+      onSuccess: () => {
+        toast({ title: 'Session Started', description: 'Navigating to live session dashboard.' });
+      },
+      onError: (msg) => {
+        toast({ variant: 'destructive', title: 'Error', description: msg });
+      }
+    }
+  );
 
   useEffect(() => {
     fetchTodaysAppointments();
   }, [fetchTodaysAppointments]);
 
   const handleStartSession = async (appointmentId: string) => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast({
-          variant: 'destructive',
-          title: 'Not authenticated',
-          description: 'Please log in first',
-        });
-        navigate('/login');
-        return;
-      }
-
-      // Update Notion status to 'OPEN'
-      const response = await fetch(
-        `${supabaseUrl}/functions/v1/update-notion-appointment`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            appointmentId: appointmentId,
-            updates: { status: 'OPEN' }
-          })
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to start session in Notion');
-      }
-
-      toast({
-        title: 'Session Started',
-        description: 'Navigating to live session dashboard.',
-      });
-
+    await updateNotionAppointment({
+      appointmentId: appointmentId,
+      updates: { status: 'OPEN' }
+    });
+    if (!updatingAppointment) { // Only navigate if update was successful and not still loading
       navigate(`/active-session/${appointmentId}`);
-    } catch (err: any) {
-      console.error('Error starting session:', err);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: err.message
-      });
     }
   };
 
-  if (loading) {
+  if (loadingAppointments) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6 flex items-center justify-center">
         <div className="max-w-2xl mx-auto space-y-6 w-full">
@@ -191,7 +110,7 @@ const WaitingRoom = () => {
     );
   }
 
-  if (error) {
+  if (appointmentsError) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center p-6">
         <Card className="max-w-md w-full shadow-lg">
@@ -200,10 +119,9 @@ const WaitingRoom = () => {
               <AlertCircle className="w-12 h-12 mx-auto" />
             </div>
             <h2 className="xl font-bold mb-2">Error Loading Appointments</h2>
-            <p className="text-gray-600 mb-4">{error}</p>
+            <p className="text-gray-600 mb-4">{appointmentsError}</p>
             <div className="space-y-2">
-              <Button onClick={fetchTodaysAppointments}>Try Again</Button>
-              {/* Removed redundant 'Check Configuration' button */}
+              <Button onClick={() => fetchTodaysAppointments()}>Try Again</Button>
             </div>
           </CardContent>
         </Card>
@@ -248,17 +166,16 @@ const WaitingRoom = () => {
                   <Button
                     className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-6 py-3 rounded-md text-base flex items-center"
                     onClick={() => handleStartSession(app.id)}
+                    disabled={updatingAppointment}
                   >
                     <PlayCircle className="w-5 h-5 mr-2" />
-                    Start Session
+                    {updatingAppointment ? 'Starting...' : 'Start Session'}
                   </Button>
                 </CardContent>
               </Card>
             ))}
           </div>
         )}
-
-        {/* Removed redundant navigation buttons */}
       </div>
     </div>
   );

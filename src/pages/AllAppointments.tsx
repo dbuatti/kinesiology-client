@@ -12,26 +12,10 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
 import { Check, ChevronsUpDown, Calendar, User, Settings, Loader2, Search, AlertCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-
-interface Appointment {
-  id: string;
-  clientName: string;
-  clientCrmId: string | null;
-  starSign: string;
-  clientFocus: string; // General client focus from CRM
-  sessionNorthStar: string; // Specific session focus from appointment
-  clientEmail: string;
-  clientPhone: string;
-  date: string | null;
-  goal: string;
-  priorityPattern: string | null;
-  status: string;
-  notes: string;
-  sessionAnchor: string;
-}
+import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
+import { Appointment, GetAllAppointmentsResponse, UpdateNotionAppointmentPayload, UpdateNotionAppointmentResponse } from '@/types/api';
 
 const statusOptions = ['OPEN', 'AP', 'CH', 'CXL']; // Assuming these are your Notion Status options
 const priorityPatternOptions = ['Pattern A', 'Pattern B', 'Pattern C', 'Pattern D']; // Example options, adjust as needed
@@ -39,72 +23,47 @@ const priorityPatternOptions = ['Pattern A', 'Pattern B', 'Pattern C', 'Pattern 
 const AllAppointments = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [filteredAppointments, setFilteredAppointments] = useState<Appointment[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [needsConfig, setNeedsConfig] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://hcriagmovotwuqbppcfm.supabase.co';
-
-  const fetchAllAppointments = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      setNeedsConfig(false);
-
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (!session) {
-        setError('Please log in to view appointments');
-        navigate('/login');
-        return;
-      }
-
-      const { data: secrets, error: secretsError } = await supabase
-        .from('notion_secrets')
-        .select('*') // Changed from 'id' to '*'
-        .eq('user_id', session.user.id)
-        .single();
-
-      if (secretsError || !secrets) {
-        setNeedsConfig(true);
-        setLoading(false);
-        return;
-      }
-
-      const response = await fetch(
-        `${supabaseUrl}/functions/v1/get-all-appointments`,
-        {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch all appointments');
-      }
-
-      const data = await response.json();
-      setAppointments(data.appointments);
-      setFilteredAppointments(data.appointments);
-    } catch (err: any) {
-      console.error('Error fetching all appointments:', err);
-      setError(err.message);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: err.message
-      });
-    } finally {
-      setLoading(false);
+  const {
+    data: fetchedAppointmentsData,
+    loading: loadingAppointments,
+    error: appointmentsError,
+    needsConfig,
+    execute: fetchAllAppointments,
+  } = useSupabaseEdgeFunction<void, GetAllAppointmentsResponse>(
+    'get-all-appointments',
+    {
+      requiresAuth: true,
+      requiresNotionConfig: true,
+      onSuccess: (data) => {
+        setAppointments(data.appointments);
+        setFilteredAppointments(data.appointments);
+      },
+      onError: (msg) => {
+        toast({ variant: 'destructive', title: 'Error', description: msg });
+      },
     }
-  }, [navigate, toast, supabaseUrl]);
+  );
+
+  const {
+    loading: updatingAppointment,
+    execute: updateNotionAppointment,
+  } = useSupabaseEdgeFunction<UpdateNotionAppointmentPayload, UpdateNotionAppointmentResponse>(
+    'update-notion-appointment',
+    {
+      requiresAuth: true,
+      onSuccess: () => {
+        toast({ title: 'Success', description: 'Appointment updated in Notion.' });
+      },
+      onError: (msg) => {
+        toast({ variant: 'destructive', title: 'Update Failed', description: msg });
+        fetchAllAppointments(); // Re-fetch to ensure data consistency if optimistic update failed
+      }
+    }
+  );
 
   useEffect(() => {
     fetchAllAppointments();
@@ -117,77 +76,31 @@ const AllAppointments = () => {
       app.goal.toLowerCase().includes(lowerCaseSearchTerm) ||
       app.notes.toLowerCase().includes(lowerCaseSearchTerm) ||
       app.status.toLowerCase().includes(lowerCaseSearchTerm) ||
-      app.sessionNorthStar.toLowerCase().includes(lowerCaseSearchTerm) || // Search new field
+      app.sessionNorthStar.toLowerCase().includes(lowerCaseSearchTerm) ||
       (app.priorityPattern && app.priorityPattern.toLowerCase().includes(lowerCaseSearchTerm))
     );
     setFilteredAppointments(filtered);
   }, [searchTerm, appointments]);
 
-  const updateNotionAppointment = useCallback(async (appointmentId: string, updates: Partial<Appointment>) => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast({
-          variant: 'destructive',
-          title: 'Not authenticated',
-          description: 'Please log in first',
-        });
-        navigate('/login');
-        return;
-      }
-
-      const response = await fetch(
-        `${supabaseUrl}/functions/v1/update-notion-appointment`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            appointmentId: appointmentId,
-            updates: updates
-          })
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update appointment in Notion');
-      }
-
-      toast({
-        title: 'Success',
-        description: 'Appointment updated in Notion.',
-      });
-
-      // Optimistically update local state
-      setAppointments(prev => prev.map(app =>
-        app.id === appointmentId ? { ...app, ...updates } : app
-      ));
-
-    } catch (err: any) {
-      console.error('Error updating Notion appointment:', err);
-      toast({
-        variant: 'destructive',
-        title: 'Update Failed',
-        description: err.message
-      });
-      // Re-fetch to ensure data consistency if optimistic update failed
-      fetchAllAppointments();
-    }
-  }, [navigate, toast, supabaseUrl, fetchAllAppointments]);
-
-  const handleFieldChange = (id: string, field: keyof Appointment, value: any) => {
+  const handleLocalFieldChange = (id: string, field: keyof Appointment, value: any) => {
     // Update local state immediately for responsive UI
     setAppointments(prev => prev.map(app =>
       app.id === id ? { ...app, [field]: value } : app
     ));
-    // Debounce or save on blur for performance, for now, saving immediately
-    updateNotionAppointment(id, { [field]: value });
   };
 
-  if (loading) {
+  const handleFieldBlur = (id: string, field: keyof Appointment, value: any) => {
+    // Trigger API update only on blur
+    updateNotionAppointment({ appointmentId: id, updates: { [field]: value } });
+  };
+
+  const handleSelectChange = (id: string, field: keyof Appointment, value: any) => {
+    // For select components, update immediately
+    handleLocalFieldChange(id, field, value);
+    updateNotionAppointment({ appointmentId: id, updates: { [field]: value } });
+  };
+
+  if (loadingAppointments) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6 flex items-center justify-center">
         <Loader2 className="w-12 h-12 animate-spin text-indigo-600" />
@@ -221,7 +134,7 @@ const AllAppointments = () => {
     );
   }
 
-  if (error) {
+  if (appointmentsError) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center p-6">
         <Card className="max-w-md w-full shadow-lg">
@@ -230,10 +143,9 @@ const AllAppointments = () => {
               <AlertCircle className="w-12 h-12 mx-auto" />
             </div>
             <h2 className="xl font-bold mb-2">Error Loading Appointments</h2>
-            <p className="text-gray-600 mb-4">{error}</p>
+            <p className="text-gray-600 mb-4">{appointmentsError}</p>
             <div className="space-y-2">
-              <Button onClick={fetchAllAppointments}>Try Again</Button>
-              {/* Removed redundant 'Check Configuration' button */}
+              <Button onClick={() => fetchAllAppointments()}>Try Again</Button>
             </div>
           </CardContent>
         </Card>
@@ -265,8 +177,8 @@ const AllAppointments = () => {
                   className="pl-10 pr-4 py-2 border rounded-md w-full"
                 />
               </div>
-              <Button onClick={fetchAllAppointments} variant="outline">
-                Refresh
+              <Button onClick={() => fetchAllAppointments()} variant="outline" disabled={loadingAppointments}>
+                {loadingAppointments ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Refresh'}
               </Button>
             </div>
 
@@ -286,7 +198,7 @@ const AllAppointments = () => {
                       <TableHead className="min-w-[150px]">Client Name</TableHead>
                       <TableHead className="min-w-[120px]">Date</TableHead>
                       <TableHead className="min-w-[200px]">Goal</TableHead>
-                      <TableHead className="min-w-[200px]">Session North Star</TableHead> {/* New column */}
+                      <TableHead className="min-w-[200px]">Session North Star</TableHead>
                       <TableHead className="min-w-[150px]">Priority Pattern</TableHead>
                       <TableHead className="min-w-[120px]">Status</TableHead>
                       <TableHead className="min-w-[250px]">Notes</TableHead>
@@ -300,17 +212,19 @@ const AllAppointments = () => {
                         <TableCell>
                           <Textarea
                             value={app.goal}
-                            onChange={(e) => handleFieldChange(app.id, 'goal', e.target.value)}
-                            onBlur={(e) => updateNotionAppointment(app.id, { goal: e.target.value })}
+                            onChange={(e) => handleLocalFieldChange(app.id, 'goal', e.target.value)}
+                            onBlur={(e) => handleFieldBlur(app.id, 'goal', e.target.value)}
                             className="min-h-[60px] w-full"
+                            disabled={updatingAppointment}
                           />
                         </TableCell>
                         <TableCell>
                           <Textarea
                             value={app.sessionNorthStar}
-                            onChange={(e) => handleFieldChange(app.id, 'sessionNorthStar', e.target.value)}
-                            onBlur={(e) => updateNotionAppointment(app.id, { sessionNorthStar: e.target.value })}
+                            onChange={(e) => handleLocalFieldChange(app.id, 'sessionNorthStar', e.target.value)}
+                            onBlur={(e) => handleFieldBlur(app.id, 'sessionNorthStar', e.target.value)}
                             className="min-h-[60px] w-full"
+                            disabled={updatingAppointment}
                           />
                         </TableCell>
                         <TableCell>
@@ -320,6 +234,7 @@ const AllAppointments = () => {
                                 variant="outline"
                                 role="combobox"
                                 className="w-full justify-between"
+                                disabled={updatingAppointment}
                               >
                                 {app.priorityPattern || "Select Pattern"}
                                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -334,7 +249,7 @@ const AllAppointments = () => {
                                     <CommandItem
                                       key={pattern}
                                       value={pattern}
-                                      onSelect={() => handleFieldChange(app.id, 'priorityPattern', pattern)}
+                                      onSelect={() => handleSelectChange(app.id, 'priorityPattern', pattern)}
                                     >
                                       <Check
                                         className={cn(
@@ -357,6 +272,7 @@ const AllAppointments = () => {
                                 variant="outline"
                                 role="combobox"
                                 className="w-full justify-between"
+                                disabled={updatingAppointment}
                               >
                                 {app.status || "Select Status"}
                                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -371,7 +287,7 @@ const AllAppointments = () => {
                                     <CommandItem
                                       key={status}
                                       value={status}
-                                      onSelect={() => handleFieldChange(app.id, 'status', status)}
+                                      onSelect={() => handleSelectChange(app.id, 'status', status)}
                                     >
                                       <Check
                                         className={cn(
@@ -390,9 +306,10 @@ const AllAppointments = () => {
                         <TableCell>
                           <Textarea
                             value={app.notes}
-                            onChange={(e) => handleFieldChange(app.id, 'notes', e.target.value)}
-                            onBlur={(e) => updateNotionAppointment(app.id, { notes: e.target.value })}
+                            onChange={(e) => handleLocalFieldChange(app.id, 'notes', e.target.value)}
+                            onBlur={(e) => handleFieldBlur(app.id, 'notes', e.target.value)}
                             className="min-h-[60px] w-full"
+                            disabled={updatingAppointment}
                           />
                         </TableCell>
                       </TableRow>
@@ -403,8 +320,6 @@ const AllAppointments = () => {
             )}
           </CardContent>
         </Card>
-
-        {/* Removed redundant navigation buttons */}
       </div>
     </div>
   );
