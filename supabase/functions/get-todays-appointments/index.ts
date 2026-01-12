@@ -41,32 +41,34 @@ serve(async (req) => {
 
     console.log("[get-todays-appointments] User authenticated:", user.id)
 
-    // Fetch Notion configuration
-    const { data: config, error: configError } = await supabase
-      .from('notion_config')
-      .select('integration_token, appointments_database_id')
+    // Fetch Notion credentials from secure secrets table
+    const { data: secrets, error: secretsError } = await supabase
+      .from('notion_secrets')
+      .select('notion_integration_token, appointments_database_id')
       .eq('user_id', user.id)
       .single()
 
-    if (configError || !config) {
-      console.error("[get-todays-appointments] Config error:", configError)
-      return new Response(JSON.stringify({ error: 'Notion configuration not found' }), {
+    if (secretsError || !secrets) {
+      console.error("[get-todays-appointments] Secrets not found:", secretsError)
+      return new Response(JSON.stringify({ 
+        error: 'Notion configuration not found. Please configure your Notion credentials first.' 
+      }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    console.log("[get-todays-appointments] Config loaded successfully")
+    console.log("[get-todays-appointments] Secrets loaded successfully")
 
     // Get today's date in Notion format (YYYY-MM-DD)
     const today = new Date()
     const todayString = today.toISOString().split('T')[0]
 
     // Query Notion API
-    const notionResponse = await fetch('https://api.notion.com/v1/databases/' + config.appointments_database_id + '/query', {
+    const notionResponse = await fetch('https://api.notion.com/v1/databases/' + secrets.appointments_database_id + '/query', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${config.integration_token}`,
+        'Authorization': `Bearer ${secrets.notion_integration_token}`,
         'Content-Type': 'application/json',
         'Notion-Version': '2022-06-28'
       },
@@ -106,7 +108,7 @@ serve(async (req) => {
     const appointments = notionData.results.map((page: any) => {
       const properties = page.properties
       
-      // Extract Client Name from CRM relation
+      // Extract Client Name from CRM relation or title
       const clientName = properties.Client?.relation?.[0]?.id || 
                         properties["Client Name"]?.title?.[0]?.plain_text || 
                         "Unknown Client"

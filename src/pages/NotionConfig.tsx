@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Settings, Key, Database } from 'lucide-react';
+import { Settings, Key, Database, Shield } from 'lucide-react';
 
 const NotionConfig = () => {
   const [integrationToken, setIntegrationToken] = useState('');
@@ -18,38 +18,6 @@ const NotionConfig = () => {
   const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
-
-  useEffect(() => {
-    loadExistingConfig();
-  }, []);
-
-  const loadExistingConfig = async () => {
-    try {
-      setLoading(true);
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        navigate('/login');
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('notion_config')
-        .select('integration_token, appointments_database_id, crm_database_id')
-        .eq('user_id', session.user.id)
-        .single();
-
-      if (data && !error) {
-        setIntegrationToken(data.integration_token || '');
-        setAppointmentsDbId(data.appointments_database_id || '');
-        setCrmDbId(data.crm_database_id || '');
-      }
-    } catch (error) {
-      console.error('Error loading config:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,39 +30,34 @@ const NotionConfig = () => {
         throw new Error('Not authenticated');
       }
 
-      const configData = {
-        user_id: session.user.id,
-        integration_token: integrationToken,
-        appointments_database_id: appointmentsDbId,
-        crm_database_id: crmDbId || null,
-      };
+      // Get Supabase URL from environment or default
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://hcriagmovotwuqbppcfm.supabase.co';
 
-      // Check if config exists
-      const { data: existing } = await supabase
-        .from('notion_config')
-        .select('id')
-        .eq('user_id', session.user.id)
-        .single();
+      // Call edge function to set secrets
+      const response = await fetch(
+        `${supabaseUrl}/functions/v1/set-notion-secrets`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            notionToken: integrationToken,
+            appointmentsDbId: appointmentsDbId,
+            crmDbId: crmDbId
+          })
+        }
+      );
 
-      let error;
-      if (existing) {
-        // Update existing
-        ({ error } = await supabase
-          .from('notion_config')
-          .update(configData)
-          .eq('user_id', session.user.id));
-      } else {
-        // Insert new
-        ({ error } = await supabase
-          .from('notion_config')
-          .insert([configData]));
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save secrets');
       }
-
-      if (error) throw error;
 
       toast({
         title: 'Success',
-        description: 'Notion configuration saved successfully!',
+        description: 'Notion configuration saved securely!',
       });
 
       navigate('/active-session');
@@ -109,17 +72,6 @@ const NotionConfig = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center p-6">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading configuration...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6">
       <div className="max-w-2xl mx-auto">
@@ -132,11 +84,18 @@ const NotionConfig = () => {
               </CardTitle>
             </div>
             <p className="text-indigo-100 mt-2 text-sm">
-              Configure your Notion API credentials to sync appointments
+              Configure your Notion API credentials (stored securely in Supabase)
             </p>
           </CardHeader>
           
           <CardContent className="pt-6">
+            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-start gap-3">
+              <Shield className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+              <div className="text-sm text-green-800">
+                <strong>Secure Storage:</strong> Your credentials are stored as encrypted secrets in Supabase, not in the database. This is much more secure.
+              </div>
+            </div>
+
             <form onSubmit={handleSave} className="space-y-6">
               {/* Integration Token */}
               <div className="space-y-2">
@@ -203,7 +162,7 @@ const NotionConfig = () => {
                   className="flex-1 h-12 text-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
                   disabled={saving}
                 >
-                  {saving ? 'Saving...' : 'Save Configuration'}
+                  {saving ? 'Saving...' : 'Save to Secrets'}
                 </Button>
                 <Button
                   type="button"
