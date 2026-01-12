@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +12,11 @@ import { Settings, Key, Database, Shield, Loader2 } from 'lucide-react';
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
 import { SetNotionSecretsPayload, SetNotionSecretsResponse, NotionSecrets } from '@/types/api';
 
+// Define a new response type for the get-notion-secrets edge function
+interface GetNotionSecretsResponse {
+  secrets: NotionSecrets;
+}
+
 const NotionConfig = () => {
   const [integrationToken, setIntegrationToken] = useState('');
   const [appointmentsDbId, setAppointmentsDbId] = useState('');
@@ -20,14 +25,13 @@ const NotionConfig = () => {
   const [acupointsDbId, setAcupointsDbId] = useState('');
   const [musclesDbId, setMusculesDbId] = useState('');
   const [channelsDbId, setChannelsDbId] = useState('');
-  const [chakrasDbId, setChakrasDbId] = useState(''); // New state for Chakras DB ID
-  const [loadingInitial, setLoadingInitial] = useState(true); // Separate loading for initial fetch
+  const [chakrasDbId, setChakrasDbId] = useState('');
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // Hook for saving Notion secrets
   const {
     loading: savingConfig,
-    error: saveError,
     execute: setNotionSecrets,
   } = useSupabaseEdgeFunction<SetNotionSecretsPayload, SetNotionSecretsResponse>(
     'set-notion-secrets',
@@ -43,50 +47,41 @@ const NotionConfig = () => {
     }
   );
 
-  useEffect(() => {
-    const fetchSecrets = async () => {
-      setLoadingInitial(true);
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          navigate('/login');
-          return;
+  // Hook for fetching Notion secrets
+  const {
+    data: fetchedSecrets,
+    loading: loadingInitial,
+    error: fetchError,
+    execute: fetchNotionSecrets,
+  } = useSupabaseEdgeFunction<void, GetNotionSecretsResponse>(
+    'get-notion-secrets', // New edge function to fetch secrets
+    {
+      requiresAuth: true,
+      onSuccess: (data) => {
+        const secrets = data.secrets;
+        setIntegrationToken(secrets.notion_integration_token || '');
+        setAppointmentsDbId(secrets.appointments_database_id || '');
+        setCrmDbId(secrets.crm_database_id || '');
+        setModesDbId(secrets.modes_database_id || '');
+        setAcupointsDbId(secrets.acupoints_database_id || '');
+        setMusculesDbId(secrets.muscles_database_id || '');
+        setChannelsDbId(secrets.channels_database_id || '');
+        setChakrasDbId(secrets.chakras_database_id || '');
+      },
+      onError: (msg, errorCode) => {
+        if (errorCode === 'NOTION_CONFIG_NOT_FOUND') {
+          console.log('Notion config not found, starting with empty fields.');
+          // This is expected if the user hasn't configured yet, so no toast error
+        } else {
+          toast({ variant: 'destructive', title: 'Error loading configuration', description: msg });
         }
-
-        const { data, error } = await supabase
-          .from('notion_secrets')
-          .select('*') // Changed to select all columns
-          .eq('id', user.id) // Changed from 'user_id' to 'id'
-          .single();
-
-        if (error && error.code !== 'PGRST116') { // PGRST116 means "no rows found"
-          throw error;
-        }
-
-        if (data) {
-          const secrets = data as NotionSecrets;
-          setIntegrationToken(secrets.notion_integration_token || '');
-          setAppointmentsDbId(secrets.appointments_database_id || '');
-          setCrmDbId(secrets.crm_database_id || '');
-          setModesDbId(secrets.modes_database_id || '');
-          setAcupointsDbId(secrets.acupoints_database_id || '');
-          setMusculesDbId(secrets.muscles_database_id || '');
-          setChannelsDbId(secrets.channels_database_id || '');
-          setChakrasDbId(secrets.chakras_database_id || ''); // Set new chakrasDbId
-        }
-      } catch (error: any) {
-        toast({
-          variant: 'destructive',
-          title: 'Error loading configuration',
-          description: error.message,
-        });
-      } finally {
-        setLoadingInitial(false);
       }
-    };
+    }
+  );
 
-    fetchSecrets();
-  }, [navigate, toast]);
+  useEffect(() => {
+    fetchNotionSecrets();
+  }, [fetchNotionSecrets]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,8 +94,6 @@ const NotionConfig = () => {
       toast({ variant: 'destructive', title: 'Validation Error', description: 'Appointments Database ID cannot be empty.' });
       return;
     }
-    // The following fields are now optional, so no strict validation here.
-    // They will be passed as null if empty strings.
 
     await setNotionSecrets({
       notionToken: integrationToken,
@@ -110,7 +103,7 @@ const NotionConfig = () => {
       acupointsDbId: acupointsDbId.trim() || null,
       musclesDbId: musclesDbId.trim() || null,
       channelsDbId: channelsDbId.trim() || null,
-      chakrasDbId: chakrasDbId.trim() || null, // Include new chakrasDbId
+      chakrasDbId: chakrasDbId.trim() || null,
     });
   };
 

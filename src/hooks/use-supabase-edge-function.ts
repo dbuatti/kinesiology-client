@@ -14,6 +14,11 @@ interface UseSupabaseEdgeFunctionOptions {
   onNotionConfigNeeded?: () => void;
 }
 
+// Define a new response type for the get-notion-secrets edge function
+interface GetNotionSecretsResponse {
+  secrets: NotionSecrets;
+}
+
 export const useSupabaseEdgeFunction = <TRequest, TResponse>(
   functionName: string,
   options?: UseSupabaseEdgeFunctionOptions
@@ -58,19 +63,38 @@ export const useSupabaseEdgeFunction = <TRequest, TResponse>(
       }
 
       if (requiresNotionConfig && session) {
-        console.log(`[useSupabaseEdgeFunction] Checking Notion config for ${functionName}.`);
-        const { data: secrets, error: secretsError } = await supabase
-          .from('notion_secrets')
-          .select('*') // Reverted to select all columns
-          .eq('id', session.user.id)
-          .single();
+        console.log(`[useSupabaseEdgeFunction] Checking Notion config for ${functionName} using get-notion-secrets edge function.`);
+        
+        // Use the new edge function to fetch secrets
+        const secretsResponse = await fetch(
+          `${supabaseUrl}/functions/v1/get-notion-secrets`,
+          {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${session?.access_token}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
 
-        if (secretsError && secretsError.code !== 'PGRST116') { // PGRST116 means "no rows found"
-          console.error(`[useSupabaseEdgeFunction] Error fetching Notion secrets for ${functionName}:`, secretsError);
-          throw secretsError;
+        if (!secretsResponse.ok) {
+          const errorData = await secretsResponse.json();
+          if (errorData.errorCode === 'NOTION_CONFIG_NOT_FOUND') {
+            console.log(`[useSupabaseEdgeFunction] Notion config missing for ${functionName}.`);
+            setNeedsConfig(true);
+            onNotionConfigNeeded?.();
+            setLoading(false);
+            return;
+          } else {
+            console.error(`[useSupabaseEdgeFunction] Error fetching Notion secrets via edge function for ${functionName}:`, errorData);
+            throw new Error(errorData.error || 'Failed to fetch Notion configuration.');
+          }
         }
-        if (!secrets || !(secrets as NotionSecrets).notion_integration_token) { // Check for a core secret
-          console.log(`[useSupabaseEdgeFunction] Notion config missing for ${functionName}.`);
+        const secretsResult: GetNotionSecretsResponse = await secretsResponse.json();
+        const secrets = secretsResult.secrets;
+
+        if (!secrets || !secrets.notion_integration_token) {
+          console.log(`[useSupabaseEdgeFunction] Notion config missing (after edge function call) for ${functionName}.`);
           setNeedsConfig(true);
           onNotionConfigNeeded?.();
           setLoading(false);
