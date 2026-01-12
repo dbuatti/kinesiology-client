@@ -70,6 +70,7 @@ const WaitingRoom = () => {
   );
 
   const handleStartSession = async (appointmentId: string) => {
+    console.log('[WaitingRoom] Starting session for appointmentId:', appointmentId);
     await updateNotionAppointment({
       appointmentId: appointmentId,
       updates: { status: 'OPEN' }
@@ -164,26 +165,12 @@ const WaitingRoom = () => {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-4">
-            {appointments.map((app) => (
-              <Card key={app.id} className="shadow-md border-l-4 border-indigo-500">
-                <CardContent className="flex items-center justify-between p-4">
-                  <div>
-                    <p className="text-lg font-semibold text-indigo-800">{app.clientName}</p>
-                    <p className="text-sm text-gray-600">Status: <span className="font-medium">{app.status}</span></p>
-                    {app.sessionNorthStar && <p className="text-xs text-gray-500 mt-1">Session North Star: {app.sessionNorthStar}</p>}
-                  </div>
-                  <Button
-                    className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-6 py-3 rounded-md text-base flex items-center"
-                    onClick={() => handleStartSession(app.id)}
-                    disabled={updatingAppointment}
-                  >
-                    <PlayCircle className="w-5 h-5 mr-2" />
-                    {updatingAppointment ? 'Starting...' : 'Start Session'}
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
+          <div className="space-y-4 p-4 bg-white rounded-lg shadow-md">
+            <h3 className="text-xl font-bold text-indigo-800">Appointments Data (for debugging):</h3>
+            <pre className="whitespace-pre-wrap text-sm text-gray-700">
+              {JSON.stringify(appointments, null, 2)}
+            </pre>
+            {/* The original map rendering logic would go here if this debugging step confirms data is present */}
           </div>
         )}
       </div>
