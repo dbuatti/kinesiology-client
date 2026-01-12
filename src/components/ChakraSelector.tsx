@@ -18,7 +18,7 @@ import { useDebounce } from '@/hooks/use-debounce'; // Import useDebounce
 
 interface ChakraSelectorProps {
   appointmentId: string;
-  onChakraSelected: (chakra: Chakra) => void; // New prop for notifying parent of selection
+  onChakraSelected: (chakra: Chakra | null) => void; // Updated to allow null for clearing
   onClearSelection: () => void; // New prop for clearing selection
   selectedChakra: Chakra | null; // New prop to receive selected chakra from parent
   onOpenNotionPage: (pageId: string, pageTitle: string) => void; // Changed prop name and type
@@ -80,31 +80,36 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
     }
   );
 
+  // Effect to fetch all chakras on initial mount
   useEffect(() => {
-    // Fetch if debouncedSearchTerm is not empty, or if searchType is 'name' and searchTerm is empty (to get all)
-    if (debouncedSearchTerm.trim() !== '' || (searchType === 'name' && searchTerm.trim() === '')) {
-      fetchChakras({ searchTerm: debouncedSearchTerm, searchType });
-    } else if (debouncedSearchTerm.trim() === '' && searchType !== 'name') {
-      setFilteredChakras([]);
+    if (allChakras.length === 0 && !loadingChakras && !chakrasError && !needsConfig) {
+      fetchChakras({ searchTerm: '', searchType: 'name' }); // Fetch all initially
     }
-  }, [debouncedSearchTerm, searchType, fetchChakras, searchTerm]);
+  }, [allChakras.length, loadingChakras, chakrasError, needsConfig, fetchChakras]);
 
+  // Effect to filter chakras based on search term and type (client-side)
   useEffect(() => {
-    const lowerCaseSearchTerm = searchTerm.toLowerCase();
-    const filtered = allChakras.filter(chakra => {
-      if (searchType === 'name') {
-        return chakra.name.toLowerCase().includes(lowerCaseSearchTerm);
-      } else if (searchType === 'element') {
-        return chakra.elements.some(element => element.toLowerCase().includes(lowerCaseSearchTerm));
-      } else if (searchType === 'emotion') {
-        return chakra.emotionalThemes.some(theme => theme.toLowerCase().includes(lowerCaseSearchTerm));
-      } else if (searchType === 'organ') {
-        return chakra.associatedOrgans.some(organ => organ.toLowerCase().includes(lowerCaseSearchTerm));
-      }
-      return false;
-    });
-    setFilteredChakras(filtered);
-  }, [searchTerm, allChakras, searchType]);
+    const lowerCaseSearchTerm = debouncedSearchTerm.toLowerCase();
+    let currentFiltered: Chakra[] = [];
+
+    if (lowerCaseSearchTerm.trim() === '') {
+      currentFiltered = allChakras;
+    } else {
+      currentFiltered = allChakras.filter(chakra => {
+        if (searchType === 'name') {
+          return chakra.name.toLowerCase().includes(lowerCaseSearchTerm);
+        } else if (searchType === 'element') {
+          return chakra.elements.some(element => element.toLowerCase().includes(lowerCaseSearchTerm));
+        } else if (searchType === 'emotion') {
+          return chakra.emotionalThemes.some(theme => theme.toLowerCase().includes(lowerCaseSearchTerm));
+        } else if (searchType === 'organ') {
+          return chakra.associatedOrgans.some(organ => organ.toLowerCase().includes(lowerCaseSearchTerm));
+        }
+        return false;
+      });
+    }
+    setFilteredChakras(currentFiltered);
+  }, [debouncedSearchTerm, searchType, allChakras]);
 
   const handleSelectChakra = (chakra: Chakra) => {
     onChakraSelected(chakra); // Notify parent of selection
@@ -144,10 +149,11 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
   };
 
   const handleClearAll = () => {
-    onClearSelection(); // Clear selected chakra in parent
+    onChakraSelected(null); // Clear selected chakra in parent
     setSearchTerm(''); // Clear local search term
     setFilteredChakras(allChakras); // Reset filtered chakras to all
     setIsSearchOpen(false); // Close search popover
+    onClearSelection(); // Notify parent of clear action
   };
 
   if (needsConfig) {

@@ -19,6 +19,7 @@ interface ChannelDashboardProps {
   onLogSuccess: () => void;
   onClearSelection: () => void; // New prop for clearing selection
   onOpenNotionPage: (pageId: string, pageTitle: string) => void; // Changed prop name and type
+  onChannelSelected: (channel: Channel | null) => void; // New prop
 }
 
 const primaryElements = ['Wood', 'Fire', 'Earth', 'Metal', 'Water'];
@@ -38,10 +39,10 @@ yuanAndFrontMuPoints.set('Triple Warmer', { yuan: 'SJ4 (Yangchi)', frontMu: 'CV5
 yuanAndFrontMuPoints.set('Gallbladder', { yuan: 'GB40 (Qiuxu)', frontMu: 'GB24 (Riyue)' });
 yuanAndFrontMuPoints.set('Liver', { yuan: 'LV3 (Taichong)', frontMu: 'LV14 (Qimen)' });
 
-const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLogSuccess, onClearSelection, onOpenNotionPage }) => {
-  const [allChannels, setAllChannels] = useState<Channel[]>([]);
+const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLogSuccess, onClearSelection, onOpenNotionPage, onChannelSelected }) => {
+  const [allChannels, setAllChannels] = useState<Channel[]>([]); // Stores all channels fetched
   const [selectedChannelForDisplay, setSelectedChannelForDisplay] = useState<Channel | null>(null);
-  const [loggedItems, setLoggedItems] = useState<Set<string>>(new Set()); // Fixed: Removed 'new' keyword
+  const [loggedItems, setLoggedItems] = useState<Set<string>>(new Set());
 
   const navigate = useNavigate();
 
@@ -117,7 +118,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
   };
 
   const onChannelsSuccess = useCallback((data: GetChannelsResponse) => {
-    setAllChannels(data.channels);
+    setAllChannels(data.channels); // Store all fetched channels
   }, []);
 
   const onChannelsError = useCallback((msg: string) => {
@@ -159,15 +160,18 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
     }
   );
 
+  // Effect to fetch all channels on initial mount
   useEffect(() => {
-    fetchChannels({ searchTerm: '', searchType: 'name' });
-  }, [fetchChannels]);
+    if (allChannels.length === 0 && !loadingChannels && !channelsError && !needsConfig) {
+      fetchChannels({ searchTerm: '', searchType: 'name' }); // Fetch all initially
+    }
+  }, [allChannels.length, loadingChannels, channelsError, needsConfig, fetchChannels]);
 
   const { meridianChannels, nonMeridianChannels } = useMemo(() => {
     const meridian: Channel[] = [];
     const nonMeridian: Channel[] = [];
 
-    allChannels.forEach(channel => {
+    allChannels.forEach(channel => { // Filter from allChannels
       const hasPrimaryElement = channel.elements.some(element => primaryElements.includes(element));
       if (hasPrimaryElement) {
         meridian.push(channel);
@@ -185,20 +189,22 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
       return a.name.localeCompare(b.name);
     });
 
-    nonMeridian.sort((a, b) => b.name.localeCompare(a.name));
+    nonMeridian.sort((a, b) => a.name.localeCompare(b.name)); // Corrected sort order
 
     return { meridianChannels: meridian, nonMeridianChannels: nonMeridian };
-  }, [allChannels]);
+  }, [allChannels]); // Depend on allChannels
 
   const handleSelectChannel = (channel: Channel) => {
     setSelectedChannelForDisplay(channel);
     setLoggedItems(new Set());
+    onChannelSelected(channel); // Notify parent
   };
 
   const handleClearAll = () => {
     setSelectedChannelForDisplay(null);
     setLoggedItems(new Set());
-    onClearSelection(); // Notify parent of clear action
+    onClearSelection();
+    onChannelSelected(null); // Notify parent of clear
   };
 
   const handleConfigureNotion = () => {

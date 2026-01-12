@@ -17,7 +17,7 @@ import { Muscle, GetMusclesPayload, GetMusclesResponse } from '@/types/api';
 import { useDebounce } from '@/hooks/use-debounce'; // Import useDebounce
 
 interface MuscleSelectorProps {
-  onMuscleSelected: (muscle: Muscle) => void;
+  onMuscleSelected: (muscle: Muscle | null) => void; // Updated to allow null for clearing
   onMuscleStrengthLogged: (muscle: Muscle, isStrong: boolean) => void;
   appointmentId: string;
   onClearSelection: () => void; // New prop for clearing selection
@@ -25,8 +25,8 @@ interface MuscleSelectorProps {
 }
 
 const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMuscleStrengthLogged, appointmentId, onClearSelection, onOpenNotionPage }) => {
-  const [allMuscles, setAllMuscles] = useState<Muscle[]>([]);
-  const [filteredMuscles, setFilteredMuscles] = useState<Muscle[]>([]);
+  const [allMuscles, setAllMuscles] = useState<Muscle[]>([]); // Stores all muscles fetched
+  const [filteredMuscles, setFilteredMuscles] = useState<Muscle[]>([]); // Displays filtered muscles
   const [searchTerm, setSearchTerm] = useState('');
   const [searchType, setSearchType] = useState<'muscle' | 'meridian' | 'organ' | 'emotion'>('muscle');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -37,8 +37,8 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
   const debouncedSearchTerm = useDebounce(searchTerm, 500); // Debounce search term
 
   const onMusclesSuccess = useCallback((data: GetMusclesResponse) => {
-    setAllMuscles(data.muscles);
-    setFilteredMuscles(data.muscles);
+    setAllMuscles(data.muscles); // Store all fetched muscles
+    setFilteredMuscles(data.muscles); // Initially, filtered is all
   }, []);
 
   const onMusclesError = useCallback((msg: string) => {
@@ -62,16 +62,36 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
     }
   );
 
+  // Effect to fetch all muscles on initial mount
   useEffect(() => {
-    // Fetch all muscles initially, or filter based on current search term/type
-    // Only fetch if debouncedSearchTerm is not empty or if searchType is 'muscle' and searchTerm is empty (to get all)
-    if (debouncedSearchTerm.trim() !== '' || (searchType === 'muscle' && searchTerm.trim() === '')) {
-      fetchMuscles({ searchTerm: debouncedSearchTerm, searchType });
-    } else if (debouncedSearchTerm.trim() === '' && searchType !== 'muscle') {
-      // If debounced search term is empty and not searching by muscle name, clear results
-      setFilteredMuscles([]);
+    if (allMuscles.length === 0 && !loadingMuscles && !musclesError && !needsConfig) {
+      fetchMuscles({ searchTerm: '', searchType: 'muscle' }); // Fetch all initially
     }
-  }, [debouncedSearchTerm, searchType, fetchMuscles, searchTerm]); // Added searchTerm to dependencies to ensure initial fetch for 'muscle' type
+  }, [allMuscles.length, loadingMuscles, musclesError, needsConfig, fetchMuscles]);
+
+  // Effect to filter muscles based on search term and type (client-side)
+  useEffect(() => {
+    const lowerCaseSearchTerm = debouncedSearchTerm.toLowerCase();
+    let currentFiltered: Muscle[] = [];
+
+    if (lowerCaseSearchTerm.trim() === '') {
+      currentFiltered = allMuscles; // If search term is empty, show all
+    } else {
+      currentFiltered = allMuscles.filter(muscle => {
+        if (searchType === 'muscle') {
+          return muscle.name.toLowerCase().includes(lowerCaseSearchTerm);
+        } else if (searchType === 'meridian') {
+          return muscle.meridian.toLowerCase().includes(lowerCaseSearchTerm);
+        } else if (searchType === 'organ') {
+          return muscle.organSystem.toLowerCase().includes(lowerCaseSearchTerm);
+        } else if (searchType === 'emotion') {
+          return muscle.emotionalTheme.some(theme => theme.toLowerCase().includes(lowerCaseSearchTerm));
+        }
+        return false;
+      });
+    }
+    setFilteredMuscles(currentFiltered);
+  }, [debouncedSearchTerm, searchType, allMuscles]); // Depend on allMuscles for filtering
 
   const handleSelectMuscle = (muscle: Muscle) => {
     setSelectedMuscle(muscle);
@@ -108,6 +128,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
 
   const handleClearAll = () => {
     setSelectedMuscle(null);
+    onMuscleSelected(null); // Notify parent of clear
     setSearchTerm(''); // Clear search term in the trigger
     setFilteredMuscles(allMuscles);
     setShowWeaknessChecklist(false);

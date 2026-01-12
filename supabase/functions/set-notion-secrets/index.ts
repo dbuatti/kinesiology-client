@@ -48,7 +48,7 @@ serve(async (req) => {
     const { error: insertError } = await supabase
       .from('notion_secrets')
       .upsert({
-        user_id: user.id,
+        id: user.id, // Use 'id' as the primary key for the user's secrets
         notion_integration_token: notionToken,
         appointments_database_id: appointmentsDbId,
         crm_database_id: crmDbId || null,
@@ -58,7 +58,7 @@ serve(async (req) => {
         channels_database_id: channelsDbId || null, // Store new channelsDbId
         chakras_database_id: chakrasDbId || null,  // Store new chakrasDbId
       }, {
-        onConflict: 'user_id'
+        onConflict: 'id' // Conflict on 'id' since it's the primary key
       })
 
     if (insertError) {

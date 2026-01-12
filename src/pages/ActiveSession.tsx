@@ -22,6 +22,8 @@ import ChannelDashboard from '@/components/ChannelDashboard';
 import NotionPageViewer from '@/components/NotionPageViewer'; // Import NotionPageViewer
 import SessionLogDisplay from '@/components/SessionLogDisplay';
 import AcupointSelector from '@/components/AcupointSelector'; // Import new AcupointSelector
+import ModeSelect from '@/components/ModeSelect'; // Import new ModeSelect component
+import SessionSummaryDisplay from '@/components/SessionSummaryDisplay'; // Import new SessionSummaryDisplay component
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'; // Import Tabs components
 
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
@@ -53,15 +55,13 @@ const ActiveSession = () => {
   const [appointment, setAppointment] = useState<Appointment | null>(null);
   const [sessionAnchorText, setSessionAnchorText] = useState('');
   const [sessionNorthStarText, setSessionNorthStarText] = useState('');
-  const [modes, setModes] = useState<Mode[]>([]);
   const [selectedMode, setSelectedMode] = useState<Mode | null>(null);
-  const [isModeSelectOpen, setIsModeSelectOpen] = useState(false);
 
-  // Muscle States
-  const [selectedMuscle, setSelectedMuscle] = useState<Muscle | null>(null);  // State for selected muscle
-
-  // Chakra States
+  // Selector States for Summary Display
+  const [selectedMuscle, setSelectedMuscle] = useState<Muscle | null>(null);
   const [selectedChakra, setSelectedChakra] = useState<Chakra | null>(null);
+  const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
+  const [selectedAcupoint, setSelectedAcupoint] = useState<Acupoint | null>(null);
 
   // Session Logs States
   const [sessionLogs, setSessionLogs] = useState<GetSessionLogsResponse['sessionLogs']>([]);
@@ -123,23 +123,6 @@ const ActiveSession = () => {
     }
   );
 
-  // Fetch Notion Modes
-  const {
-    data: fetchedModesData,
-    loading: loadingModes,
-    error: modesError,
-    needsConfig: modesNeedsConfig,
-    execute: fetchModes,
-  } = useSupabaseEdgeFunction<void, GetNotionModesResponse>(
-    'get-notion-modes',
-    {
-      requiresAuth: true,
-      requiresNotionConfig: true,
-      onSuccess: useCallback((data: GetNotionModesResponse) => setModes(data.modes), []),
-      onError: useCallback((msg: string) => showError(`Failed to load modes: ${msg}`), []),
-    }
-  );
-
   // Fetch Session Logs
   const {
     data: fetchedSessionLogsData,
@@ -156,28 +139,6 @@ const ActiveSession = () => {
       }, []),
       onError: useCallback((msg: string) => {
         showError(`Failed to load session logs: ${msg}`);
-      }, []),
-    }
-  );
-
-  // Log Session Event
-  const {
-    loading: loggingSessionEvent,
-    execute: logSessionEvent,
-  } = useSupabaseEdgeFunction<LogSessionEventPayload, LogSessionEventResponse>(
-    'log-session-event',
-    {
-      requiresAuth: true,
-      onSuccess: useCallback((data: LogSessionEventResponse) => {
-        console.log('Session event logged to Supabase:', data.logId);
-        showSuccess('Event logged to session.');
-        if (appointmentId) {
-          fetchSessionLogs({ appointmentId }); // Refresh logs after successful log
-        }
-      }, [appointmentId, fetchSessionLogs]),
-      onError: useCallback((msg: string) => {
-        console.error('Failed to log session event to Supabase:', msg);
-        showError(`Logging Failed: ${msg}`);
       }, []),
     }
   );
@@ -249,10 +210,9 @@ const ActiveSession = () => {
   useEffect(() => {
     if (appointmentId) {
       fetchSingleAppointment({ appointmentId });
-      fetchModes();
       fetchSessionLogs({ appointmentId }); // Fetch logs on component mount
     }
-  }, [appointmentId, fetchSingleAppointment, fetchModes, fetchSessionLogs]);
+  }, [appointmentId, fetchSingleAppointment, fetchSessionLogs]);
 
   // Clear Notion page viewer when switching tabs
   useEffect(() => {
@@ -263,11 +223,11 @@ const ActiveSession = () => {
   }, [activeTab]);
 
   // Combine all loading states
-  const overallLoading = loadingAppointment || loadingModes || loggingSessionEvent || loggingMuscleStrength || loadingSessionLogs || deletingSessionLog || clearingAllLogs;
+  const overallLoading = loadingAppointment || loggingMuscleStrength || loadingSessionLogs || deletingSessionLog || clearingAllLogs;
   // Combine all needsConfig states
-  const overallNeedsConfig = appointmentNeedsConfig || modesNeedsConfig; // Acupoints needsConfig is now handled by AcupointSelector
+  const overallNeedsConfig = appointmentNeedsConfig; // Other selectors handle their own needsConfig
   // Combine all errors for initial display
-  const overallError = appointmentError || modesError || sessionLogsError; // Acupoints error is now handled by AcupointSelector
+  const overallError = appointmentError || sessionLogsError; // Other selectors handle their own errors
 
   // --- Handlers ---
 
@@ -307,26 +267,13 @@ const ActiveSession = () => {
     navigate('/notion-config');
   }, [navigate]);
 
-  const handleClearSelectedMode = useCallback(() => {
-    setSelectedMode(null);
-    if (selectedNotionPageId === selectedMode?.id) {
-      setSelectedNotionPageId(null);
-      setSelectedNotionPageTitle(null);
-    }
-  }, [selectedMode?.id, selectedNotionPageId]);
-
-  const handleMuscleSelected = useCallback((muscle: Muscle) => {
-    setSelectedMuscle(muscle);
-    console.log('Muscle selected:', muscle.name);
+  const handleModeSelected = useCallback((mode: Mode | null) => {
+    setSelectedMode(mode);
   }, []);
 
-  const handleClearMuscleSelection = useCallback(() => {
-    setSelectedMuscle(null);
-    if (selectedNotionPageId === selectedMuscle?.id) {
-      setSelectedNotionPageId(null);
-      setSelectedNotionPageTitle(null);
-    }
-  }, [selectedMuscle?.id, selectedNotionPageId]);
+  const handleMuscleSelected = useCallback((muscle: Muscle | null) => {
+    setSelectedMuscle(muscle);
+  }, []);
 
   const handleMuscleStrengthLogged = useCallback(async (muscle: Muscle, isStrong: boolean) => {
     if (appointmentId) {
@@ -340,39 +287,23 @@ const ActiveSession = () => {
     }
   }, [appointmentId, logMuscleStrength]);
 
-  const handleChakraSelected = useCallback((chakra: Chakra) => {
+  const handleChakraSelected = useCallback((chakra: Chakra | null) => {
     setSelectedChakra(chakra);
   }, []);
 
-  const handleClearChakraSelection = useCallback(() => {
-    setSelectedChakra(null);
-    if (selectedNotionPageId === selectedChakra?.id) {
-      setSelectedNotionPageId(null);
-      setSelectedNotionPageTitle(null);
-    }
-  }, [selectedChakra?.id, selectedNotionPageId]);
-
-  const handleLogChannelItemSuccess = useCallback(() => {
-    if (appointmentId) {
-      fetchSessionLogs({ appointmentId }); // Refresh logs after any channel item is logged
-    }
-  }, [appointmentId, fetchSessionLogs]);
-
-  const handleClearChannelSelection = useCallback(() => {
-    setSelectedNotionPageId(null);
-    setSelectedNotionPageTitle(null);
+  const handleChannelSelected = useCallback((channel: Channel | null) => {
+    setSelectedChannel(channel);
   }, []);
 
-  const handleLogAcupointSuccess = useCallback(() => {
+  const handleAcupointSelected = useCallback((acupoint: Acupoint | null) => {
+    setSelectedAcupoint(acupoint);
+  }, []);
+
+  const handleLogSuccess = useCallback(() => {
     if (appointmentId) {
-      fetchSessionLogs({ appointmentId }); // Refresh logs after acupoint is logged
+      fetchSessionLogs({ appointmentId }); // Refresh logs after any item is logged
     }
   }, [appointmentId, fetchSessionLogs]);
-
-  const handleClearAcupointSelection = useCallback(() => {
-    setSelectedNotionPageId(null);
-    setSelectedNotionPageTitle(null);
-  }, []);
 
   // Centralized handler for opening Notion pages
   const handleOpenNotionPage = useCallback((pageId: string, pageTitle: string) => {
@@ -460,266 +391,219 @@ const ActiveSession = () => {
         </div>
 
         {appointment ? (
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-4 md:grid-cols-7 lg:grid-cols-7 h-auto flex-wrap">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="muscles">Muscles</TabsTrigger>
-              <TabsTrigger value="chakras">Chakras</TabsTrigger>
-              <TabsTrigger value="channels">Channels</TabsTrigger>
-              <TabsTrigger value="acupoints">Acupoints</TabsTrigger>
-              <TabsTrigger value="session-log">Session Log</TabsTrigger>
-              <TabsTrigger value="notion-page">Notion Page</TabsTrigger>
-            </TabsList>
+          <>
+            {/* Session Summary Display (Sticky) */}
+            <SessionSummaryDisplay
+              sessionLogs={sessionLogs}
+              sessionMuscleLogs={sessionMuscleLogs}
+              selectedMode={selectedMode}
+              selectedMuscle={selectedMuscle}
+              selectedChakra={selectedChakra}
+              selectedChannel={selectedChannel}
+              selectedAcupoint={selectedAcupoint}
+              sessionNorthStar={sessionNorthStarText}
+              sessionAnchor={sessionAnchorText}
+            />
 
-            {/* Overview Tab */}
-            <TabsContent value="overview" className="mt-6 space-y-6">
-              {/* Client Insight Card */}
-              <Card className="shadow-xl border-2 border-indigo-200">
-                <CardHeader className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-t-lg p-4">
-                  <CardTitle className="text-2xl font-bold flex items-center gap-2">
-                    <User className="w-6 h-6" />
-                    {appointment.clientName}
-                  </CardTitle>
-                  <div className="flex items-center gap-2 text-indigo-100 mt-2">
-                    <Star className="w-4 h-4 fill-current" />
-                    <span className="font-medium">
-                      {appointment.starSign === "Unknown" ? (
-                        <span className="text-yellow-300">
-                          Star Sign not found. Check Notion CRM config.
-                        </span>
-                      ) : (
-                        appointment.starSign
-                      )}
-                    </span>
-                  </div>
-                </CardHeader>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-4 md:grid-cols-7 lg:grid-cols-7 h-auto flex-wrap">
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="muscles">Muscles</TabsTrigger>
+                <TabsTrigger value="chakras">Chakras</TabsTrigger>
+                <TabsTrigger value="channels">Channels</TabsTrigger>
+                <TabsTrigger value="acupoints">Acupoints</TabsTrigger>
+                <TabsTrigger value="session-log">Session Log</TabsTrigger>
+                <TabsTrigger value="notion-page">Notion Page</TabsTrigger>
+              </TabsList>
 
-                <CardContent className="pt-6 space-y-4">
-                  {appointment.sessionNorthStar && (
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                        <Target className="w-4 h-4 text-indigo-600" />
-                        <span>Session North Star (Client Focus)</span>
+              {/* Overview Tab */}
+              <TabsContent value="overview" className="mt-6 space-y-6">
+                {/* Client Insight Card */}
+                <Card className="shadow-xl border-2 border-indigo-200">
+                  <CardHeader className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-t-lg p-4">
+                    <CardTitle className="text-2xl font-bold flex items-center gap-2">
+                      <User className="w-6 h-6" />
+                      {appointment.clientName}
+                    </CardTitle>
+                    <div className="flex items-center gap-2 text-indigo-100 mt-2">
+                      <Star className="w-4 h-4 fill-current" />
+                      <span className="font-medium">
+                        {appointment.starSign === "Unknown" ? (
+                          <span className="text-yellow-300">
+                            Star Sign not found. Check Notion CRM config.
+                          </span>
+                        ) : (
+                          appointment.starSign
+                        )}
+                      </span>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="pt-6 space-y-4">
+                    {appointment.sessionNorthStar && (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                          <Target className="w-4 h-4 text-indigo-600" />
+                          <span>Session North Star (Client Focus)</span>
+                        </div>
+                        <Textarea
+                          id="session-north-star"
+                          placeholder="e.g., 'Releasing tension in the shoulders related to stress.'"
+                          value={sessionNorthStarText}
+                          onChange={handleSessionNorthStarChange}
+                          onBlur={handleSessionNorthStarBlur}
+                          className="min-h-[80px]"
+                          disabled={updatingAppointment}
+                        />
                       </div>
+                    )}
+
+                    {appointment.goal && (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                          <Lightbulb className="w-4 h-4 text-indigo-600" />
+                          <span>Appointment Goal</span>
+                        </div>
+                        <p className="text-gray-800 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                          {appointment.goal}
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Live Session Controls */}
+                <Card className="shadow-xl">
+                  <CardHeader className="bg-indigo-50 border-b border-indigo-200 rounded-t-lg p-4">
+                    <CardTitle className="text-xl font-bold text-indigo-800 flex items-center gap-2">
+                      <Clock className="w-5 h-5" />
+                      Live Session Controls
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-6 space-y-6">
+                    {/* Session Anchor */}
+                    <div className="space-y-2">
+                      <Label htmlFor="session-anchor" className="flex items-center gap-2 font-semibold text-gray-700">
+                        <Hand className="w-4 h-4 text-indigo-600" />
+                        Today we are really working with...
+                      </Label>
                       <Textarea
-                        id="session-north-star"
+                        id="session-anchor"
                         placeholder="e.g., 'Releasing tension in the shoulders related to stress.'"
-                        value={sessionNorthStarText}
-                        onChange={handleSessionNorthStarChange}
-                        onBlur={handleSessionNorthStarBlur}
+                        value={sessionAnchorText}
+                        onChange={handleSessionAnchorChange}
+                        onBlur={handleSessionAnchorBlur}
                         className="min-h-[80px]"
                         disabled={updatingAppointment}
                       />
                     </div>
-                  )}
 
-                  {appointment.goal && (
+                    {/* Mode Selection */}
                     <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <Label htmlFor="mode-select" className="flex items-center gap-2 font-semibold text-gray-700">
                         <Lightbulb className="w-4 h-4 text-indigo-600" />
-                        <span>Appointment Goal</span>
-                      </div>
-                      <p className="text-gray-800 bg-gray-50 p-3 rounded-lg border border-gray-200">
-                        {appointment.goal}
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Live Session Controls */}
-              <Card className="shadow-xl">
-                <CardHeader className="bg-indigo-50 border-b border-indigo-200 rounded-t-lg p-4">
-                  <CardTitle className="text-xl font-bold text-indigo-800 flex items-center gap-2">
-                    <Clock className="w-5 h-5" />
-                    Live Session Controls
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-6 space-y-6">
-                  {/* Session Anchor */}
-                  <div className="space-y-2">
-                    <Label htmlFor="session-anchor" className="flex items-center gap-2 font-semibold text-gray-700">
-                      <Hand className="w-4 h-4 text-indigo-600" />
-                      Today we are really working with...
-                    </Label>
-                    <Textarea
-                      id="session-anchor"
-                      placeholder="e.g., 'Releasing tension in the shoulders related to stress.'"
-                      value={sessionAnchorText}
-                      onChange={handleSessionAnchorChange}
-                      onBlur={handleSessionAnchorBlur}
-                      className="min-h-[80px]"
-                      disabled={updatingAppointment}
-                    />
-                  </div>
-
-                  {/* Mode Selection */}
-                  <div className="space-y-2">
-                    <Label htmlFor="mode-select" className="flex items-center gap-2 font-semibold text-gray-700">
-                      <Lightbulb className="w-4 h-4 text-indigo-600" />
-                      Select Mode
-                    </Label>
-                    <div className="flex gap-2">
-                      <Popover open={isModeSelectOpen} onOpenChange={setIsModeSelectOpen}>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            role="combobox"
-                            aria-expanded={isModeSelectOpen}
-                            className="w-full justify-between"
-                            disabled={loadingModes || updatingAppointment || loggingSessionEvent}
-                          >
-                            {loggingSessionEvent ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                            {selectedMode ? selectedMode.name : "Select mode..."}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                          <Command>
-                            <CommandInput
-                              placeholder="Search mode..."
-                              disabled={loadingModes}
-                            />
-                            <CommandEmpty>No mode found.</CommandEmpty>
-                            <CommandGroup>
-                              {modes.map((mode) => (
-                                <CommandItem
-                                  key={mode.id}
-                                  value={mode.name}
-                                  onSelect={async () => {
-                                    setSelectedMode(mode);
-                                    setIsModeSelectOpen(false);
-                                    await logSessionEvent({
-                                      appointmentId: appointmentId!,
-                                      logType: 'mode_selected',
-                                      details: {
-                                        modeId: mode.id,
-                                        modeName: mode.name,
-                                        actionNote: mode.actionNote,
-                                      }
-                                    });
-                                  }}
-                                >
-                                  <Check
-                                    className={cn(
-                                      "mr-2 h-4 w-4",
-                                      selectedMode?.id === mode.id ? "opacity-100" : "opacity-0"
-                                    )}
-                                  />
-                                  {mode.name}
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={(e) => {
-                                      e.stopPropagation(); // Prevent selecting the mode when clicking the info button
-                                      handleOpenNotionPage(mode.id, mode.name); // Use centralized handler
-                                    }}
-                                  >
-                                    <Info className="h-4 w-4" />
-                                  </Button>
-                                </CommandItem>
-                              ))}
-                            </CommandGroup>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
-                      {selectedMode && (
-                        <Button variant="outline" onClick={handleClearSelectedMode} disabled={loggingSessionEvent}>
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Clear
-                        </Button>
+                        Select Mode
+                      </Label>
+                      <ModeSelect
+                        appointmentId={appointmentId!}
+                        selectedMode={selectedMode}
+                        onModeSelected={handleModeSelected}
+                        onOpenNotionPage={handleOpenNotionPage}
+                        onLogSuccess={handleLogSuccess}
+                      />
+                      {selectedMode?.actionNote && (
+                        <p className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg border border-blue-200 mt-2">
+                          <strong>Action Note:</strong> {selectedMode.actionNote}
+                        </p>
                       )}
                     </div>
-                    {selectedMode?.actionNote && (
-                      <p className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg border border-blue-200 mt-2">
-                        <strong>Action Note:</strong> {selectedMode.actionNote}
-                      </p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
-            {/* Muscles Tab */}
-            <TabsContent value="muscles" className="mt-6 space-y-6">
-              <MuscleSelector
-                onMuscleSelected={handleMuscleSelected}
-                onMuscleStrengthLogged={handleMuscleStrengthLogged}
-                appointmentId={appointmentId || ''}
-                onClearSelection={handleClearMuscleSelection} // Pass clear handler
-                onOpenNotionPage={handleOpenNotionPage} // Pass centralized handler
-              />
-            </TabsContent>
+              {/* Muscles Tab */}
+              <TabsContent value="muscles" className="mt-6 space-y-6">
+                <MuscleSelector
+                  onMuscleSelected={handleMuscleSelected}
+                  onMuscleStrengthLogged={handleMuscleStrengthLogged}
+                  appointmentId={appointmentId || ''}
+                  onClearSelection={() => setSelectedMuscle(null)} // Clear selected muscle in parent
+                  onOpenNotionPage={handleOpenNotionPage} // Pass centralized handler
+                />
+              </TabsContent>
 
-            {/* Chakras Tab */}
-            <TabsContent value="chakras" className="mt-6 space-y-6">
-              <ChakraSelector
-                appointmentId={appointmentId || ''}
-                onChakraSelected={handleChakraSelected}
-                onClearSelection={handleClearChakraSelection}
-                selectedChakra={selectedChakra}
-                onOpenNotionPage={handleOpenNotionPage} // Pass centralized handler
-              />
-            </TabsContent>
+              {/* Chakras Tab */}
+              <TabsContent value="chakras" className="mt-6 space-y-6">
+                <ChakraSelector
+                  appointmentId={appointmentId || ''}
+                  onChakraSelected={handleChakraSelected}
+                  onClearSelection={() => setSelectedChakra(null)} // Clear selected chakra in parent
+                  selectedChakra={selectedChakra}
+                  onOpenNotionPage={handleOpenNotionPage} // Pass centralized handler
+                />
+              </TabsContent>
 
-            {/* Channels Tab */}
-            <TabsContent value="channels" className="mt-6 space-y-6">
-              <ChannelDashboard
-                appointmentId={appointmentId || ''}
-                onLogSuccess={handleLogChannelItemSuccess}
-                onClearSelection={handleClearChannelSelection} // Pass clear handler
-                onOpenNotionPage={handleOpenNotionPage} // Pass centralized handler
-              />
-            </TabsContent>
+              {/* Channels Tab */}
+              <TabsContent value="channels" className="mt-6 space-y-6">
+                <ChannelDashboard
+                  appointmentId={appointmentId || ''}
+                  onLogSuccess={handleLogSuccess}
+                  onClearSelection={() => setSelectedChannel(null)} // Clear selected channel in parent
+                  onOpenNotionPage={handleOpenNotionPage} // Pass centralized handler
+                  onChannelSelected={handleChannelSelected} // Pass new prop
+                />
+              </TabsContent>
 
-            {/* Acupoints Tab */}
-            <TabsContent value="acupoints" className="mt-6 space-y-6">
-              <AcupointSelector
-                appointmentId={appointmentId || ''}
-                onLogSuccess={handleLogAcupointSuccess}
-                onClearSelection={handleClearAcupointSelection}
-                onOpenNotionPage={handleOpenNotionPage}
-              />
-            </TabsContent>
+              {/* Acupoints Tab */}
+              <TabsContent value="acupoints" className="mt-6 space-y-6">
+                <AcupointSelector
+                  appointmentId={appointmentId || ''}
+                  onLogSuccess={handleLogSuccess}
+                  onClearSelection={() => setSelectedAcupoint(null)}
+                  onOpenNotionPage={handleOpenNotionPage}
+                  onAcupointSelected={handleAcupointSelected} // Pass new prop
+                />
+              </TabsContent>
 
-            {/* Session Log Tab */}
-            <TabsContent value="session-log" className="mt-6 space-y-6">
-              <SessionLogDisplay
-                appointmentId={appointmentId || ''}
-                sessionLogs={sessionLogs}
-                sessionMuscleLogs={sessionMuscleLogs}
-                onDeleteLog={deleteSessionLog}
-                deletingLog={deletingSessionLog}
-                onClearAllLogs={handleClearAllSessionLogs} // Pass new handler
-                clearingAllLogs={clearingAllLogs} // Pass new loading state
-              />
-            </TabsContent>
+              {/* Session Log Tab */}
+              <TabsContent value="session-log" className="mt-6 space-y-6">
+                <SessionLogDisplay
+                  appointmentId={appointmentId || ''}
+                  sessionLogs={sessionLogs}
+                  sessionMuscleLogs={sessionMuscleLogs}
+                  onDeleteLog={deleteSessionLog}
+                  deletingLog={deletingSessionLog}
+                  onClearAllLogs={handleClearAllSessionLogs} // Pass new handler
+                  clearingAllLogs={clearingAllLogs} // Pass new loading state
+                />
+              </TabsContent>
 
-            {/* Notion Page Tab */}
-            <TabsContent value="notion-page" className="mt-6 space-y-6">
-              <Card className="shadow-xl">
-                <CardHeader className="bg-indigo-50 border-b border-indigo-200 rounded-t-lg p-4">
-                  <CardTitle className="text-xl font-bold text-indigo-800 flex items-center gap-2">
-                    <Info className="w-5 h-5" />
-                    {selectedNotionPageTitle || "Notion Page Viewer"}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  <NotionPageViewer pageId={selectedNotionPageId} />
-                </CardContent>
-              </Card>
-            </TabsContent>
+              {/* Notion Page Tab */}
+              <TabsContent value="notion-page" className="mt-6 space-y-6">
+                <Card className="shadow-xl">
+                  <CardHeader className="bg-indigo-50 border-b border-indigo-200 rounded-t-lg p-4">
+                    <CardTitle className="text-xl font-bold text-indigo-800 flex items-center gap-2">
+                      <Info className="w-5 h-5" />
+                      {selectedNotionPageTitle || "Notion Page Viewer"}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-6">
+                    <NotionPageViewer pageId={selectedNotionPageId} />
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
-            {/* Complete Session Button (outside tabs, always visible) */}
-            <Button
-              className="w-full h-12 text-lg bg-red-500 hover:bg-red-600 text-white mt-6"
-              onClick={handleCompleteSession}
-              disabled={updatingAppointment}
-            >
-              <XCircle className="w-5 h-5 mr-2" />
-              Complete Session
-            </Button>
-          </Tabs>
+              {/* Complete Session Button (outside tabs, always visible) */}
+              <Button
+                className="w-full h-12 text-lg bg-red-500 hover:bg-red-600 text-white mt-6"
+                onClick={handleCompleteSession}
+                disabled={updatingAppointment}
+              >
+                <XCircle className="w-5 h-5 mr-2" />
+                Complete Session
+              </Button>
+            </Tabs>
+          </>
         ) : (
           <Card className="shadow-lg">
             <CardContent className="pt-8 text-center">

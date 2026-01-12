@@ -47,7 +47,7 @@ serve(async (req) => {
     // Fetch muscles_database_id along with other secrets
     const { data: secrets, error: secretsError } = await serviceRoleSupabase
       .from('notion_secrets')
-      .select('notion_integration_token, channels_database_id, muscles_database_id') // Added muscles_database_id
+      .select('notion_integration_token, channels_database_id, muscles_database_id, modes_database_id, acupoints_database_id, chakras_database_id') // Fetch all new IDs
       .eq('id', user.id)
       .single()
 

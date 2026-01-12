@@ -21,12 +21,14 @@ interface AcupointSelectorProps {
   onLogSuccess: () => void;
   onClearSelection: () => void;
   onOpenNotionPage: (pageId: string, pageTitle: string) => void;
+  onAcupointSelected: (acupoint: Acupoint | null) => void; // New prop
 }
 
-const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLogSuccess, onClearSelection, onOpenNotionPage }) => {
+const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLogSuccess, onClearSelection, onOpenNotionPage, onAcupointSelected }) => {
+  const [allAcupoints, setAllAcupoints] = useState<Acupoint[]>([]); // Stores all acupoints fetched
+  const [foundAcupoints, setFoundAcupoints] = useState<Acupoint[]>([]); // Displays filtered acupoints
   const [acupointSearchTerm, setAcupointSearchTerm] = useState('');
   const [symptomSearchTerm, setSymptomSearchTerm] = useState('');
-  const [foundAcupoints, setFoundAcupoints] = useState<Acupoint[]>([]);
   const [selectedAcupoint, setSelectedAcupoint] = useState<Acupoint | null>(null);
   const [isAcupointSearchOpen, setIsAcupointSearchOpen] = useState(false);
   const [isSymptomSearchOpen, setIsSymptomSearchOpen] = useState(false);
@@ -37,11 +39,13 @@ const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLo
   const debouncedSymptomSearchTerm = useDebounce(symptomSearchTerm, 500);   // Debounce symptom search
 
   const onAcupointsSuccess = useCallback((data: GetAcupointsResponse) => {
-    setFoundAcupoints(data.acupoints);
+    setAllAcupoints(data.acupoints); // Store all fetched acupoints
+    setFoundAcupoints(data.acupoints); // Initially, filtered is all
   }, []);
 
   const onAcupointsError = useCallback((msg: string) => {
     showError(`Failed to search: ${msg}`);
+    setAllAcupoints([]);
     setFoundAcupoints([]);
   }, []);
 
@@ -79,63 +83,90 @@ const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLo
     }
   );
 
-  // Effect to fetch acupoints based on debounced search terms
+  // Effect to fetch all acupoints on initial mount
   useEffect(() => {
-    if (isAcupointSearchOpen && debouncedAcupointSearchTerm.trim() !== '') {
-      fetchAcupoints({ searchTerm: debouncedAcupointSearchTerm, searchType: 'point' });
-    } else if (isSymptomSearchOpen && debouncedSymptomSearchTerm.trim() !== '') {
-      fetchAcupoints({ searchTerm: debouncedSymptomSearchTerm, searchType: 'symptom' });
-    } else if (!isAcupointSearchOpen && !isSymptomSearchOpen && !selectedAcupoint) {
-      // Optionally fetch all if no search term and no selection, or clear results
-      setFoundAcupoints([]);
+    if (allAcupoints.length === 0 && !loadingAcupoints && !acupointsError && !needsConfig) {
+      fetchAcupoints({ searchTerm: '', searchType: 'point' }); // Fetch all initially
     }
-  }, [debouncedAcupointSearchTerm, debouncedSymptomSearchTerm, isAcupointSearchOpen, isSymptomSearchOpen, selectedAcupoint, fetchAcupoints]);
+  }, [allAcupoints.length, loadingAcupoints, acupointsError, needsConfig, fetchAcupoints]);
+
+  // Effect to filter acupoints based on debounced search terms (client-side)
+  useEffect(() => {
+    const lowerCaseAcupointSearchTerm = debouncedAcupointSearchTerm.toLowerCase();
+    const lowerCaseSymptomSearchTerm = debouncedSymptomSearchTerm.toLowerCase();
+    let currentFiltered: Acupoint[] = [];
+
+    if (isAcupointSearchOpen && lowerCaseAcupointSearchTerm.trim() !== '') {
+      currentFiltered = allAcupoints.filter(point =>
+        point.name.toLowerCase().includes(lowerCaseAcupointSearchTerm)
+      );
+    } else if (isSymptomSearchOpen && lowerCaseSymptomSearchTerm.trim() !== '') {
+      currentFiltered = allAcupoints.filter(point =>
+        point.for.toLowerCase().includes(lowerCaseSymptomSearchTerm) ||
+        point.kinesiology.toLowerCase().includes(lowerCaseSymptomSearchTerm) ||
+        point.psychology.toLowerCase().includes(lowerCaseSymptomSearchTerm) ||
+        point.akMuscles.some(muscle => muscle.toLowerCase().includes(lowerCaseSymptomSearchTerm)) ||
+        point.channel.toLowerCase().includes(lowerCaseSymptomSearchTerm) ||
+        point.typeOfPoint.some(type => type.toLowerCase().includes(lowerCaseSymptomSearchTerm)) ||
+        point.time.some(time => time.toLowerCase().includes(lowerCaseSymptomSearchTerm))
+      );
+    } else {
+      currentFiltered = allAcupoints; // If no active search, show all
+    }
+    setFoundAcupoints(currentFiltered);
+  }, [debouncedAcupointSearchTerm, debouncedSymptomSearchTerm, isAcupointSearchOpen, isSymptomSearchOpen, allAcupoints]);
 
 
   const handleAcupointSearchChange = (value: string) => {
     setAcupointSearchTerm(value);
     setSymptomSearchTerm(''); // Clear symptom search when point search is active
     setSelectedAcupoint(null); // Clear selected acupoint
+    onAcupointSelected(null); // Notify parent
     setIsSymptomSearchOpen(false); // Close symptom search popover
   };
 
   const handleClearAcupointSearch = useCallback(() => {
     setAcupointSearchTerm('');
-    setFoundAcupoints([]);
+    setFoundAcupoints(allAcupoints); // Reset to all
     setSelectedAcupoint(null);
+    onAcupointSelected(null); // Notify parent
     onClearSelection(); // Notify parent to clear Notion page viewer
-  }, [onClearSelection]);
+  }, [allAcupoints, onClearSelection, onAcupointSelected]);
 
   const handleSymptomSearchChange = (value: string) => {
     setSymptomSearchTerm(value);
     setAcupointSearchTerm(''); // Clear point search when symptom search is active
     setSelectedAcupoint(null); // Clear selected acupoint
+    onAcupointSelected(null); // Notify parent
     setIsAcupointSearchOpen(false); // Close point search popover
   };
 
   const handleClearSymptomSearch = useCallback(() => {
     setSymptomSearchTerm('');
-    setFoundAcupoints([]);
+    setFoundAcupoints(allAcupoints); // Reset to all
     setSelectedAcupoint(null);
+    onAcupointSelected(null); // Notify parent
     onClearSelection(); // Notify parent to clear Notion page viewer
-  }, [onClearSelection]);
+  }, [allAcupoints, onClearSelection, onAcupointSelected]);
 
   const handleSelectAcupoint = useCallback((acupoint: Acupoint) => {
     setSelectedAcupoint(acupoint);
+    onAcupointSelected(acupoint); // Notify parent
     setIsAcupointSearchOpen(false);
     setIsSymptomSearchOpen(false);
     setAcupointSearchTerm(acupoint.name); // Display selected acupoint name in the point search trigger
     setSymptomSearchTerm(''); // Clear symptom search when a point is selected
-    setFoundAcupoints([]); // Clear found acupoints after selection
-  }, []);
+    setFoundAcupoints(allAcupoints); // Reset found acupoints to all after selection
+  }, [allAcupoints, onAcupointSelected]);
 
   const handleClearSelectedAcupoint = useCallback(() => {
     setSelectedAcupoint(null);
+    onAcupointSelected(null); // Notify parent
     setAcupointSearchTerm('');
     setSymptomSearchTerm('');
-    setFoundAcupoints([]); // Clear any previous search results
+    setFoundAcupoints(allAcupoints); // Reset any previous search results to all
     onClearSelection(); // Notify parent to clear Notion page viewer
-  }, [onClearSelection]);
+  }, [allAcupoints, onClearSelection, onAcupointSelected]);
 
   const handleAddAcupointToSession = useCallback(async () => {
     if (selectedAcupoint && appointmentId) {
