@@ -6,6 +6,20 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Helper function for exponential backoff retry
+async function retryFetch(url: string, options: RequestInit, retries = 3, delay = 1000): Promise<Response> {
+  for (let i = 0; i < retries; i++) {
+    const response = await fetch(url, options);
+    if (response.status !== 429) {
+      return response;
+    }
+    console.warn(`[get-notion-page-content] Rate limit hit (429) for ${url}. Retrying in ${delay / 1000}s...`);
+    await new Promise(resolve => setTimeout(resolve, delay));
+    delay *= 2; // Exponential backoff
+  }
+  throw new Error(`Failed to fetch ${url} after ${retries} retries due to rate limiting.`);
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -73,7 +87,7 @@ serve(async (req) => {
     const notionIntegrationToken = secrets.notion_integration_token;
 
     // Fetch page properties to get the title
-    const pageResponse = await fetch(`https://api.notion.com/v1/pages/${pageId}`, {
+    const pageResponse = await retryFetch(`https://api.notion.com/v1/pages/${pageId}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${notionIntegrationToken}`,
@@ -96,7 +110,7 @@ serve(async (req) => {
     console.log(`[get-notion-page-content] Fetched page title: ${title}`);
 
     // Fetch block content
-    const blocksResponse = await fetch(`https://api.notion.com/v1/blocks/${pageId}/children`, {
+    const blocksResponse = await retryFetch(`https://api.notion.com/v1/blocks/${pageId}/children`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${notionIntegrationToken}`,
@@ -120,7 +134,7 @@ serve(async (req) => {
     // Recursively fetch children for nested blocks (e.g., toggles, lists)
     const fetchChildren = async (block: any) => {
       if (block.has_children) {
-        const childrenResponse = await fetch(`https://api.notion.com/v1/blocks/${block.id}/children`, {
+        const childrenResponse = await retryFetch(`https://api.notion.com/v1/blocks/${block.id}/children`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${notionIntegrationToken}`,
