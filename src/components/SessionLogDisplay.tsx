@@ -62,6 +62,18 @@ const SessionLogDisplay: React.FC<SessionLogDisplayProps> = ({
           <span className="font-semibold capitalize">{itemType}</span>: "{log.details?.itemValue}"
         </p>
       );
+    } else if (log.log_type === 'acupoint_added') {
+      return (
+        <p className="text-sm text-gray-700">
+          Acupoint: <span className="font-semibold">{log.details?.acupointName}</span> added to session.
+        </p>
+      );
+    } else if (log.log_type === 'mode_selected') {
+      return (
+        <p className="text-sm text-gray-700">
+          Mode: <span className="font-semibold">{log.details?.modeName}</span> selected.
+        </p>
+      );
     }
     // Default rendering for other log types
     return (

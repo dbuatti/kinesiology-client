@@ -139,7 +139,7 @@ const NotionConfig = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         <Card className="shadow-xl">
           <CardHeader className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-t-lg">
             <div className="flex items-center gap-2">
@@ -413,6 +413,7 @@ const NotionConfig = () => {
                     <li>Create a Notion integration at notion.com/my-integrations</li>
                     <li>Copy the "Internal Integration Token"</li>
                     <li>Share your databases (Appointments, CRM, Modes, Acupoints, Muscles, Channels, Chakras) with the integration</li>
+                    <li>**Important:** For individual Notion pages (like Muscle details, Chakra details, etc.) to be viewable via direct links in the app, you must also share those specific pages with your integration.</li>
                     <li>Copy each database ID from its share link</li>
                     <li>Paste all values above and save</li>
                   </ol>

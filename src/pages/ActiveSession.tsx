@@ -363,8 +363,16 @@ const ActiveSession = () => {
 
   const handleAddAcupointToSession = useCallback(async () => {
     if (selectedAcupoint && appointmentId) {
-      await updateNotionAppointment({ appointmentId, updates: { acupointId: selectedAcupoint.id } });
-      if (!updatingAppointment) {
+      await logSessionEvent({
+        appointmentId: appointmentId,
+        logType: 'acupoint_added',
+        details: {
+          acupointId: selectedAcupoint.id,
+          acupointName: selectedAcupoint.name,
+          channel: selectedAcupoint.channel,
+        }
+      });
+      if (!loggingSessionEvent) {
         showSuccess(`${selectedAcupoint.name} added to the current session.`);
         setSelectedAcupoint(null);
         setAcupointSearchTerm('');
@@ -372,7 +380,7 @@ const ActiveSession = () => {
     } else {
       showError('No acupoint selected to add to session.');
     }
-  }, [selectedAcupoint, appointmentId, updateNotionAppointment, updatingAppointment]);
+  }, [selectedAcupoint, appointmentId, loggingSessionEvent, logSessionEvent]);
 
   const handleMuscleSelected = useCallback((muscle: Muscle) => {
     setSelectedMuscle(muscle);
@@ -410,7 +418,7 @@ const ActiveSession = () => {
   if (overallLoading && !appointment) { // Only show full loading skeleton if no appointment data yet
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6 flex items-center justify-center">
-        <div className="max-w-2xl mx-auto space-y-6 w-full">
+        <div className="max-w-4xl mx-auto space-y-6 w-full">
           <Skeleton className="h-32 w-full" />
           <Skeleton className="h-64 w-full" />
           <Skeleton className="h-40 w-full" />
@@ -453,7 +461,7 @@ const ActiveSession = () => {
             <div className="text-red-500 mb-4">
               <AlertCircle className="w-12 h-12 mx-auto" />
             </div>
-            <h2 className="text-xl font-bold mb-2">Error Loading Appointment</h2>
+            <h2 className="xl font-bold mb-2">Error Loading Appointment</h2>
             <p className="text-gray-600 mb-4">{overallError}</p>
             <div className="space-y-2">
               <Button onClick={() => fetchSingleAppointment({ appointmentId: appointmentId! })}>Try Again</Button>
@@ -469,7 +477,7 @@ const ActiveSession = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-indigo-900 mb-2">Active Session</h1>
           <p className="text-gray-600">
@@ -580,16 +588,29 @@ const ActiveSession = () => {
                     </PopoverTrigger>
                     <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                       <Command>
-                        <CommandInput placeholder="Search mode..." />
+                        {loadingModes && <CommandInput value={selectedMode?.name || ''} onValueChange={() => {}} placeholder="Loading modes..." disabled />}
+                        {!loadingModes && <CommandInput value={selectedMode?.name || ''} onValueChange={() => {}} placeholder="Search mode..." />}
                         <CommandEmpty>No mode found.</CommandEmpty>
                         <CommandGroup>
                           {modes.map((mode) => (
                             <CommandItem
                               key={mode.id}
                               value={mode.name}
-                              onSelect={() => {
+                              onSelect={async () => {
                                 setSelectedMode(mode);
                                 setIsModeSelectOpen(false);
+                                await logSessionEvent({
+                                  appointmentId: appointmentId!,
+                                  logType: 'mode_selected',
+                                  details: {
+                                    modeId: mode.id,
+                                    modeName: mode.name,
+                                    actionNote: mode.actionNote,
+                                  }
+                                });
+                                if (!loggingSessionEvent) {
+                                  showSuccess(`${mode.name} selected and logged.`);
+                                }
                               }}
                             >
                               <Check
@@ -783,7 +804,7 @@ const ActiveSession = () => {
                       <Button
                         className="w-full mt-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white"
                         onClick={handleAddAcupointToSession}
-                        disabled={updatingAppointment}
+                        disabled={loggingSessionEvent}
                       >
                         <PlusCircle className="w-4 h-4 mr-2" />
                         Add to Session

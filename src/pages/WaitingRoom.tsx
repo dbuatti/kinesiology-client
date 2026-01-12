@@ -95,7 +95,7 @@ const WaitingRoom = () => {
   if (loadingAppointments) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6 flex items-center justify-center">
-        <div className="max-w-2xl mx-auto space-y-6 w-full">
+        <div className="max-w-4xl mx-auto space-y-6 w-full">
           <Skeleton className="h-24 w-full" />
           <Skeleton className="h-20 w-full" />
           <Skeleton className="h-20 w-full" />
@@ -152,7 +152,7 @@ const WaitingRoom = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         <div className="text-center mb-8 flex items-center justify-center gap-4">
           <h1 className="text-3xl font-bold text-indigo-900">Waiting Room</h1>
           <Button

@@ -153,7 +153,7 @@ const AllClients = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6">
-      <div className="max-w-7xl mx-auto">
+      <div className="mx-auto w-full">
         <Card className="shadow-xl">
           <CardHeader className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-t-lg p-4">
             <CardTitle className="text-3xl font-bold flex items-center gap-3">
