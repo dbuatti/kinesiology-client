@@ -4,15 +4,11 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
-import { Search, Check, ChevronsUpDown, Settings, Loader2, Sparkles, ExternalLink, Waves, Leaf, Flame, Gem, Droplet, Sun, Heart, Hand, Footprints, Bone, FlaskConical, Mic, Tag, XCircle, PlusCircle } from 'lucide-react';
+import { Settings, Loader2, Sparkles, ExternalLink, Waves, Leaf, Flame, Gem, Droplet, Sun, Heart, Hand, Footprints, Bone, FlaskConical, Mic, Tag, XCircle, PlusCircle } from 'lucide-react';
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
 import { Channel, GetChannelsPayload, GetChannelsResponse } from '@/types/api';
 
@@ -24,9 +20,6 @@ const primaryElements = ['Wood', 'Fire', 'Earth', 'Metal', 'Water'];
 
 const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) => {
   const [allChannels, setAllChannels] = useState<Channel[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [searchType, setSearchType] = useState<'name' | 'element' | 'emotion'>('name');
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [selectedChannelForDisplay, setSelectedChannelForDisplay] = useState<Channel | null>(null);
 
   const navigate = useNavigate();
@@ -88,25 +81,11 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
     fetchChannels({ searchTerm: '', searchType: 'name' }); // Fetch all channels initially
   }, [fetchChannels]);
 
-  const filteredChannels = useMemo(() => {
-    const lowerCaseSearchTerm = searchTerm.toLowerCase();
-    return allChannels.filter(channel => {
-      if (searchType === 'name') {
-        return channel.name.toLowerCase().includes(lowerCaseSearchTerm);
-      } else if (searchType === 'element') {
-        return channel.elements.some(element => element.toLowerCase().includes(lowerCaseSearchTerm));
-      } else if (searchType === 'emotion') {
-        return channel.emotions.some(emotion => emotion.toLowerCase().includes(lowerCaseSearchTerm));
-      }
-      return false;
-    });
-  }, [searchTerm, allChannels, searchType]);
-
   const { meridianChannels, nonMeridianChannels } = useMemo(() => {
     const meridian: Channel[] = [];
     const nonMeridian: Channel[] = [];
 
-    allChannels.forEach(channel => { // Use allChannels here for initial grouping
+    allChannels.forEach(channel => {
       const hasPrimaryElement = channel.elements.some(element => primaryElements.includes(element));
       if (hasPrimaryElement) {
         meridian.push(channel);
@@ -114,33 +93,29 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
         nonMeridian.push(channel);
       }
     });
-    return { meridianChannels: meridian, nonMeridianChannels: nonMeridian };
-  }, [allChannels]); // Depend on allChannels
 
-  const groupedMeridianChannels = useMemo(() => {
-    const groups: { [key: string]: Channel[] } = {};
-    primaryElements.forEach(element => {
-      groups[element] = meridianChannels.filter(channel => channel.elements.includes(element));
+    // Sort meridian channels by element, then by name
+    meridian.sort((a, b) => {
+      const elementA = primaryElements.indexOf(a.elements[0] || '');
+      const elementB = primaryElements.indexOf(b.elements[0] || '');
+      if (elementA !== elementB) {
+        return elementA - elementB;
+      }
+      return a.name.localeCompare(b.name);
     });
-    return groups;
-  }, [meridianChannels]);
 
-  const handleSearchTypeChange = (type: 'name' | 'element' | 'emotion') => {
-    setSearchType(type);
-    setSearchTerm(''); // Clear search term when type changes
-    setIsSearchOpen(true); // Open popover for new search
-  };
+    // Sort non-meridian channels by name
+    nonMeridian.sort((a, b) => a.name.localeCompare(b.name));
+
+    return { meridianChannels, nonMeridianChannels };
+  }, [allChannels]);
 
   const handleSelectChannel = (channel: Channel) => {
     setSelectedChannelForDisplay(channel);
-    setIsSearchOpen(false);
-    setSearchTerm(channel.name); // Keep selected name in search input
   };
 
   const handleClearSelection = () => {
     setSelectedChannelForDisplay(null);
-    setSearchTerm('');
-    fetchChannels({ searchTerm: '', searchType: 'name' }); // Re-fetch all for next search
   };
 
   const handleConfigureNotion = () => {
@@ -180,72 +155,6 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-6 space-y-6">
-        {/* Search Input */}
-        <div className="space-y-2">
-          <Label htmlFor="channel-search" className="flex items-center gap-2 font-semibold text-gray-700">
-            <Search className="w-4 h-4 text-indigo-600" />
-            Search Channels
-          </Label>
-          <div className="flex gap-2 mb-4 flex-wrap">
-            <Button
-              variant={searchType === 'name' ? 'default' : 'outline'}
-              onClick={() => handleSearchTypeChange('name')}
-              className={cn(searchType === 'name' ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'text-indigo-600 border-indigo-300 hover:bg-indigo-50')}
-              disabled={loadingChannels}
-            >
-              Name
-            </Button>
-            <Button
-              variant={searchType === 'element' ? 'default' : 'outline'}
-              onClick={() => handleSearchTypeChange('element')}
-              className={cn(searchType === 'element' ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'text-indigo-600 border-indigo-300 hover:bg-indigo-50')}
-              disabled={loadingChannels}
-            >
-              Element
-            </Button>
-            <Button
-              variant={searchType === 'emotion' ? 'default' : 'outline'}
-              onClick={() => handleSearchTypeChange('emotion')}
-              className={cn(searchType === 'emotion' ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'text-indigo-600 border-indigo-300 hover:bg-indigo-50')}
-              disabled={loadingChannels}
-            >
-              Emotion
-            </Button>
-          </div>
-          <Popover open={isSearchOpen} onOpenChange={setIsSearchOpen}>
-            <PopoverTrigger asChild>
-              <Input
-                id="channel-search"
-                type="text"
-                placeholder={`Search by ${searchType}...`}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                onFocus={() => setIsSearchOpen(true)}
-                className="w-full"
-                disabled={loadingChannels}
-              />
-            </PopoverTrigger>
-            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-              <Command>
-                {loadingChannels && <CommandInput value={searchTerm} onValueChange={setSearchTerm} placeholder="Loading channels..." disabled />}
-                {!loadingChannels && <CommandInput value={searchTerm} onValueChange={setSearchTerm} placeholder={`Search ${searchType}...`} />}
-                <CommandEmpty>No channels found.</CommandEmpty>
-                <CommandGroup>
-                  {filteredChannels.map((channel) => (
-                    <CommandItem
-                      key={channel.id}
-                      value={channel.name}
-                      onSelect={() => handleSelectChannel(channel)}
-                    >
-                      {channel.name}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </Command>
-            </PopoverContent>
-          </Popover>
-        </div>
-
         {loadingChannels ? (
           <div className="flex justify-center items-center h-40">
             <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
@@ -254,31 +163,22 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
           <p className="text-red-500 text-center">{channelsError}</p>
         ) : (
           <>
-            {/* Meridian Channels Grouped by Element */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-              {primaryElements.map(element => (
-                <div key={element} className="flex flex-col space-y-2">
-                  <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-1">
-                    {getElementIcon(element)} {element}
-                  </h3>
-                  <div className="flex flex-col space-y-1">
-                    {groupedMeridianChannels[element].map(channel => (
-                      <Button
-                        key={channel.id}
-                        variant="outline"
-                        size="sm"
-                        className={cn(
-                          "w-full justify-start text-xs h-auto py-1 px-2 rounded-full",
-                          getElementColorClass(channel.elements),
-                          selectedChannelForDisplay?.id === channel.id && "ring-2 ring-offset-2 ring-indigo-500"
-                        )}
-                        onClick={() => handleSelectChannel(channel)}
-                      >
-                        {channel.name}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
+            {/* Meridian Channels */}
+            <div className="flex flex-wrap gap-2">
+              {meridianChannels.map(channel => (
+                <Button
+                  key={channel.id}
+                  variant="outline"
+                  size="sm"
+                  className={cn(
+                    "justify-center text-xs h-auto py-1 px-3 rounded-full",
+                    getElementColorClass(channel.elements),
+                    selectedChannelForDisplay?.id === channel.id && "ring-2 ring-offset-2 ring-indigo-500"
+                  )}
+                  onClick={() => handleSelectChannel(channel)}
+                >
+                  {channel.name}
+                </Button>
               ))}
             </div>
 
@@ -296,7 +196,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
                       variant="outline"
                       size="sm"
                       className={cn(
-                        "text-xs h-auto py-1 px-2 rounded-full bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100",
+                        "text-xs h-auto py-1 px-3 rounded-full bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100",
                         selectedChannelForDisplay?.id === channel.id && "ring-2 ring-offset-2 ring-indigo-500"
                       )}
                       onClick={() => handleSelectChannel(channel)}
@@ -430,7 +330,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
                   <Tag className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
                   <div className="flex flex-wrap gap-1">
                     {selectedChannelForDisplay.tags.map((tag, i) => (
-                      <Badge key={i} variant="outline" className="bg-gray-100 text-gray-700 text-xs">
+                      <Badge key={i} variant="outline" className="bg-gray-100 text-gray-700">
                         {tag}
                       </Badge>
                     ))}
