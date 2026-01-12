@@ -108,7 +108,7 @@ serve(async (req) => {
       headers: {
         'Authorization': `Bearer ${secrets.notion_integration_token}`,
         'Content-Type': 'application/json',
-        'Notion-Version': '20222-06-28' // Corrected Notion API version
+        'Notion-Version': '2022-06-28' // Corrected Notion API version
       },
       body: JSON.stringify({
         properties: notionProperties
