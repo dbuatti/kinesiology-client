@@ -55,7 +55,7 @@ const NotionConfig = () => {
 
         const { data, error } = await supabase
           .from('notion_secrets')
-          .select('notion_integration_token, appointments_database_id, crm_database_id, modes_database_id, acupoints_database_id, muscles_database_id, channels_database_id, chakras_database_id') // Include new chakras_database_id
+          .select('*') // Changed to select all columns
           .eq('user_id', user.id)
           .single();
 
@@ -70,7 +70,7 @@ const NotionConfig = () => {
           setCrmDbId(secrets.crm_database_id || '');
           setModesDbId(secrets.modes_database_id || '');
           setAcupointsDbId(secrets.acupoints_database_id || '');
-          setMusculesDbId(secrets.muscles_database_id || ''); // Fixed typo here
+          setMusculesDbId(secrets.muscles_database_id || '');
           setChannelsDbId(secrets.channels_database_id || '');
           setChakrasDbId(secrets.chakras_database_id || ''); // Set new chakrasDbId
         }
