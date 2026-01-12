@@ -89,13 +89,8 @@ serve(async (req) => {
               date: {
                 equals: todayString
               }
-            },
-            {
-              property: "Status",
-              status: {
-                does_not_equal: "Closed"
-              }
             }
+            // Removed the 'Status' filter for now
           ]
         }
       })
