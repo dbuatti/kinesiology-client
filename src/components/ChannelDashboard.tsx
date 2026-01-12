@@ -243,6 +243,15 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
     return isItemLogged(itemType, itemValue) ? 'bg-gray-200 text-gray-700 border-gray-300' : '';
   };
 
+  // Helper to get a canonical name for map lookup
+  const getCanonicalChannelName = (channelName: string): string => {
+    if (channelName.endsWith(' Meridian')) {
+      return channelName.replace(' Meridian', '');
+    }
+    // Add other specific mappings if Notion names differ significantly
+    return channelName;
+  };
+
   if (needsConfig) {
     return (
       <Card className="max-w-md w-full shadow-xl mx-auto">
@@ -337,9 +346,10 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
         {/* Selected Channel Summary Display */}
         {selectedChannelForDisplay && (() => {
           const colors = getElementColorClasses(selectedChannelForDisplay.elements);
+          const canonicalChannelName = getCanonicalChannelName(selectedChannelForDisplay.name);
           // Derive Yuan and Front Mu points from hardcoded map, overriding Notion data
-          const derivedYuanPoints = yuanAndFrontMuPoints.get(selectedChannelForDisplay.name)?.yuan || selectedChannelForDisplay.yuanPoints;
-          const derivedFrontMu = yuanAndFrontMuPoints.get(selectedChannelForDisplay.name)?.frontMu || selectedChannelForDisplay.frontMu;
+          const derivedYuanPoints = yuanAndFrontMuPoints.get(canonicalChannelName)?.yuan || selectedChannelForDisplay.yuanPoints;
+          const derivedFrontMu = yuanAndFrontMuPoints.get(canonicalChannelName)?.frontMu || selectedChannelForDisplay.frontMu;
 
           return (
             <Card className={cn("border-2 shadow-md mt-6 p-4", colors.border, colors.bg)}>
