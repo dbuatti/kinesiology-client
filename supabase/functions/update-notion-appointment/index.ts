@@ -132,6 +132,10 @@ serve(async (req) => {
             notionProperties[notionKey] = value ? { select: { name: value } } : { select: null };
           } else if (type === 'relation') {
             // Special handling for relations: append to existing
+            // Notion API for relations: to add a new relation, you send an array with the new relation object.
+            // To replace all relations, you send a new array.
+            // Here, we are assuming we want to ADD a relation, not replace all.
+            // If the property is a relation, and the value is an ID, we add it.
             const currentRelations = existingNotionProperties[notionKey]?.relation || [];
             const newRelations = [...currentRelations, { id: value }];
             notionProperties[notionKey] = { relation: newRelations };
@@ -144,13 +148,13 @@ serve(async (req) => {
 
     updateProperty("sessionAnchor", "Today we are really working with...", updates.sessionAnchor, 'rich_text');
     updateProperty("status", "Status", updates.status, 'status');
-    updateProperty("goal", "Goal", updates.goal, 'rich_text');
-    updateProperty("priorityPattern", "Priority Pattern", updates.priorityPattern, 'select');
-    updateProperty("notes", "Notes", updates.notes, 'rich_text');
+    updateProperty("goal", "Goal", updates.goal, 'rich_text'); // Assuming Notion 'Goal' property is changed to 'Text' type
+    updateProperty("priorityPattern", "Priority Pattern", updates.priorityPattern, 'select'); // This might still warn if name is different
+    updateProperty("notes", "Additional Notes", updates.notes, 'rich_text'); // Corrected name
     updateProperty("sessionNorthStar", "Session North Star", updates.sessionNorthStar, 'rich_text');
     
     if (updates.acupointId !== undefined) {
-      updateProperty("acupointId", "Acupoints", updates.acupointId, 'relation');
+      updateProperty("acupointId", "🔺 Acupoints", updates.acupointId, 'relation'); // Corrected name
     }
 
     console.log("[update-notion-appointment] Updating Notion page:", appointmentId, "with properties:", notionProperties)
