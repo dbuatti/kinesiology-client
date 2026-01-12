@@ -13,8 +13,13 @@ serve(async (req) => {
   }
 
   try {
+    console.log("[set-notion-secrets] Starting function execution")
+
     const authHeader = req.headers.get('Authorization')
+    console.log("[set-notion-secrets] Auth header:", authHeader ? "present" : "missing")
+    
     if (!authHeader) {
+      console.log("[set-notion-secrets] No auth header, returning 401")
       return new Response('Unauthorized', { 
         status: 401, 
         headers: corsHeaders 
@@ -24,6 +29,16 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')
     
+    console.log("[set-notion-secrets] Supabase URL:", supabaseUrl ? "configured" : "missing")
+    
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error("[set-notion-secrets] Missing Supabase environment variables")
+      return new Response(JSON.stringify({ error: 'Server configuration error' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
     const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
     const { data: { user }, error: userError } = await supabase.auth.getUser(
@@ -31,6 +46,7 @@ serve(async (req) => {
     )
 
     if (userError || !user) {
+      console.error("[set-notion-secrets] User auth error:", userError?.message)
       return new Response('Unauthorized', { 
         status: 401, 
         headers: corsHeaders 
@@ -39,9 +55,23 @@ serve(async (req) => {
 
     console.log("[set-notion-secrets] User authenticated:", user.id)
 
-    const { notionToken, appointmentsDbId, crmDbId } = await req.json()
+    // Parse request body
+    let body;
+    try {
+      body = await req.json();
+      console.log("[set-notion-secrets] Request body:", JSON.stringify(body))
+    } catch (e) {
+      console.error("[set-notion-secrets] Failed to parse body:", e)
+      return new Response(JSON.stringify({ error: 'Invalid request body' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    const { notionToken, appointmentsDbId, crmDbId } = body;
 
     if (!notionToken || !appointmentsDbId) {
+      console.log("[set-notion-secrets] Missing required fields")
       return new Response(JSON.stringify({ 
         error: 'Integration Token and Appointments Database ID are required' 
       }), {
@@ -49,6 +79,8 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
+
+    console.log("[set-notion-secrets] Attempting to upsert into notion_secrets table")
 
     // Upsert into notion_secrets table
     const { error: insertError } = await supabase
@@ -83,7 +115,7 @@ serve(async (req) => {
     })
 
   } catch (error) {
-    console.error("[set-notion-secrets] Error:", error)
+    console.error("[set-notion-secrets] Unexpected error:", error)
     return new Response(JSON.stringify({ 
       error: 'Internal server error', 
       details: error.message 

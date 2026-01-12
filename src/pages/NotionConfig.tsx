@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,7 +14,6 @@ const NotionConfig = () => {
   const [integrationToken, setIntegrationToken] = useState('');
   const [appointmentsDbId, setAppointmentsDbId] = useState('');
   const [crmDbId, setCrmDbId] = useState('');
-  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -27,11 +26,19 @@ const NotionConfig = () => {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
-        throw new Error('Not authenticated');
+        toast({
+          variant: 'destructive',
+          title: 'Not authenticated',
+          description: 'Please log in first',
+        });
+        navigate('/login');
+        return;
       }
 
       // Get Supabase URL from environment or default
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://hcriagmovotwuqbppcfm.supabase.co';
+
+      console.log('Calling edge function with URL:', `${supabaseUrl}/functions/v1/set-notion-secrets`)
 
       // Call edge function to set secrets
       const response = await fetch(
@@ -50,10 +57,16 @@ const NotionConfig = () => {
         }
       );
 
+      console.log('Response status:', response.status)
+      
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save secrets');
+        console.error('Edge function error:', errorData)
+        throw new Error(errorData.error || errorData.details || 'Failed to save secrets');
       }
+
+      const result = await response.json();
+      console.log('Success:', result)
 
       toast({
         title: 'Success',
@@ -62,10 +75,11 @@ const NotionConfig = () => {
 
       navigate('/active-session');
     } catch (error: any) {
+      console.error('Save error:', error)
       toast({
         variant: 'destructive',
         title: 'Save Failed',
-        description: error.message,
+        description: error.message || 'An unknown error occurred',
       });
     } finally {
       setSaving(false);
