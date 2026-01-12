@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
@@ -13,8 +12,11 @@ serve(async (req) => {
   }
 
   try {
+    console.log("[get-todays-appointments] Starting function execution")
+
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
+      console.warn("[get-todays-appointments] Unauthorized: No Authorization header")
       return new Response('Unauthorized', { 
         status: 401, 
         headers: corsHeaders 
@@ -23,6 +25,7 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')
+    const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
     
     // Create a Supabase client for authentication (using anon key is fine for auth.getUser)
     const authSupabase = createClient(supabaseUrl, supabaseAnonKey)
@@ -32,7 +35,7 @@ serve(async (req) => {
     const { data: { user }, error: userError } = await authSupabase.auth.getUser(token)
 
     if (userError || !user) {
-      console.error("[get-todays-appointments] User authentication failed:", userError)
+      console.error("[get-todays-appointments] User authentication failed:", userError?.message)
       return new Response('Unauthorized', { 
         status: 401, 
         headers: corsHeaders 
@@ -41,24 +44,18 @@ serve(async (req) => {
 
     console.log("[get-todays-appointments] User authenticated:", user.id)
 
-    // Create a Supabase client for database operations, authenticated with the user's token
-    const authenticatedSupabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      },
-    })
+    // Use service role key to fetch secrets securely, bypassing RLS if necessary
+    const serviceRoleSupabase = createClient(supabaseUrl, supabaseServiceRoleKey)
 
-    // Fetch Notion credentials from secure secrets table using the authenticated client
-    const { data: secrets, error: secretsError } = await authenticatedSupabase
+    // Fetch Notion credentials from secure secrets table
+    const { data: secrets, error: secretsError } = await serviceRoleSupabase
       .from('notion_secrets')
-      .select('notion_integration_token, appointments_database_id')
+      .select('notion_integration_token, appointments_database_id, crm_database_id')
       .eq('user_id', user.id)
       .single()
 
     if (secretsError || !secrets) {
-      console.error("[get-todays-appointments] Secrets not found for user:", user.id, secretsError)
+      console.error("[get-todays-appointments] Secrets not found for user:", user.id, secretsError?.message)
       return new Response(JSON.stringify({ 
         error: 'Notion configuration not found. Please configure your Notion credentials first.' 
       }), {
@@ -73,8 +70,8 @@ serve(async (req) => {
     const today = new Date()
     const todayString = today.toISOString().split('T')[0]
 
-    // Query Notion API
-    const notionResponse = await fetch('https://api.notion.com/v1/databases/' + secrets.appointments_database_id + '/query', {
+    // Query Notion API for today's appointments
+    const notionAppointmentsResponse = await fetch('https://api.notion.com/v1/databases/' + secrets.appointments_database_id + '/query', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${secrets.notion_integration_token}`,
@@ -89,54 +86,84 @@ serve(async (req) => {
               date: {
                 equals: todayString
               }
+            },
+            {
+              property: "Status",
+              select: {
+                does_not_equal: "CH" // Filter out 'Completed/Charged' sessions
+              }
             }
-            // Removed the 'Status' filter for now
           ]
         }
       })
     })
 
-    if (!notionResponse.ok) {
-      const errorText = await notionResponse.text()
-      console.error("[get-todays-appointments] Notion API error:", errorText)
-      return new Response(JSON.stringify({ error: 'Failed to fetch from Notion', details: errorText }), {
-        status: notionResponse.status,
+    if (!notionAppointmentsResponse.ok) {
+      const errorText = await notionAppointmentsResponse.text()
+      console.error("[get-todays-appointments] Notion API (Appointments) error:", errorText)
+      return new Response(JSON.stringify({ error: 'Failed to fetch appointments from Notion', details: errorText }), {
+        status: notionAppointmentsResponse.status,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    const notionData = await notionResponse.json()
-    console.log("[get-todays-appointments] Found", notionData.results.length, "appointments")
+    const notionAppointmentsData = await notionAppointmentsResponse.json()
+    console.log("[get-todays-appointments] Found", notionAppointmentsData.results.length, "appointments")
 
-    // Process and return the appointments
-    const appointments = notionData.results.map((page: any) => {
+    const appointments = await Promise.all(notionAppointmentsData.results.map(async (page: any) => {
       const properties = page.properties
       
-      // Extract Client Name from CRM relation or title
-      const clientName = properties.Client?.relation?.[0]?.id || 
-                        properties["Client Name"]?.title?.[0]?.plain_text || 
-                        "Unknown Client"
-      
-      // Extract Star Sign
-      const starSign = properties["Star Sign"]?.select?.name || "Unknown"
-      
-      // Extract Goal
+      let clientName = properties.Name?.title?.[0]?.plain_text || "Unknown Client"
+      let clientStarSign = "Unknown"
+      let clientFocus = ""
+
+      // Fetch client details from CRM if relation exists and crm_database_id is available
+      const clientCrmRelation = properties["Client CRM"]?.relation?.[0]?.id
+      if (clientCrmRelation && secrets.crm_database_id) {
+        console.log(`[get-todays-appointments] Fetching CRM details for client ID: ${clientCrmRelation}`)
+        const notionClientResponse = await fetch('https://api.notion.com/v1/pages/' + clientCrmRelation, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${secrets.notion_integration_token}`,
+            'Content-Type': 'application/json',
+            'Notion-Version': '2022-06-28'
+          }
+        })
+
+        if (notionClientResponse.ok) {
+          const clientData = await notionClientResponse.json()
+          const clientProperties = clientData.properties
+          
+          clientName = clientProperties.Name?.title?.[0]?.plain_text || clientName
+          clientStarSign = clientProperties["Star Sign"]?.select?.name || "Unknown"
+          clientFocus = clientProperties.Focus?.rich_text?.[0]?.plain_text || ""
+          console.log(`[get-todays-appointments] CRM details fetched for ${clientName}`)
+        } else {
+          const errorText = await notionClientResponse.text()
+          console.warn(`[get-todays-appointments] Failed to fetch CRM details for client ID ${clientCrmRelation}:`, errorText)
+        }
+      } else {
+        console.log("[get-todays-appointments] No Client CRM relation or CRM database ID available.")
+      }
+
+      // Extract Goal from appointment
       const goal = properties.Goal?.rich_text?.[0]?.plain_text || ""
 
       return {
         id: page.id,
         clientName,
-        starSign,
-        goal
+        clientStarSign, // Renamed to avoid conflict with appointment's starSign if it existed
+        clientFocus,
+        goal,
       }
-    })
+    }))
 
     return new Response(JSON.stringify({ appointments }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
 
   } catch (error) {
-    console.error("[get-todays-appointments] Error:", error)
+    console.error("[get-todays-appointments] Unexpected error:", error?.message)
     return new Response(JSON.stringify({ error: 'Internal server error', details: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

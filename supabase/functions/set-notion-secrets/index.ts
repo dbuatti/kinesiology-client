@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
@@ -17,6 +16,7 @@ serve(async (req) => {
 
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
+      console.warn("[set-notion-secrets] Unauthorized: No Authorization header")
       return new Response('Unauthorized', { 
         status: 401, 
         headers: corsHeaders 
@@ -24,18 +24,16 @@ serve(async (req) => {
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')
     const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
     
-    // Use service role key for database operations
     const supabase = createClient(supabaseUrl, supabaseServiceRoleKey)
 
-    // Verify user is authenticated
     const { data: { user }, error: userError } = await supabase.auth.getUser(
       authHeader.replace('Bearer ', '')
     )
 
     if (userError || !user) {
+      console.error("[set-notion-secrets] User authentication failed:", userError?.message)
       return new Response('Unauthorized', { 
         status: 401, 
         headers: corsHeaders 
@@ -44,10 +42,7 @@ serve(async (req) => {
 
     console.log("[set-notion-secrets] User authenticated:", user.id)
 
-    const { notionToken, appointmentsDbId, crmDbId } = await req.json()
-
-    // Removed the strict validation here, as it's now handled client-side
-    // and the database NOT NULL constraint will act as a final safeguard.
+    const { notionToken, appointmentsDbId, crmDbId, modesDbId } = await req.json() // Destructure new modesDbId
 
     // Upsert into notion_secrets table using service role
     const { error: insertError } = await supabase
@@ -57,12 +52,13 @@ serve(async (req) => {
         notion_integration_token: notionToken,
         appointments_database_id: appointmentsDbId,
         crm_database_id: crmDbId || null,
+        modes_database_id: modesDbId || null, // Store new modesDbId
       }, {
         onConflict: 'user_id'
       })
 
     if (insertError) {
-      console.error("[set-notion-secrets] Database error:", insertError)
+      console.error("[set-notion-secrets] Database error:", insertError?.message)
       return new Response(JSON.stringify({ 
         error: 'Database error', 
         details: insertError.message 
@@ -82,7 +78,7 @@ serve(async (req) => {
     })
 
   } catch (error) {
-    console.error("[set-notion-secrets] Unexpected error:", error)
+    console.error("[set-notion-secrets] Unexpected error:", error?.message)
     return new Response(JSON.stringify({ 
       error: 'Internal server error', 
       details: error.message 

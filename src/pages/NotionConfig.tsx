@@ -8,13 +8,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Settings, Key, Database, Shield, Loader2 } from 'lucide-react'; // Added Loader2
+import { Settings, Key, Database, Shield, Loader2 } from 'lucide-react';
 
 const NotionConfig = () => {
   const [integrationToken, setIntegrationToken] = useState('');
   const [appointmentsDbId, setAppointmentsDbId] = useState('');
   const [crmDbId, setCrmDbId] = useState('');
-  const [loading, setLoading] = useState(true); // Use loading for initial fetch and saving
+  const [modesDbId, setModesDbId] = useState(''); // New state for Modes & Balances DB ID
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -30,11 +31,11 @@ const NotionConfig = () => {
 
         const { data, error } = await supabase
           .from('notion_secrets')
-          .select('notion_integration_token, appointments_database_id, crm_database_id')
+          .select('notion_integration_token, appointments_database_id, crm_database_id, modes_database_id') // Select new column
           .eq('user_id', session.user.id)
           .single();
 
-        if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found, which is fine for initial load
+        if (error && error.code !== 'PGRST116') {
           throw error;
         }
 
@@ -42,6 +43,7 @@ const NotionConfig = () => {
           setIntegrationToken(data.notion_integration_token || '');
           setAppointmentsDbId(data.appointments_database_id || '');
           setCrmDbId(data.crm_database_id || '');
+          setModesDbId(data.modes_database_id || ''); // Set new state
         }
       } catch (error: any) {
         toast({
@@ -59,9 +61,8 @@ const NotionConfig = () => {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true); // Use loading for saving as well
+    setLoading(true);
 
-    // Client-side validation for NOT NULL fields
     if (!integrationToken.trim()) {
       toast({
         variant: 'destructive',
@@ -80,6 +81,15 @@ const NotionConfig = () => {
       setLoading(false);
       return;
     }
+    if (!modesDbId.trim()) { // New validation for Modes DB ID
+      toast({
+        variant: 'destructive',
+        title: 'Validation Error',
+        description: 'Modes & Balances Database ID cannot be empty.',
+      });
+      setLoading(false);
+      return;
+    }
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -94,12 +104,10 @@ const NotionConfig = () => {
         return;
       }
 
-      // Get Supabase URL from environment or default
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://hcriagmovotwuqbppcfm.supabase.co';
 
       console.log('[NotionConfig] Calling edge function with URL:', `${supabaseUrl}/functions/v1/set-notion-secrets`)
 
-      // Call edge function to set secrets
       const response = await fetch(
         `${supabaseUrl}/functions/v1/set-notion-secrets`,
         {
@@ -111,7 +119,8 @@ const NotionConfig = () => {
           body: JSON.stringify({
             notionToken: integrationToken,
             appointmentsDbId: appointmentsDbId,
-            crmDbId: crmDbId || null // Ensure null for empty optional field
+            crmDbId: crmDbId || null,
+            modesDbId: modesDbId || null, // Send new ID
           })
         }
       );
@@ -190,7 +199,6 @@ const NotionConfig = () => {
                       value={integrationToken}
                       onChange={(e) => setIntegrationToken(e.target.value)}
                       disabled={loading}
-                      // Removed 'required' attribute
                     />
                     <p className="text-xs text-gray-500">
                       Find this in Notion → Settings & Members → Integrations → [Your Integration]
@@ -210,7 +218,6 @@ const NotionConfig = () => {
                       value={appointmentsDbId}
                       onChange={(e) => setAppointmentsDbId(e.target.value)}
                       disabled={loading}
-                      // Removed 'required' attribute
                     />
                     <p className="text-xs text-gray-500">
                       Copy from Notion: Share → Copy link → Extract the 32-character ID from the URL
@@ -233,6 +240,25 @@ const NotionConfig = () => {
                     />
                     <p className="text-xs text-gray-500">
                       Used for client management. Can be added later.
+                    </p>
+                  </div>
+
+                  {/* Modes & Balances Database ID (New Field) */}
+                  <div className="space-y-2">
+                    <Label htmlFor="modes" className="flex items-center gap-2 font-semibold">
+                      <Database className="w-4 h-4 text-indigo-600" />
+                      Modes & Balances Database ID
+                    </Label>
+                    <Input
+                      id="modes"
+                      type="text"
+                      placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                      value={modesDbId}
+                      onChange={(e) => setModesDbId(e.target.value)}
+                      disabled={loading}
+                    />
+                    <p className="text-xs text-gray-500">
+                      ID for your Modes & Balances reference database.
                     </p>
                   </div>
 
@@ -261,9 +287,9 @@ const NotionConfig = () => {
                   <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
                     <li>Create a Notion integration at notion.com/my-integrations</li>
                     <li>Copy the "Internal Integration Token"</li>
-                    <li>Share your appointments database with the integration</li>
-                    <li>Copy the database ID from the share link</li>
-                    <li>Paste both values above and save</li>
+                    <li>Share your databases (Appointments, CRM, Modes) with the integration</li>
+                    <li>Copy each database ID from its share link</li>
+                    <li>Paste all values above and save</li>
                   </ol>
                 </div>
               </>
