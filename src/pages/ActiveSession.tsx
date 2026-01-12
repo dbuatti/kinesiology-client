@@ -111,7 +111,7 @@
           const { data: secrets, error: secretsError } = await supabase
             .from('notion_secrets')
             .select('id')
-            .eq('user.id', session.user.id)
+            .eq('user_id', session.user.id)
             .single();
 
           if (secretsError && secretsError.code !== 'PGRST116') {
