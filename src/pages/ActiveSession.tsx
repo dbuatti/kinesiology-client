@@ -77,7 +77,7 @@ const ActiveSession = () => {
   // Tab and Notion Page Viewer States
   const [activeTab, setActiveTab] = useState('overview'); // Default active tab
   const [selectedNotionPageId, setSelectedNotionPageId] = useState<string | null>(null); // Centralized Notion page ID
-  // Removed selectedNotionPageTitle state as NotionPageViewer will manage its own title
+  const [selectedNotionPageTitle, setSelectedNotionPageTitle] = useState<string | null>(null); // Title for Notion Page Viewer
 
   // --- Supabase Edge Function Hooks (Declared first to resolve TS2448) ---
 
@@ -333,9 +333,15 @@ const ActiveSession = () => {
 
   const handleClearAcupointSearch = useCallback(() => {
     setAcupointSearchTerm('');
+    setSymptomSearchTerm(''); // Clear symptom search as well
     setFoundAcupoints([]);
-    setSelectedAcupoint(null); // Clear selected acupoint as well
-  }, []);
+    setSelectedAcupoint(null);
+    // If the Notion page viewer was showing this acupoint, clear it
+    if (selectedNotionPageId && selectedAcupoint?.id === selectedNotionPageId) {
+      setSelectedNotionPageId(null);
+      setSelectedNotionPageTitle(null);
+    }
+  }, [selectedAcupoint?.id, selectedNotionPageId]);
 
   const handleSymptomSearchChange = (value: string) => {
     setSymptomSearchTerm(value);
@@ -344,9 +350,15 @@ const ActiveSession = () => {
 
   const handleClearSymptomSearch = useCallback(() => {
     setSymptomSearchTerm('');
+    setAcupointSearchTerm(''); // Clear acupoint search as well
     setFoundAcupoints([]);
-    setSelectedAcupoint(null); // Clear selected acupoint as well
-  }, []);
+    setSelectedAcupoint(null);
+    // If the Notion page viewer was showing this acupoint, clear it
+    if (selectedNotionPageId && selectedAcupoint?.id === selectedNotionPageId) {
+      setSelectedNotionPageId(null);
+      setSelectedNotionPageTitle(null);
+    }
+  }, [selectedAcupoint?.id, selectedNotionPageId]);
 
   const handleSelectAcupoint = useCallback((acupoint: Acupoint) => {
     setSelectedAcupoint(acupoint);
@@ -362,7 +374,12 @@ const ActiveSession = () => {
     setAcupointSearchTerm('');
     setSymptomSearchTerm('');
     setFoundAcupoints([]); // Clear any previous search results
-  }, []);
+    // If the Notion page viewer was showing this acupoint, clear it
+    if (selectedNotionPageId && selectedAcupoint?.id === selectedNotionPageId) {
+      setSelectedNotionPageId(null);
+      setSelectedNotionPageTitle(null);
+    }
+  }, [selectedAcupoint?.id, selectedNotionPageId]);
 
   const handleAddAcupointToSession = useCallback(async () => {
     if (selectedAcupoint && appointmentId) {
@@ -389,6 +406,15 @@ const ActiveSession = () => {
     console.log('Muscle selected:', muscle.name);
   }, []);
 
+  const handleClearMuscleSelection = useCallback(() => {
+    setSelectedMuscle(null);
+    // If the Notion page viewer was showing this muscle, clear it
+    if (selectedNotionPageId && selectedMuscle?.id === selectedNotionPageId) {
+      setSelectedNotionPageId(null);
+      setSelectedNotionPageTitle(null);
+    }
+  }, [selectedMuscle?.id, selectedNotionPageId]);
+
   const handleMuscleStrengthLogged = useCallback(async (muscle: Muscle, isStrong: boolean) => {
     if (appointmentId) {
       await logMuscleStrength({
@@ -407,13 +433,21 @@ const ActiveSession = () => {
 
   const handleClearChakraSelection = useCallback(() => {
     setSelectedChakra(null);
-    // Also clear the search term in the ChakraSelector's internal state
-    // This is handled by the ChakraSelector component itself now.
-  }, []);
+    // If the Notion page viewer was showing this chakra, clear it
+    if (selectedNotionPageId && selectedChakra?.id === selectedNotionPageId) {
+      setSelectedNotionPageId(null);
+      setSelectedNotionPageTitle(null);
+    }
+  }, [selectedChakra?.id, selectedNotionPageId]);
 
   const handleClearSelectedMode = useCallback(() => {
     setSelectedMode(null);
-  }, []);
+    // If the Notion page viewer was showing this mode, clear it
+    if (selectedNotionPageId && selectedMode?.id === selectedNotionPageId) {
+      setSelectedNotionPageId(null);
+      setSelectedNotionPageTitle(null);
+    }
+  }, [selectedMode?.id, selectedNotionPageId]);
 
   const handleLogChannelItemSuccess = useCallback(() => {
     if (appointmentId) {
@@ -421,9 +455,18 @@ const ActiveSession = () => {
     }
   }, [appointmentId, fetchSessionLogs]);
 
+  const handleClearChannelSelection = useCallback(() => {
+    // When ChannelDashboard clears its selection, we should also clear the Notion viewer
+    // if it was displaying a channel page.
+    setSelectedNotionPageId(null);
+    setSelectedNotionPageTitle(null);
+  }, []);
+
+
   // Centralized handler for opening Notion pages
-  const handleOpenNotionPage = useCallback((pageId: string) => { // Removed pageTitle from here
+  const handleOpenNotionPage = useCallback((pageId: string, pageTitle: string) => {
     setSelectedNotionPageId(pageId);
+    setSelectedNotionPageTitle(pageTitle);
     setActiveTab('notion-page'); // Switch to the Notion Page tab
   }, []);
 
@@ -658,7 +701,7 @@ const ActiveSession = () => {
                                     size="icon"
                                     onClick={(e) => {
                                       e.stopPropagation(); // Prevent selecting the mode when clicking the info button
-                                      handleOpenNotionPage(mode.id); // Use centralized handler
+                                      handleOpenNotionPage(mode.id, mode.name); // Use centralized handler
                                     }}
                                   >
                                     <Info className="h-4 w-4" />
@@ -692,6 +735,7 @@ const ActiveSession = () => {
                 onMuscleSelected={handleMuscleSelected}
                 onMuscleStrengthLogged={handleMuscleStrengthLogged}
                 appointmentId={appointmentId || ''}
+                onClearSelection={handleClearMuscleSelection} // Pass clear handler
                 onOpenNotionPage={handleOpenNotionPage} // Pass centralized handler
               />
             </TabsContent>
@@ -712,6 +756,7 @@ const ActiveSession = () => {
               <ChannelDashboard
                 appointmentId={appointmentId || ''}
                 onLogSuccess={handleLogChannelItemSuccess}
+                onClearSelection={handleClearChannelSelection} // Pass clear handler
                 onOpenNotionPage={handleOpenNotionPage} // Pass centralized handler
               />
             </TabsContent>
@@ -775,7 +820,7 @@ const ActiveSession = () => {
                                   className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
                                   onClick={(e) => {
                                     e.stopPropagation(); // Prevent selecting the acupoint when clicking the info button
-                                    handleOpenNotionPage(point.id); // Use centralized handler
+                                    handleOpenNotionPage(point.id, point.name); // Use centralized handler
                                   }}
                                 >
                                   <Info className="h-4 w-4" />
@@ -837,7 +882,7 @@ const ActiveSession = () => {
                                   className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
                                   onClick={(e) => {
                                     e.stopPropagation(); // Prevent selecting the acupoint when clicking the info button
-                                    handleOpenNotionPage(point.id); // Use centralized handler
+                                    handleOpenNotionPage(point.id, point.name); // Use centralized handler
                                   }}
                                 >
                                   <Info className="h-4 w-4" />
@@ -860,7 +905,7 @@ const ActiveSession = () => {
                             variant="ghost"
                             size="icon"
                             className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
-                            onClick={() => { handleOpenNotionPage(selectedAcupoint.id); }} // Use centralized handler
+                            onClick={() => { handleOpenNotionPage(selectedAcupoint.id, selectedAcupoint.name); }} // Use centralized handler
                           >
                             <Info className="h-4 w-4" />
                           </Button>
@@ -949,7 +994,7 @@ const ActiveSession = () => {
                 <CardHeader className="bg-indigo-50 border-b border-indigo-200 rounded-t-lg p-4">
                   <CardTitle className="text-xl font-bold text-indigo-800 flex items-center gap-2">
                     <Info className="w-5 h-5" />
-                    Notion Page Viewer
+                    {selectedNotionPageTitle || "Notion Page Viewer"}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-6">

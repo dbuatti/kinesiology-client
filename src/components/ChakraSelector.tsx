@@ -137,7 +137,7 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
   };
 
   const handleClearAll = () => {
-    onClearSelection(); // Clear selected chakra in parent
+    onClearSelection(); // Notify parent of clear action
     setSearchTerm(''); // Clear local search term
     setFilteredChakras(allChakras); // Reset filtered chakras to all
     setIsSearchOpen(false); // Close search popover

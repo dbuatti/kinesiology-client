@@ -19,10 +19,11 @@ interface MuscleSelectorProps {
   onMuscleSelected: (muscle: Muscle) => void;
   onMuscleStrengthLogged: (muscle: Muscle, isStrong: boolean) => void;
   appointmentId: string;
-  onOpenNotionPage: (pageId: string) => void; // Changed prop name and type
+  onClearSelection: () => void; // New prop for clearing selection
+  onOpenNotionPage: (pageId: string, pageTitle: string) => void; // Changed prop name and type
 }
 
-const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMuscleStrengthLogged, appointmentId, onOpenNotionPage }) => {
+const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMuscleStrengthLogged, appointmentId, onClearSelection, onOpenNotionPage }) => {
   const [allMuscles, setAllMuscles] = useState<Muscle[]>([]);
   const [filteredMuscles, setFilteredMuscles] = useState<Muscle[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -97,11 +98,12 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
     setIsSearchOpen(false);
   };
 
-  const handleClearSelection = () => {
+  const handleClearAll = () => {
     setSelectedMuscle(null);
     setSearchTerm(''); // Clear search term in the trigger
     setFilteredMuscles(allMuscles);
-    setShowWeaknessChecklist(false); // Clear weakness checklist
+    setShowWeaknessChecklist(false);
+    onClearSelection(); // Notify parent of clear action
   };
 
   if (needsConfig) {
@@ -135,7 +137,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
           <Hand className="w-5 h-5" />
           Muscle Testing & Insights
           {selectedMuscle && (
-            <Button variant="ghost" size="icon" className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100" onClick={() => onOpenNotionPage(selectedMuscle.id)}>
+            <Button variant="ghost" size="icon" className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100" onClick={() => onOpenNotionPage(selectedMuscle.id, selectedMuscle.name)}>
               <Info className="h-4 w-4" />
             </Button>
           )}
@@ -219,7 +221,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
                         className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
                         onClick={(e) => {
                           e.stopPropagation(); // Prevent selecting the muscle when clicking the info button
-                          onOpenNotionPage(muscle.id);
+                          onOpenNotionPage(muscle.id, muscle.name);
                         }}
                       >
                         <Info className="h-4 w-4" />
@@ -242,7 +244,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
                   variant="ghost"
                   size="icon"
                   className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
-                  onClick={() => onOpenNotionPage(selectedMuscle.id)}
+                  onClick={() => onOpenNotionPage(selectedMuscle.id, selectedMuscle.name)}
                 >
                   <ExternalLink className="h-4 w-4" />
                 </Button>
@@ -325,7 +327,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
                   {loadingMuscles ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                   Body No (Weak)
                 </Button>
-                <Button variant="outline" onClick={handleClearSelection} disabled={loadingMuscles}>
+                <Button variant="outline" onClick={handleClearAll} disabled={loadingMuscles}>
                   <Trash2 className="h-4 w-4 mr-2" />
                   Clear
                 </Button>

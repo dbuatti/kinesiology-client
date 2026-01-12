@@ -17,6 +17,7 @@ import NotionPageViewer from './NotionPageViewer';
 interface ChannelDashboardProps {
   appointmentId: string;
   onLogSuccess: () => void;
+  onClearSelection: () => void; // New prop for clearing selection
   onOpenNotionPage: (pageId: string, pageTitle: string) => void; // Changed prop name and type
 }
 
@@ -37,7 +38,7 @@ yuanAndFrontMuPoints.set('Triple Warmer', { yuan: 'SJ4 (Yangchi)', frontMu: 'CV5
 yuanAndFrontMuPoints.set('Gallbladder', { yuan: 'GB40 (Qiuxu)', frontMu: 'GB24 (Riyue)' });
 yuanAndFrontMuPoints.set('Liver', { yuan: 'LV3 (Taichong)', frontMu: 'LV14 (Qimen)' });
 
-const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLogSuccess, onOpenNotionPage }) => {
+const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLogSuccess, onClearSelection, onOpenNotionPage }) => {
   const [allChannels, setAllChannels] = useState<Channel[]>([]);
   const [selectedChannelForDisplay, setSelectedChannelForDisplay] = useState<Channel | null>(null);
   const [loggedItems, setLoggedItems] = useState<Set<string>>(new Set());
@@ -194,9 +195,10 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
     setLoggedItems(new Set());
   };
 
-  const handleClearSelection = () => {
+  const handleClearAll = () => {
     setSelectedChannelForDisplay(null);
     setLoggedItems(new Set());
+    onClearSelection(); // Notify parent of clear action
   };
 
   const handleConfigureNotion = () => {
@@ -761,7 +763,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                 </div>
               </div>
               <div className="flex justify-end mt-4">
-                <Button variant="outline" onClick={handleClearSelection} size="sm" disabled={loggingSessionEvent}>
+                <Button variant="outline" onClick={handleClearAll} size="sm" disabled={loggingSessionEvent}>
                   {loggingSessionEvent ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />}
                   Clear Selection
                 </Button>
