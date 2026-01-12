@@ -53,6 +53,25 @@ export interface Muscle {
   emotionalTheme: string[];
   nutritionSupport: string[];
   testPosition: string;
+  // New fields for detailed muscle information
+  origin: string;
+  insertion: string;
+  action: string;
+  position: string;
+  rotation: string;
+  stabilise: string;
+  monitor: string;
+  nerveSupply: string;
+  visceralNerves: string;
+  neuroLymphaticReflex: string;
+  neuroVascularReflex: string;
+  relatedYuanPoint: { id: string; name: string } | null;
+  relatedAkChannel: { id: string; name: string } | null;
+  relatedTcmChannel: { id: string; name: string } | null;
+  type: string | null;
+  tags: { id: string; name: string }[];
+  timeAk: { id: string; name: string } | null;
+  timeTcm: { id: string; name: string } | null;
 }
 
 export interface Chakra {
@@ -132,6 +151,7 @@ export interface NotionSecrets {
   muscles_database_id: string | null; // New: Muscles Database ID
   channels_database_id: string | null; // New: Channels Database ID
   chakras_database_id: string | null; // New: Chakras Database ID
+  tags_database_id: string | null; // New: Tags Database ID
 }
 
 // Edge Function Payloads and Responses
@@ -280,6 +300,7 @@ export interface SetNotionSecretsPayload {
   musclesDbId: string | null; // New: Muscles Database ID
   channelsDbId: string | null; // New: Channels Database ID
   chakrasDbId: string | null; // New: Chakras Database ID
+  tagsDbId: string | null; // New: Tags Database ID
 }
 
 export interface SetNotionSecretsResponse {

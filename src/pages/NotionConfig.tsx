@@ -38,6 +38,7 @@ const notionConfigFormSchema = z.object({
   musclesDbId: z.string().nullable(),
   channelsDbId: z.string().nullable(), // Added new field
   chakrasDbId: z.string().nullable(),  // Added new field
+  tagsDbId: z.string().nullable(), // Added new field
 });
 
 type NotionConfigFormValues = z.infer<typeof notionConfigFormSchema>;
@@ -56,6 +57,7 @@ const NotionConfig = () => {
       musclesDbId: '',
       channelsDbId: '', // Default value for new field
       chakrasDbId: '',  // Default value for new field
+      tagsDbId: '', // Default value for new field
     },
   });
 
@@ -71,6 +73,7 @@ const NotionConfig = () => {
       musclesDbId: secrets.muscles_database_id || '',
       channelsDbId: secrets.channels_database_id || '', // Set new field
       chakrasDbId: secrets.chakras_database_id || '',  // Set new field
+      tagsDbId: secrets.tags_database_id || '', // Set new field
     });
   }, [form]);
 
@@ -134,6 +137,7 @@ const NotionConfig = () => {
       musclesDbId: values.musclesDbId?.trim() || null,
       channelsDbId: values.channelsDbId?.trim() || null, // Pass new field
       chakrasDbId: values.chakrasDbId?.trim() || null,  // Pass new field
+      tagsDbId: values.tagsDbId?.trim() || null, // Pass new field
     });
   };
 
@@ -385,6 +389,33 @@ const NotionConfig = () => {
                       )}
                     />
 
+                    {/* Tags Database ID (New Field) */}
+                    <FormField
+                      control={form.control}
+                      name="tagsDbId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2 font-semibold">
+                            <Database className="w-4 h-4 text-indigo-600" />
+                            Tags Database ID (Optional)
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              id="tags"
+                              type="text"
+                              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                              disabled={savingConfig}
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                          <p className="text-xs text-gray-500">
+                            ID for your Tags reference database.
+                          </p>
+                        </FormItem>
+                      )}
+                    />
+
                     <div className="flex gap-4 pt-4">
                       <Button
                         type="submit"
@@ -414,7 +445,7 @@ const NotionConfig = () => {
                     <ol className="space-y-1 list-decimal list-inside">
                       <li>Create a Notion integration at notion.com/my-integrations</li>
                       <li>Copy the "Internal Integration Token"</li>
-                      <li>Share your databases (Appointments, CRM, Modes, Acupoints, Muscles, Channels, Chakras) with the integration</li>
+                      <li>Share your databases (Appointments, CRM, Modes, Acupoints, Muscles, Channels, Chakras, Tags) with the integration</li>
                       <li>**Important:** For individual Notion pages (like Muscle details, Chakra details, etc.) to be viewable via direct links in the app, you must also share those specific pages with your integration.</li>
                       <li>Copy each database ID from its share link</li>
                       <li>Paste all values above and save</li>

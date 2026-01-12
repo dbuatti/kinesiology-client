@@ -61,7 +61,7 @@ serve(async (req) => {
     // Fetch Notion credentials from secure secrets table using service role
     const { data: secrets, error: secretsError } = await supabase
       .from('notion_secrets')
-      .select('notion_integration_token, appointments_database_id, crm_database_id, modes_database_id, acupoints_database_id, muscles_database_id, channels_database_id, chakras_database_id') // Fetch all new IDs
+      .select('notion_integration_token, appointments_database_id, crm_database_id, modes_database_id, acupoints_database_id, muscles_database_id, channels_database_id, chakras_database_id, tags_database_id') // Fetch all new IDs including tags_database_id
       .eq('id', user.id)
       .single()
 

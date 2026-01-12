@@ -46,7 +46,7 @@ serve(async (req) => {
 
     const { data: secrets, error: secretsError } = await serviceRoleSupabase
       .from('notion_secrets')
-      .select('notion_integration_token, muscles_database_id, modes_database_id, acupoints_database_id, channels_database_id, chakras_database_id') // Fetch all new IDs
+      .select('notion_integration_token, muscles_database_id, modes_database_id, acupoints_database_id, channels_database_id, chakras_database_id, tags_database_id') // Fetch all new IDs including tags_database_id
       .eq('id', user.id)
       .single()
 
@@ -61,6 +61,15 @@ serve(async (req) => {
     }
 
     console.log("[get-muscles] Muscles database ID loaded:", secrets.muscles_database_id)
+    if (!secrets.channels_database_id) {
+      console.warn("[get-muscles] Channels database ID not configured. Related AK/TCM Channels will not be resolved.")
+    }
+    if (!secrets.acupoints_database_id) {
+      console.warn("[get-muscles] Acupoints database ID not configured. Related Yuan Point and Time (AK/TCM) will not be resolved.")
+    }
+    if (!secrets.tags_database_id) {
+      console.warn("[get-muscles] Tags database ID not configured. Tags will not be resolved.")
+    }
 
     const { searchTerm, searchType } = await req.json()
 
@@ -145,20 +154,87 @@ serve(async (req) => {
     const notionMusclesData = await notionMusclesResponse.json()
     console.log("[get-muscles] Found", notionMusclesData.results.length, "muscles")
 
-    const muscles = notionMusclesData.results.map((page: any) => {
+    // Helper function to resolve relation names
+    const resolveRelation = async (relationId: string | undefined, databaseId: string | null): Promise<{ id: string; name: string } | null> => {
+      if (!relationId || !databaseId) return null;
+      try {
+        const response = await retryFetch(`https://api.notion.com/v1/pages/${relationId}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${secrets.notion_integration_token}`,
+            'Content-Type': 'application/json',
+            'Notion-Version': '2022-06-28'
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const name = data.properties.Name?.title?.[0]?.plain_text || data.properties.Meridian?.title?.[0]?.plain_text || "Unknown";
+          return { id: relationId, name };
+        } else {
+          console.warn(`[get-muscles] Failed to fetch relation page ${relationId}:`, await response.text());
+          return null;
+        }
+      } catch (err) {
+        console.error(`[get-muscles] Error fetching relation page ${relationId}:`, err);
+        return null;
+      }
+    };
+
+    const resolveMultiSelectRelations = async (relationProperty: any, databaseId: string | null): Promise<{ id: string; name: string }[]> => {
+      const ids = relationProperty?.relation?.map((r: any) => r.id) || [];
+      if (ids.length === 0 || !databaseId) return [];
+
+      const resolvedItems: { id: string; name: string }[] = [];
+      for (const id of ids) {
+        const item = await resolveRelation(id, databaseId);
+        if (item) resolvedItems.push(item);
+      }
+      return resolvedItems;
+    };
+
+
+    const muscles = await Promise.all(notionMusclesData.results.map(async (page: any) => {
       const properties = page.properties
+      
+      const relatedYuanPoint = await resolveRelation(properties["Related YUAN POINT"]?.relation?.[0]?.id, secrets.acupoints_database_id);
+      const relatedAkChannel = await resolveRelation(properties["Related AK Channel"]?.relation?.[0]?.id, secrets.channels_database_id);
+      const relatedTcmChannel = await resolveRelation(properties["Related TCM Channel"]?.relation?.[0]?.id, secrets.channels_database_id);
+      const timeAk = await resolveRelation(properties["TIME (AK)"]?.relation?.[0]?.id, secrets.acupoints_database_id); // Assuming TIME (AK) relates to an acupoint
+      const timeTcm = await resolveRelation(properties["TIME (TCM)"]?.relation?.[0]?.id, secrets.acupoints_database_id); // Assuming TIME (TCM) relates to an acupoint
+      const tags = await resolveMultiSelectRelations(properties["Tag"], secrets.tags_database_id);
+
+
       return {
         id: page.id,
-        name: properties["Name"]?.title?.[0]?.plain_text || "Unknown Muscle", // Changed from "Muscle Name" to "Name"
-        meridian: properties["Meridian"]?.select?.name || "", // Changed from "Associated Meridian" to "Meridian"
+        name: properties["Name"]?.title?.[0]?.plain_text || "Unknown Muscle",
+        meridian: properties["Meridian"]?.select?.name || "",
         organSystem: properties["Organ System"]?.select?.name || "",
         nlPoints: properties["NL Points (Neurolymphatic)"]?.rich_text?.[0]?.plain_text || "",
         nvPoints: properties["NV Points (Neurovascular)"]?.rich_text?.[0]?.plain_text || "",
         emotionalTheme: properties["Emotional Theme"]?.multi_select?.map((s: any) => s.name) || [],
         nutritionSupport: properties["Nutrition Support"]?.multi_select?.map((s: any) => s.name) || [],
-        testPosition: properties["Test Position"]?.files?.[0]?.file?.url || "", // Assuming first file is the image
+        testPosition: properties["Test Position"]?.files?.[0]?.file?.url || "",
+        // New fields
+        origin: properties.Origin?.rich_text?.[0]?.plain_text || "",
+        insertion: properties.Insertion?.rich_text?.[0]?.plain_text || "",
+        action: properties.Action?.rich_text?.[0]?.plain_text || "",
+        position: properties.Position?.rich_text?.[0]?.plain_text || "",
+        rotation: properties.Rotation?.rich_text?.[0]?.plain_text || "",
+        stabilise: properties.Stabilise?.rich_text?.[0]?.plain_text || "",
+        monitor: properties.Monitor?.rich_text?.[0]?.plain_text || "",
+        nerveSupply: properties["Nerve Supply"]?.rich_text?.[0]?.plain_text || "",
+        visceralNerves: properties["Visceral Nerves"]?.rich_text?.[0]?.plain_text || "",
+        neuroLymphaticReflex: properties["Neuro-Lymphatic Reflex"]?.rich_text?.[0]?.plain_text || "",
+        neuroVascularReflex: properties["Neuro-Vascular Reflex"]?.rich_text?.[0]?.plain_text || "",
+        relatedYuanPoint: relatedYuanPoint,
+        relatedAkChannel: relatedAkChannel,
+        relatedTcmChannel: relatedTcmChannel,
+        type: properties.Type?.select?.name || null,
+        tags: tags,
+        timeAk: timeAk,
+        timeTcm: timeTcm,
       }
-    })
+    }))
 
     return new Response(JSON.stringify({ muscles }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

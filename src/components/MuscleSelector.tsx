@@ -10,7 +10,7 @@ import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from '
 import { Badge } from '@/components/ui/badge';
 import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
 import { cn } from '@/lib/utils';
-import { Search, Check, ChevronsUpDown, Hand, Info, Image, Settings, Loader2, Trash2, ExternalLink, XCircle } from 'lucide-react'; // Added XCircle
+import { Search, Check, ChevronsUpDown, Hand, Info, Image, Settings, Loader2, Trash2, ExternalLink, XCircle, Clock, Brain, FlaskConical, Footprints, Heart, Gem, Leaf, Flame, Droplet, Sun, Bone, Mic, Tag, RefreshCw, Shield, Eye, Sparkles, Waves } from 'lucide-react'; // Added RefreshCw, Shield, Eye, Sparkles, Waves
 import { useNavigate } from 'react-router-dom';
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
 import { Muscle, GetMusclesPayload, GetMusclesResponse } from '@/types/api';
@@ -300,37 +300,119 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
                   <img src={selectedMuscle.testPosition} alt={`${selectedMuscle.name} Test Position`} className="w-full h-auto rounded-md object-cover" />
                 </div>
               )}
-              {selectedMuscle.nlPoints && (
-                <div>
-                  <p className="font-semibold text-purple-700">NL Points (Neurolymphatic):</p>
-                  <p className="text-sm">{selectedMuscle.nlPoints}</p>
-                </div>
-              )}
-              {selectedMuscle.nvPoints && (
-                <div>
-                  <p className="font-semibold text-purple-700">NV Points (Neurovascular):</p>
-                  <p className="text-sm">{selectedMuscle.nvPoints}</p>
-                </div>
-              )}
-              {selectedMuscle.nutritionSupport.length > 0 && (
-                <div>
-                  <p className="font-semibold text-purple-700">Nutrition Support:</p>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {selectedMuscle.nutritionSupport.map((nut, i) => (
-                      <Badge key={i} variant="outline" className="bg-purple-100 text-purple-700 border-purple-300">
-                        {nut}
-                      </Badge>
-                    ))}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2 text-sm text-gray-800">
+                {selectedMuscle.origin && (
+                  <div className="flex items-start gap-2">
+                    <Footprints className="w-4 h-4 flex-shrink-0 mt-0.5 text-purple-600" />
+                    <p><span className="font-semibold text-purple-700">Origin:</span> {selectedMuscle.origin}</p>
                   </div>
-                </div>
-              )}
-              {selectedMuscle.emotionalTheme.length > 0 && (
-                <div>
-                  <p className="font-semibold text-purple-700">Emotional Theme:</p>
+                )}
+                {selectedMuscle.insertion && (
+                  <div className="flex items-start gap-2">
+                    <Bone className="w-4 h-4 flex-shrink-0 mt-0.5 text-purple-600" />
+                    <p><span className="font-semibold text-purple-700">Insertion:</span> {selectedMuscle.insertion}</p>
+                  </div>
+                )}
+                {selectedMuscle.action && (
+                  <div className="flex items-start gap-2">
+                    <FlaskConical className="w-4 h-4 flex-shrink-0 mt-0.5 text-purple-600" />
+                    <p><span className="font-semibold text-purple-700">Action:</span> {selectedMuscle.action}</p>
+                  </div>
+                )}
+                {selectedMuscle.position && (
+                  <div className="flex items-start gap-2">
+                    <Hand className="w-4 h-4 flex-shrink-0 mt-0.5 text-purple-600" />
+                    <p><span className="font-semibold text-purple-700">Position:</span> {selectedMuscle.position}</p>
+                  </div>
+                )}
+                {selectedMuscle.rotation && (
+                  <div className="flex items-start gap-2">
+                    <RefreshCw className="w-4 h-4 flex-shrink-0 mt-0.5 text-purple-600" />
+                    <p><span className="font-semibold text-purple-700">Rotation:</span> {selectedMuscle.rotation}</p>
+                  </div>
+                )}
+                {selectedMuscle.stabilise && (
+                  <div className="flex items-start gap-2">
+                    <Shield className="w-4 h-4 flex-shrink-0 mt-0.5 text-purple-600" />
+                    <p><span className="font-semibold text-purple-700">Stabilize:</span> {selectedMuscle.stabilise}</p>
+                  </div>
+                )}
+                {selectedMuscle.monitor && (
+                  <div className="flex items-start gap-2">
+                    <Eye className="w-4 h-4 flex-shrink-0 mt-0.5 text-purple-600" />
+                    <p><span className="font-semibold text-purple-700">Monitor:</span> {selectedMuscle.monitor}</p>
+                  </div>
+                )}
+                {selectedMuscle.nerveSupply && (
+                  <div className="flex items-start gap-2">
+                    <Brain className="w-4 h-4 flex-shrink-0 mt-0.5 text-purple-600" />
+                    <p><span className="font-semibold text-purple-700">Nerve Supply:</span> {selectedMuscle.nerveSupply}</p>
+                  </div>
+                )}
+                {selectedMuscle.visceralNerves && (
+                  <div className="flex items-start gap-2">
+                    <Heart className="w-4 h-4 flex-shrink-0 mt-0.5 text-purple-600" />
+                    <p><span className="font-semibold text-purple-700">Visceral Nerves:</span> {selectedMuscle.visceralNerves}</p>
+                  </div>
+                )}
+                {selectedMuscle.neuroLymphaticReflex && (
+                  <div className="flex items-start gap-2">
+                    <Droplet className="w-4 h-4 flex-shrink-0 mt-0.5 text-purple-600" />
+                    <p><span className="font-semibold text-purple-700">Neuro-Lymphatic Reflex:</span> {selectedMuscle.neuroLymphaticReflex}</p>
+                  </div>
+                )}
+                {selectedMuscle.neuroVascularReflex && (
+                  <div className="flex items-start gap-2">
+                    <Sun className="w-4 h-4 flex-shrink-0 mt-0.5 text-purple-600" />
+                    <p><span className="font-semibold text-purple-700">Neuro-Vascular Reflex:</span> {selectedMuscle.neuroVascularReflex}</p>
+                  </div>
+                )}
+                {selectedMuscle.relatedYuanPoint && (
+                  <div className="flex items-start gap-2">
+                    <Sparkles className="w-4 h-4 flex-shrink-0 mt-0.5 text-purple-600" />
+                    <p><span className="font-semibold text-purple-700">Related Yuan Point:</span> {selectedMuscle.relatedYuanPoint.name}</p>
+                  </div>
+                )}
+                {selectedMuscle.relatedAkChannel && (
+                  <div className="flex items-start gap-2">
+                    <Waves className="w-4 h-4 flex-shrink-0 mt-0.5 text-purple-600" />
+                    <p><span className="font-semibold text-purple-700">Related AK Channel:</span> {selectedMuscle.relatedAkChannel.name}</p>
+                  </div>
+                )}
+                {selectedMuscle.relatedTcmChannel && (
+                  <div className="flex items-start gap-2">
+                    <Waves className="w-4 h-4 flex-shrink-0 mt-0.5 text-purple-600" />
+                    <p><span className="font-semibold text-purple-700">Related TCM Channel:</span> {selectedMuscle.relatedTcmChannel.name}</p>
+                  </div>
+                )}
+                {selectedMuscle.type && (
+                  <div className="flex items-start gap-2">
+                    <Tag className="w-4 h-4 flex-shrink-0 mt-0.5 text-purple-600" />
+                    <p><span className="font-semibold text-purple-700">Type:</span> {selectedMuscle.type}</p>
+                  </div>
+                )}
+                {selectedMuscle.timeAk && (
+                  <div className="flex items-start gap-2">
+                    <Clock className="w-4 h-4 flex-shrink-0 mt-0.5 text-purple-600" />
+                    <p><span className="font-semibold text-purple-700">Time (AK):</span> {selectedMuscle.timeAk.name}</p>
+                  </div>
+                )}
+                {selectedMuscle.timeTcm && (
+                  <div className="flex items-start gap-2">
+                    <Clock className="w-4 h-4 flex-shrink-0 mt-0.5 text-purple-600" />
+                    <p><span className="font-semibold text-purple-700">Time (TCM):</span> {selectedMuscle.timeTcm.name}</p>
+                  </div>
+                )}
+              </div>
+
+              {selectedMuscle.tags.length > 0 && (
+                <div className="mt-4">
+                  <p className="font-semibold text-purple-700">Tags:</p>
                   <div className="flex flex-wrap gap-1 mt-1">
-                    {selectedMuscle.emotionalTheme.map((emotion, i) => (
+                    {selectedMuscle.tags.map((tag, i) => (
                       <Badge key={i} variant="outline" className="bg-purple-100 text-purple-700 border-purple-300">
-                        {emotion}
+                        {tag.name}
                       </Badge>
                     ))}
                   </div>
