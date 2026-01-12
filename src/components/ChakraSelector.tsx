@@ -225,6 +225,7 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
                 className="w-full justify-between"
                 disabled={loadingChakras || loggingSessionEvent}
               >
+                {loadingChakras ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 {selectedChakra ? selectedChakra.name : (searchTerm || `Search by ${searchType}...`)}
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
@@ -238,6 +239,7 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
                     setSearchTerm(value);
                     fetchChakras({ searchTerm: value, searchType });
                   }}
+                  disabled={loadingChakras}
                 />
                 <CommandEmpty>No chakras found.</CommandEmpty>
                 <CommandGroup>

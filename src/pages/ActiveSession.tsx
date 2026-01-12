@@ -386,6 +386,13 @@ const ActiveSession = () => {
 
   const handleClearChakraSelection = useCallback(() => {
     setSelectedChakra(null);
+    setAcupointSearchTerm(''); // Clear search term in the trigger
+    setSymptomSearchTerm(''); // Clear symptom search when a point is selected
+    setFoundAcupoints([]); // Clear found acupoints after selection
+  }, []);
+
+  const handleClearSelectedMode = useCallback(() => {
+    setSelectedMode(null);
   }, []);
 
   const handleLogChannelItemSuccess = useCallback(() => {
@@ -572,69 +579,77 @@ const ActiveSession = () => {
                       <Lightbulb className="w-4 h-4 text-indigo-600" />
                       Select Mode
                     </Label>
-                    <Popover open={isModeSelectOpen} onOpenChange={setIsModeSelectOpen}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          aria-expanded={isModeSelectOpen}
-                          className="w-full justify-between"
-                          disabled={loadingModes || updatingAppointment}
-                        >
-                          {selectedMode ? selectedMode.name : "Select mode..."}
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                        <Command>
-                          {loadingModes && <CommandInput value={selectedMode?.name || ''} onValueChange={() => { }} placeholder="Loading modes..." disabled />}
-                          {!loadingModes && <CommandInput value={selectedMode?.name || ''} onValueChange={() => { }} placeholder="Search mode..." />}
-                          <CommandEmpty>No mode found.</CommandEmpty>
-                          <CommandGroup>
-                            {modes.map((mode) => (
-                              <CommandItem
-                                key={mode.id}
-                                value={mode.name}
-                                onSelect={async () => {
-                                  setSelectedMode(mode);
-                                  setIsModeSelectOpen(false);
-                                  await logSessionEvent({
-                                    appointmentId: appointmentId!,
-                                    logType: 'mode_selected',
-                                    details: {
-                                      modeId: mode.id,
-                                      modeName: mode.name,
-                                      actionNote: mode.actionNote,
-                                    }
-                                  });
-                                  if (!loggingSessionEvent) {
-                                    showSuccess(`${mode.name} selected and logged.`);
-                                  }
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    selectedMode?.id === mode.id ? "opacity-100" : "opacity-0"
-                                  )}
-                                />
-                                {mode.name}
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={(e) => {
-                                    e.stopPropagation(); // Prevent selecting the mode when clicking the info button
-                                    handleOpenNotionPage(mode.id); // Use centralized handler
+                    <div className="flex gap-2">
+                      <Popover open={isModeSelectOpen} onOpenChange={setIsModeSelectOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={isModeSelectOpen}
+                            className="w-full justify-between"
+                            disabled={loadingModes || updatingAppointment || loggingSessionEvent}
+                          >
+                            {loggingSessionEvent ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                            {selectedMode ? selectedMode.name : "Select mode..."}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                          <Command>
+                            <CommandInput
+                              placeholder="Search mode..."
+                              disabled={loadingModes}
+                            />
+                            <CommandEmpty>No mode found.</CommandEmpty>
+                            <CommandGroup>
+                              {modes.map((mode) => (
+                                <CommandItem
+                                  key={mode.id}
+                                  value={mode.name}
+                                  onSelect={async () => {
+                                    setSelectedMode(mode);
+                                    setIsModeSelectOpen(false);
+                                    await logSessionEvent({
+                                      appointmentId: appointmentId!,
+                                      logType: 'mode_selected',
+                                      details: {
+                                        modeId: mode.id,
+                                        modeName: mode.name,
+                                        actionNote: mode.actionNote,
+                                      }
+                                    });
                                   }}
                                 >
-                                  <Info className="h-4 w-4" />
-                                </Button>
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      selectedMode?.id === mode.id ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  {mode.name}
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={(e) => {
+                                      e.stopPropagation(); // Prevent selecting the mode when clicking the info button
+                                      handleOpenNotionPage(mode.id); // Use centralized handler
+                                    }}
+                                  >
+                                    <Info className="h-4 w-4" />
+                                  </Button>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      {selectedMode && (
+                        <Button variant="outline" onClick={handleClearSelectedMode} disabled={loggingSessionEvent}>
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Clear
+                        </Button>
+                      )}
+                    </div>
                     {selectedMode?.actionNote && (
                       <p className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg border border-blue-200 mt-2">
                         <strong>Action Note:</strong> {selectedMode.actionNote}
@@ -700,6 +715,7 @@ const ActiveSession = () => {
                           className="w-full justify-between"
                           disabled={loadingAcupoints || updatingAppointment}
                         >
+                          {loadingAcupoints ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                           {selectedAcupoint ? selectedAcupoint.name : (acupointSearchTerm || "Search for an acupoint...")}
                           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
@@ -761,6 +777,7 @@ const ActiveSession = () => {
                           className="w-full justify-between"
                           disabled={loadingAcupoints || updatingAppointment}
                         >
+                          {loadingAcupoints ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                           {selectedAcupoint ? selectedAcupoint.name : (symptomSearchTerm || "Search symptoms for point suggestions...")}
                           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
