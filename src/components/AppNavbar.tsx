@@ -98,7 +98,7 @@ const AppNavbar = () => {
       <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo/App Title */}
         <Link to="/" className="flex items-center space-x-2 text-xl font-bold text-indigo-700 hover:text-indigo-900">
-          <img src="/public/favicon.ico" alt="Logo" className="h-7 w-7" />
+          <img src="/favicon.ico" alt="Logo" className="h-7 w-7" />
           <span>Kinesiology App</span>
         </Link>
 
@@ -151,7 +151,7 @@ const AppNavbar = () => {
             <SheetContent side="left" className="w-[250px] sm:w-[300px] p-4">
               <div className="flex flex-col space-y-6 pt-6">
                 <Link to="/" className="flex items-center space-x-2 text-xl font-bold text-indigo-700" onClick={() => setIsSheetOpen(false)}>
-                  <img src="/public/favicon.ico" alt="Logo" className="h-7 w-7" />
+                  <img src="/favicon.ico" alt="Logo" className="h-7 w-7" />
                   <span>Kinesiology App</span>
                 </Link>
                 <div className="flex flex-col space-y-2">
