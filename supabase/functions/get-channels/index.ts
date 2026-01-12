@@ -103,13 +103,13 @@ serve(async (req) => {
       const elementsArray = element ? [element] : [];
 
       // Function to resolve muscle names from relation IDs
-      const resolveMuscleNames = async (relationProperty: any): Promise<string[]> => {
+      const resolveMuscleNames = async (relationProperty: any): Promise<{ id: string; name: string }[]> => {
         const muscleIds = relationProperty?.relation?.map((r: any) => r.id) || [];
         if (muscleIds.length === 0 || !secrets.muscles_database_id) {
           return [];
         }
 
-        const muscleNames: string[] = [];
+        const musclesData: { id: string; name: string }[] = [];
         for (const muscleId of muscleIds) {
           try {
             const musclePageResponse = await fetch('https://api.notion.com/v1/pages/' + muscleId, {
@@ -124,7 +124,7 @@ serve(async (req) => {
               const musclePageData = await musclePageResponse.json();
               const muscleName = musclePageData.properties.Name?.title?.[0]?.plain_text;
               if (muscleName) {
-                muscleNames.push(muscleName);
+                musclesData.push({ id: muscleId, name: muscleName });
               }
             } else {
               const errorText = await musclePageResponse.text();
@@ -134,10 +134,9 @@ serve(async (req) => {
             console.error(`[get-channels] Error fetching muscle page ${muscleId}:`, muscleError);
           }
         }
-        return muscleNames;
+        return musclesData;
       };
 
-      // Corrected property names for AK Muscles and TCM Muscles
       const akMuscles = await resolveMuscleNames(properties["Muscles (AK)"]);
       const tcmMuscles = await resolveMuscleNames(properties["Muscles (TCM)"]);
 

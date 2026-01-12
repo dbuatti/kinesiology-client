@@ -65,8 +65,8 @@ export interface Channel {
   heSea: string; // New
   jingRiver: string; // New
   jingWell: string; // New
-  akMuscles: string[]; // New
-  tcmMuscles: string[]; // New
+  akMuscles: { id: string; name: string }[]; // Changed from string[]
+  tcmMuscles: { id: string; name: string }[]; // Changed from string[]
   yuanPoints: string; // New
   sedate1: string; // New
   sedate2: string; // New
@@ -267,4 +267,61 @@ export interface DeleteSessionLogPayload {
 export interface DeleteSessionLogResponse {
   success: boolean;
   deletedLogId: string;
+}
+
+// New types for Notion page content
+export type NotionBlockType =
+  | 'paragraph'
+  | 'heading_1'
+  | 'heading_2'
+  | 'heading_3'
+  | 'bulleted_list_item'
+  | 'numbered_list_item'
+  | 'to_do'
+  | 'toggle'
+  | 'code'
+  | 'child_page'
+  | 'image'
+  | 'callout'
+  | 'quote'
+  | 'divider'
+  | 'unsupported';
+
+export interface NotionRichText {
+  type: 'text';
+  text: {
+    content: string;
+    link: { url: string } | null;
+  };
+  annotations: {
+    bold: boolean;
+    italic: boolean;
+    strikethrough: boolean;
+    underline: boolean;
+    code: boolean;
+    color: string;
+  };
+  plain_text: string;
+  href: string | null;
+}
+
+export interface NotionBlock {
+  id: string;
+  type: NotionBlockType;
+  text?: NotionRichText[]; // For text-based blocks
+  url?: string; // For image blocks
+  caption?: NotionRichText[]; // For image blocks
+  checked?: boolean; // For to_do blocks
+  color?: string; // For callout blocks
+  icon?: { type: string; emoji?: string; file?: { url: string } }; // For callout blocks
+  children?: NotionBlock[]; // For nested blocks like lists, toggles
+}
+
+export interface GetNotionPageContentPayload {
+  pageId: string;
+}
+
+export interface GetNotionPageContentResponse {
+  title: string;
+  blocks: NotionBlock[];
 }

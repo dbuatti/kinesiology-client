@@ -6,11 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog'; // Import Dialog components
 import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 import { Settings, Loader2, Sparkles, ExternalLink, Waves, Leaf, Flame, Gem, Droplet, Sun, Heart, Hand, Footprints, Bone, FlaskConical, Mic, Tag, XCircle, PlusCircle, Brain, Clock, Volume2 } from 'lucide-react';
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
 import { Channel, GetChannelsPayload, GetChannelsResponse, LogSessionEventPayload, LogSessionEventResponse } from '@/types/api';
+import NotionPageViewer from './NotionPageViewer'; // Import the new NotionPageViewer
 
 interface ChannelDashboardProps {
   appointmentId: string;
@@ -39,6 +41,8 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
   const [allChannels, setAllChannels] = useState<Channel[]>([]);
   const [selectedChannelForDisplay, setSelectedChannelForDisplay] = useState<Channel | null>(null);
   const [loggedItems, setLoggedItems] = useState<Set<string>>(new Set()); // Stores unique identifiers of logged items
+  const [isMuscleModalOpen, setIsMuscleModalOpen] = useState(false); // State for modal visibility
+  const [selectedMuscleNotionPageId, setSelectedMuscleNotionPageId] = useState<string | null>(null); // State for muscle Notion page ID
 
   const navigate = useNavigate();
 
@@ -250,6 +254,11 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
     }
     // Add other specific mappings if Notion names differ significantly
     return channelName;
+  };
+
+  const handleOpenMuscleModal = (muscleNotionPageId: string) => {
+    setSelectedMuscleNotionPageId(muscleNotionPageId);
+    setIsMuscleModalOpen(true);
   };
 
   if (needsConfig) {
@@ -501,17 +510,18 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                     {selectedChannelForDisplay.akMuscles.length > 0 ? (
                       <div className="flex flex-wrap gap-1">
                         {selectedChannelForDisplay.akMuscles.map((muscle, i) => (
-                          <Badge
-                            key={i}
-                            variant="outline"
-                            className={cn(
-                              "text-xs cursor-pointer bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200",
-                              getLoggedClass('channel_ak_muscle', muscle)
-                            )}
-                            onClick={() => handleLogItemClick('channel_ak_muscle', muscle)}
-                          >
-                            {muscle}
-                          </Badge>
+                          <DialogTrigger asChild key={i}> {/* Wrap Badge with DialogTrigger */}
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "text-xs cursor-pointer bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200",
+                                getLoggedClass('channel_ak_muscle', muscle.name)
+                              )}
+                              onClick={() => handleOpenMuscleModal(muscle.id)} // Pass muscle ID to open modal
+                            >
+                              {muscle.name}
+                            </Badge>
+                          </DialogTrigger>
                         ))}
                       </div>
                     ) : 'N/A'}
@@ -524,17 +534,18 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                     {selectedChannelForDisplay.tcmMuscles.length > 0 ? (
                       <div className="flex flex-wrap gap-1">
                         {selectedChannelForDisplay.tcmMuscles.map((muscle, i) => (
-                          <Badge
-                            key={i}
-                            variant="outline"
-                            className={cn(
-                              "text-xs cursor-pointer bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200",
-                              getLoggedClass('channel_tcm_muscle', muscle)
-                            )}
-                            onClick={() => handleLogItemClick('channel_tcm_muscle', muscle)}
-                          >
-                            {muscle}
-                          </Badge>
+                          <DialogTrigger asChild key={i}> {/* Wrap Badge with DialogTrigger */}
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "text-xs cursor-pointer bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200",
+                                getLoggedClass('channel_tcm_muscle', muscle.name)
+                              )}
+                              onClick={() => handleOpenMuscleModal(muscle.id)} // Pass muscle ID to open modal
+                            >
+                              {muscle.name}
+                            </Badge>
+                          </DialogTrigger>
                         ))}
                       </div>
                     ) : 'N/A'}
@@ -715,6 +726,19 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
           );
         })()}
       </CardContent>
+
+      {/* Muscle Notion Page Viewer Modal */}
+      <Dialog open={isMuscleModalOpen} onOpenChange={setIsMuscleModalOpen}>
+        <DialogContent className="sm:max-w-[800px] max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Muscle Details</DialogTitle>
+            <DialogDescription>
+              Viewing the Notion page content for the selected muscle.
+            </DialogDescription>
+          </DialogHeader>
+          <NotionPageViewer pageId={selectedMuscleNotionPageId} />
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };
