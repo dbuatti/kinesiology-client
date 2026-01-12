@@ -95,7 +95,6 @@ serve(async (req) => {
 
     const appointments = await Promise.all(notionAppointmentsData.results.map(async (page: any) => {
       const properties = page.properties
-      // console.log(`[get-all-appointments] Properties for appointment ${page.id}:`, JSON.stringify(properties, null, 2)); // Removed diagnostic log
 
       let clientName = properties.Name?.title?.[0]?.plain_text || "Unknown Client"
       let starSign = "Unknown"
