@@ -16,6 +16,7 @@
     import { supabase } from '@/integrations/supabase/client';
     import { cn } from '@/lib/utils';
     import { format } from 'date-fns';
+    import MuscleSelector from '@/components/MuscleSelector'; // Import the new MuscleSelector
 
     interface Appointment {
       id: string; // Notion page ID
@@ -45,6 +46,18 @@
       time: string[];
     }
 
+    interface Muscle {
+      id: string;
+      name: string;
+      meridian: string;
+      organSystem: string;
+      nlPoints: string;
+      nvPoints: string;
+      emotionalTheme: string[];
+      nutritionSupport: string[];
+      testPosition: string;
+    }
+
     const ActiveSession = () => {
       const { appointmentId } = useParams<{ appointmentId: string }>();
       const [appointment, setAppointment] = useState<Appointment | null>(null);
@@ -65,6 +78,9 @@
       const [isAcupointSearchOpen, setIsAcupointSearchOpen] = useState(false);
       const [isSymptomSearchOpen, setIsSymptomSearchOpen] = useState(false);
       const [isAcupointSearching, setIsAcupointSearching] = useState(false);
+
+      // Muscle States
+      const [selectedMuscle, setSelectedMuscle] = useState<Muscle | null>(null);
 
 
       const navigate = useNavigate();
@@ -95,7 +111,7 @@
           const { data: secrets, error: secretsError } = await supabase
             .from('notion_secrets')
             .select('id')
-            .eq('user_id', session.user.id)
+            .eq('user.id', session.user.id)
             .single();
 
           if (secretsError && secretsError.code !== 'PGRST116') {
@@ -377,6 +393,19 @@
           });
         }
       };
+
+      const handleMuscleSelected = (muscle: Muscle) => {
+        setSelectedMuscle(muscle);
+        // You might want to log this selection or update other UI elements
+        console.log('Muscle selected:', muscle.name);
+      };
+
+      const handleMuscleStrengthLogged = (muscle: Muscle, isStrong: boolean) => {
+        // Here you would typically log this to your database or Notion
+        console.log(`Muscle ${muscle.name} logged as ${isStrong ? 'Strong' : 'Weak'}`);
+        // For now, the MuscleSelector component handles its own toast and state for the checklist
+      };
+
 
       if (loading) {
         return (
@@ -732,6 +761,13 @@
                     )}
                   </CardContent>
                 </Card>
+
+                {/* Muscle Selector Component */}
+                <MuscleSelector
+                  onMuscleSelected={handleMuscleSelected}
+                  onMuscleStrengthLogged={handleMuscleStrengthLogged}
+                  appointmentId={appointmentId || ''} // Pass appointmentId if needed for logging
+                />
 
                 {/* Complete Session Button */}
                 <Button
