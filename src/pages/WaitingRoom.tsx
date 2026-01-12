@@ -16,6 +16,19 @@ const WaitingRoom = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  const handleSuccess = useCallback((data: GetTodaysAppointmentsResponse) => {
+    console.log('[WaitingRoom] Received appointments data:', data.appointments);
+    setAppointments(data.appointments);
+  }, []);
+
+  const handleError = useCallback((msg: string, code?: string) => {
+    if (code === 'PROFILE_NOT_FOUND' || code === 'PRACTITIONER_NAME_MISSING') {
+      // Navigation handled by hook's onError
+    } else {
+      toast({ variant: 'destructive', title: 'Error', description: msg });
+    }
+  }, [toast]);
+
   const {
     data: fetchedAppointmentsData,
     loading: loadingAppointments,
@@ -27,26 +40,13 @@ const WaitingRoom = () => {
     {
       requiresAuth: true,
       requiresNotionConfig: true,
-      onSuccess: (data) => {
-        console.log('[WaitingRoom] Received appointments data:', data.appointments);
-        setAppointments(data.appointments);
-      },
-      onError: (msg, code) => {
-        if (code === 'PROFILE_NOT_FOUND' || code === 'PRACTITIONER_NAME_MISSING') {
-          // Navigation handled by hook's onError
-        } else {
-          toast({ variant: 'destructive', title: 'Error', description: msg });
-        }
-      },
+      onSuccess: handleSuccess,
+      onError: handleError,
       onNotionConfigNeeded: () => {
         // Handled by needsConfig state
       }
     }
   );
-
-  useEffect(() => {
-    console.log('[WaitingRoom] loadingAppointments state:', loadingAppointments);
-  }, [loadingAppointments]);
 
   useEffect(() => {
     console.log('[WaitingRoom] Initial fetch for appointments.');
@@ -78,6 +78,8 @@ const WaitingRoom = () => {
       navigate(`/active-session/${appointmentId}`);
     }
   };
+
+  console.log('[WaitingRoom] Rendering with appointments:', appointments); // Log appointments state at render time
 
   if (loadingAppointments) {
     return (
