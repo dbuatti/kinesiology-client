@@ -48,38 +48,29 @@ serve(async (req) => {
     const serviceRoleSupabase = createClient(supabaseUrl, supabaseServiceRoleKey)
 
     // Fetch user profile to get practitioner name
-    const { data: profile, error: profileError } = await serviceRoleSupabase
+    const { data: profilesData, error: profileError } = await serviceRoleSupabase
       .from('profiles')
       .select('first_name, last_name')
       .eq('id', user.id)
-      .single();
+      .limit(1); // Use limit(1) instead of single() for robustness
 
     if (profileError) {
       console.error("[get-todays-appointments] Profile fetch error:", user.id, profileError?.message);
-      if (profileError.code === 'PGRST116') { // No rows found
-        return new Response(JSON.stringify({
-          error: 'User profile not found. Please set up your profile.',
-          errorCode: 'PROFILE_NOT_FOUND'
-        }), {
-          status: 404,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      } else {
-        return new Response(JSON.stringify({
-          error: 'Failed to fetch user profile.',
-          details: profileError.message
-        }), {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
+      return new Response(JSON.stringify({
+        error: 'Failed to fetch user profile.',
+        details: profileError.message
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
-    // If profile is null (which shouldn't happen if profileError is handled, but for safety)
+    const profile = profilesData?.[0]; // Get the first profile if available
+
     if (!profile) {
-        console.error("[get-todays-appointments] Profile data is unexpectedly null for user:", user.id);
+        console.error("[get-todays-appointments] Profile data is missing for user:", user.id);
         return new Response(JSON.stringify({
-            error: 'User profile data is missing. Please set up your profile.',
+            error: 'User profile not found. Please set up your profile.',
             errorCode: 'PROFILE_NOT_FOUND'
         }), {
             status: 404,
