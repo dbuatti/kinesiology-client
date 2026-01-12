@@ -100,59 +100,55 @@ serve(async (req) => {
 
     const notionProperties: { [key: string]: any } = {};
 
-    if (updates.sessionAnchor !== undefined) {
-      notionProperties["Today we are really working with..."] = {
-        rich_text: [{ type: "text", text: { content: updates.sessionAnchor } }]
-      };
-    }
-    if (updates.status !== undefined) {
-      // Handle empty status string by setting to null, otherwise use the provided status name
-      notionProperties["Status"] = updates.status ? { status: { name: updates.status } } : { status: null };
-    }
-    if (updates.goal !== undefined) {
-      notionProperties["Goal"] = {
-        rich_text: [{ type: "text", text: { content: updates.goal } }]
-      };
-    }
-    if (updates.priorityPattern !== undefined) {
-      notionProperties["Priority Pattern"] = updates.priorityPattern ? { select: { name: updates.priorityPattern } } : { select: null };
-    }
-    if (updates.notes !== undefined) {
-      notionProperties["Notes"] = {
-        rich_text: [{ type: "text", text: { content: updates.notes } }]
-      };
-    }
-    if (updates.sessionNorthStar !== undefined) { // New: Add Session North Star update
-      notionProperties["Session North Star"] = {
-        rich_text: [{ type: "text", text: { content: updates.sessionNorthStar } }]
-      };
-    }
-    if (updates.acupointId !== undefined) { // New: Add Acupoint Relation update
-      // First, fetch the current relations to append the new one
-      const currentAppointmentResponse = await fetch('https://api.notion.com/v1/pages/' + appointmentId, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${secrets.notion_integration_token}`,
-          'Content-Type': 'application/json',
-          'Notion-Version': '2022-06-28'
-        }
-      });
-
-      if (!currentAppointmentResponse.ok) {
-        const errorText = await currentAppointmentResponse.text();
-        console.error("[update-notion-appointment] Failed to fetch current appointment for acupoint relation:", errorText);
-        throw new Error('Failed to fetch current appointment to update acupoint relation.');
+    // Fetch the current Notion page to check for existing properties
+    const currentAppointmentResponse = await fetch('https://api.notion.com/v1/pages/' + appointmentId, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${secrets.notion_integration_token}`,
+        'Content-Type': 'application/json',
+        'Notion-Version': '2022-06-28'
       }
-      const currentAppointmentData = await currentAppointmentResponse.json();
-      const currentAcupointsRelation = currentAppointmentData.properties.Acupoints?.relation || [];
-      
-      const newAcupointsRelation = [...currentAcupointsRelation, { id: updates.acupointId }];
-      
-      notionProperties["Acupoints"] = {
-        relation: newAcupointsRelation
-      };
-    }
+    });
 
+    if (!currentAppointmentResponse.ok) {
+      const errorText = await currentAppointmentResponse.text();
+      console.error("[update-notion-appointment] Failed to fetch current appointment page:", errorText);
+      throw new Error('Failed to fetch current appointment page to check properties.');
+    }
+    const currentAppointmentData = await currentAppointmentResponse.json();
+    const existingNotionProperties = currentAppointmentData.properties;
+
+    const updateProperty = (propertyName: string, notionKey: string, value: any, type: 'rich_text' | 'status' | 'select' | 'relation') => {
+      if (existingNotionProperties[notionKey]) {
+        if (value !== undefined) {
+          if (type === 'rich_text') {
+            notionProperties[notionKey] = { rich_text: [{ type: "text", text: { content: value } }] };
+          } else if (type === 'status') {
+            notionProperties[notionKey] = value ? { status: { name: value } } : { status: null };
+          } else if (type === 'select') {
+            notionProperties[notionKey] = value ? { select: { name: value } } : { select: null };
+          } else if (type === 'relation') {
+            // Special handling for relations: append to existing
+            const currentRelations = existingNotionProperties[notionKey]?.relation || [];
+            const newRelations = [...currentRelations, { id: value }];
+            notionProperties[notionKey] = { relation: newRelations };
+          }
+        }
+      } else {
+        console.warn(`[update-notion-appointment] Notion property '${notionKey}' does not exist in the database. Skipping update for ${propertyName}.`);
+      }
+    };
+
+    updateProperty("sessionAnchor", "Today we are really working with...", updates.sessionAnchor, 'rich_text');
+    updateProperty("status", "Status", updates.status, 'status');
+    updateProperty("goal", "Goal", updates.goal, 'rich_text');
+    updateProperty("priorityPattern", "Priority Pattern", updates.priorityPattern, 'select');
+    updateProperty("notes", "Notes", updates.notes, 'rich_text');
+    updateProperty("sessionNorthStar", "Session North Star", updates.sessionNorthStar, 'rich_text');
+    
+    if (updates.acupointId !== undefined) {
+      updateProperty("acupointId", "Acupoints", updates.acupointId, 'relation');
+    }
 
     console.log("[update-notion-appointment] Updating Notion page:", appointmentId, "with properties:", notionProperties)
 
@@ -161,7 +157,7 @@ serve(async (req) => {
       headers: {
         'Authorization': `Bearer ${secrets.notion_integration_token}`,
         'Content-Type': 'application/json',
-        'Notion-Version': '2022-06-28' // Corrected Notion API version
+        'Notion-Version': '2022-06-28'
       },
       body: JSON.stringify({
         properties: notionProperties
