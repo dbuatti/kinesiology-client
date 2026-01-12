@@ -10,14 +10,16 @@ import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from '
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Calendar, User, Star, Target, Clock, Settings, AlertCircle, Check, ChevronsUpDown, Lightbulb, Hand, XCircle, PlusCircle, Search, Trash2 } from 'lucide-react';
+import { Calendar, User, Star, Target, Clock, Settings, AlertCircle, Check, ChevronsUpDown, Lightbulb, Hand, XCircle, PlusCircle, Search, Trash2, Info } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import MuscleSelector from '@/components/MuscleSelector';
 import ChakraSelector from '@/components/ChakraSelector';
 import ChannelDashboard from '@/components/ChannelDashboard';
+import NotionPageViewer from '@/components/NotionPageViewer'; // Import NotionPageViewer
 import SessionLogDisplay from '@/components/SessionLogDisplay';
 
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
@@ -51,10 +53,14 @@ const ActiveSession = () => {
   const [sessionNorthStarText, setSessionNorthStarText] = useState('');
   const [modes, setModes] = useState<Mode[]>([]);
   const [selectedMode, setSelectedMode] = useState<Mode | null>(null);
+  const [isModeModalOpen, setIsModeModalOpen] = useState(false);
+  const [selectedModeNotionPageId, setSelectedModeNotionPageId] = useState<string | null>(null);
   const [isModeSelectOpen, setIsModeSelectOpen] = useState(false);
 
   // Acupoint Search States
   const [acupointSearchTerm, setAcupointSearchTerm] = useState('');
+  const [isAcupointModalOpen, setIsAcupointModalOpen] = useState(false);
+  const [selectedAcupointNotionPageId, setSelectedAcupointNotionPageId] = useState<string | null>(null);
   const [symptomSearchTerm, setSymptomSearchTerm] = useState('');
   const [foundAcupoints, setFoundAcupoints] = useState<Acupoint[]>([]);
   const [selectedAcupoint, setSelectedAcupoint] = useState<Acupoint | null>(null);
@@ -62,10 +68,15 @@ const ActiveSession = () => {
   const [isSymptomSearchOpen, setIsSymptomSearchOpen] = useState(false);
 
   // Muscle States
-  const [selectedMuscle, setSelectedMuscle] = useState<Muscle | null>(null);
+  const [isMuscleModalOpen, setIsMuscleModalOpen] = useState(false); // State for muscle modal
+  const [selectedMuscle, setSelectedMuscle] = useState<Muscle | null>(null);  // State for selected muscle
+  const [selectedMuscleNotionPageId, setSelectedMuscleNotionPageId] = useState<string | null>(null); // New state for muscle Notion page ID
 
   // Chakra States
   const [selectedChakra, setSelectedChakra] = useState<Chakra | null>(null);
+  const [isChakraModalOpen, setIsChakraModalOpen] = useState(false); // State for chakra modal
+  const [selectedChakraNotionPageId, setSelectedChakraNotionPageId] = useState<string | null>(null);
+
 
   // Session Logs States
   const [sessionLogs, setSessionLogs] = useState<GetSessionLogsResponse['sessionLogs']>([]);
@@ -94,7 +105,7 @@ const ActiveSession = () => {
     if (appointmentId) {
       fetchSingleAppointment({ appointmentId });
     }
-  }, [appointmentId]); // Dependency on appointmentId and fetchSingleAppointment
+  }, [appointmentId]); // Removed fetchSingleAppointment from dependencies as it's defined below
 
   const handleUpdateAppointmentError = useCallback((msg: string) => {
     showError(`Update Failed: ${msg}`);
@@ -115,7 +126,7 @@ const ActiveSession = () => {
     if (appointmentId) {
       fetchSessionLogs({ appointmentId }); // Refresh logs after successful log
     }
-  }, [appointmentId]); // Dependency on appointmentId and fetchSessionLogs
+  }, [appointmentId]); // Removed fetchSessionLogs from dependencies as it's defined below
 
   const handleLogSessionEventError = useCallback((msg: string) => {
     console.error('Failed to log session event to Supabase:', msg);
@@ -128,7 +139,7 @@ const ActiveSession = () => {
     if (appointmentId) {
       fetchSessionLogs({ appointmentId }); // Refresh logs after successful log
     }
-  }, [appointmentId]); // Dependency on appointmentId and fetchSessionLogs
+  }, [appointmentId]); // Removed fetchSessionLogs from dependencies as it's defined below
 
   const handleLogMuscleStrengthError = useCallback((msg: string) => {
     console.error('Failed to log muscle strength to Supabase:', msg);
@@ -149,7 +160,7 @@ const ActiveSession = () => {
     if (appointmentId) {
       fetchSessionLogs({ appointmentId }); // Refresh logs after deletion
     }
-  }, [appointmentId]); // Dependency on appointmentId and fetchSessionLogs
+  }, [appointmentId]); // Removed fetchSessionLogs from dependencies as it's defined below
 
   const handleDeleteSessionLogError = useCallback((msg: string) => {
     showError(`Failed to delete log: ${msg}`);
@@ -413,6 +424,11 @@ const ActiveSession = () => {
     }
   }, [appointmentId, fetchSessionLogs]);
 
+  const handleOpenMuscleNotionPage = useCallback((pageId: string) => {
+    setSelectedMuscleNotionPageId(pageId);
+    setIsMuscleModalOpen(true);
+  }, []);
+
   // --- Render Logic ---
 
   if (overallLoading && !appointment) { // Only show full loading skeleton if no appointment data yet
@@ -588,8 +604,8 @@ const ActiveSession = () => {
                     </PopoverTrigger>
                     <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                       <Command>
-                        {loadingModes && <CommandInput value={selectedMode?.name || ''} onValueChange={() => {}} placeholder="Loading modes..." disabled />}
-                        {!loadingModes && <CommandInput value={selectedMode?.name || ''} onValueChange={() => {}} placeholder="Search mode..." />}
+                        {loadingModes && <CommandInput value={selectedMode?.name || ''} onValueChange={() => { }} placeholder="Loading modes..." disabled />}
+                        {!loadingModes && <CommandInput value={selectedMode?.name || ''} onValueChange={() => { }} placeholder="Search mode..." />}
                         <CommandEmpty>No mode found.</CommandEmpty>
                         <CommandGroup>
                           {modes.map((mode) => (
@@ -620,6 +636,16 @@ const ActiveSession = () => {
                                 )}
                               />
                               {mode.name}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  setSelectedModeNotionPageId(mode.id); // Assuming mode.id is the Notion page ID
+                                  setIsModeModalOpen(true);
+                                }}
+                              >
+                                <Info className="h-4 w-4" />
+                              </Button>
                             </CommandItem>
                           ))}
                         </CommandGroup>
@@ -689,6 +715,18 @@ const ActiveSession = () => {
                               onSelect={() => handleSelectAcupoint(point)}
                             >
                               {point.name}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
+                                onClick={(e) => {
+                                  e.stopPropagation(); // Prevent selecting the acupoint when clicking the info button
+                                  setSelectedAcupointNotionPageId(point.id);
+                                  setIsAcupointModalOpen(true);
+                                }}
+                              >
+                                <Info className="h-4 w-4" />
+                              </Button>
                             </CommandItem>
                           ))}
                         </CommandGroup>
@@ -742,6 +780,18 @@ const ActiveSession = () => {
                               onSelect={() => handleSelectAcupoint(point)}
                             >
                               {point.name}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
+                                onClick={(e) => {
+                                  e.stopPropagation(); // Prevent selecting the acupoint when clicking the info button
+                                  setSelectedAcupointNotionPageId(point.id);
+                                  setIsAcupointModalOpen(true);
+                                }}
+                              >
+                                <Info className="h-4 w-4" />
+                              </Button>
                             </CommandItem>
                           ))}
                         </CommandGroup>
@@ -754,8 +804,16 @@ const ActiveSession = () => {
                 {selectedAcupoint && (
                   <Card className="border-2 border-purple-300 bg-purple-50 shadow-md">
                     <CardHeader className="flex flex-row items-center justify-between p-4 pb-2">
-                      <CardTitle className="text-xl font-bold text-purple-800">
+                      <CardTitle className="text-xl font-bold text-purple-800 flex items-center gap-2">
                         {selectedAcupoint.name}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
+                          onClick={() => { setSelectedAcupointNotionPageId(selectedAcupoint.id); setIsAcupointModalOpen(true); }}
+                        >
+                          <Info className="h-4 w-4" />
+                        </Button>
                       </CardTitle>
                       <div className="flex gap-2">
                         {selectedAcupoint.channel && (
@@ -820,6 +878,7 @@ const ActiveSession = () => {
               onMuscleSelected={handleMuscleSelected}
               onMuscleStrengthLogged={handleMuscleStrengthLogged}
               appointmentId={appointmentId || ''}
+              onOpenMuscleNotionPage={handleOpenMuscleNotionPage}
             />
 
             {/* Chakra Selector Component */}
@@ -828,12 +887,15 @@ const ActiveSession = () => {
               onChakraSelected={handleChakraSelected}
               onClearSelection={handleClearChakraSelection}
               selectedChakra={selectedChakra}
+              isChakraModalOpen={isChakraModalOpen}
+              setIsChakraModalOpen={setIsChakraModalOpen}
             />
 
             {/* Channel Dashboard Component */}
             <ChannelDashboard
               appointmentId={appointmentId || ''}
               onLogSuccess={handleLogChannelItemSuccess}
+              onOpenMuscleNotionPage={handleOpenMuscleNotionPage}
             />
 
             {/* Session Log Display */}
@@ -889,6 +951,58 @@ const ActiveSession = () => {
           </Button>
         </div>
       </div>
+
+      {/* Mode Notion Page Dialog */}
+      <Dialog open={isModeModalOpen} onOpenChange={setIsModeModalOpen}>
+        <DialogContent className="sm:max-w-[800px] max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Mode Details</DialogTitle>
+            <DialogDescription>
+              Viewing the Notion page content for the selected mode.
+            </DialogDescription>
+          </DialogHeader>
+          <NotionPageViewer pageId={selectedModeNotionPageId} />
+        </DialogContent>
+      </Dialog>
+
+      {/* Acupoint Notion Page Dialog */}
+      <Dialog open={isAcupointModalOpen} onOpenChange={setIsAcupointModalOpen}>
+        <DialogContent className="sm:max-w-[800px] max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Acupoint Details</DialogTitle>
+            <DialogDescription>
+              Viewing the Notion page content for the selected acupoint.
+            </DialogDescription>
+          </DialogHeader>
+          <NotionPageViewer pageId={selectedAcupointNotionPageId} />
+        </DialogContent>
+      </Dialog>
+
+      {/* Muscle Notion Page Dialog */}
+      <Dialog open={isMuscleModalOpen} onOpenChange={setIsMuscleModalOpen}>
+        <DialogContent className="sm:max-w-[800px] max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Muscle Details</DialogTitle>
+            <DialogDescription>
+              Viewing the Notion page content for the selected muscle.
+            </DialogDescription>
+          </DialogHeader>
+          <NotionPageViewer pageId={selectedMuscleNotionPageId} />
+        </DialogContent>
+      </Dialog>
+
+      {/* Chakra Notion Page Dialog */}
+      <Dialog open={isChakraModalOpen} onOpenChange={setIsChakraModalOpen}>
+        <DialogContent className="sm:max-w-[800px] max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Chakra Details</DialogTitle>
+            <DialogDescription>
+              Viewing the Notion page content for the selected chakra.
+            </DialogDescription>
+          </DialogHeader>
+          <NotionPageViewer pageId={selectedChakraNotionPageId} />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

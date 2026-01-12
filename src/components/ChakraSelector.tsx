@@ -10,9 +10,10 @@ import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from '
 import { Badge } from '@/components/ui/badge';
 import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
 import { cn } from '@/lib/utils';
-import { Search, Check, ChevronsUpDown, Settings, Loader2, Sparkles, PlusCircle, Trash2, ExternalLink } from 'lucide-react';
+import { Search, Check, ChevronsUpDown, Settings, Loader2, Sparkles, PlusCircle, Trash2, ExternalLink, Info } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
+import NotionPageViewer from './NotionPageViewer'; // Import NotionPageViewer
 import { Chakra, GetChakrasPayload, GetChakrasResponse, LogSessionEventPayload, LogSessionEventResponse } from '@/types/api';
 
 interface ChakraSelectorProps {
@@ -20,14 +21,17 @@ interface ChakraSelectorProps {
   onChakraSelected: (chakra: Chakra) => void; // New prop for notifying parent of selection
   onClearSelection: () => void; // New prop for clearing selection
   selectedChakra: Chakra | null; // New prop to receive selected chakra from parent
+  isChakraModalOpen: boolean; // Prop to control modal visibility from parent
+  setIsChakraModalOpen: (open: boolean) => void; // Prop to update modal visibility from parent
 }
 
-const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakraSelected, onClearSelection, selectedChakra }) => {
+const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakraSelected, onClearSelection, selectedChakra, isChakraModalOpen, setIsChakraModalOpen }) => {
   const [allChakras, setAllChakras] = useState<Chakra[]>([]);
   const [filteredChakras, setFilteredChakras] = useState<Chakra[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchType, setSearchType] = useState<'name' | 'element' | 'emotion' | 'organ'>('name');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [selectedChakraNotionPageId, setSelectedChakraNotionPageId] = useState<string | null>(null);
 
   const navigate = useNavigate();
 
@@ -241,6 +245,18 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
                       onSelect={() => handleSelectChakra(chakra)}
                     >
                       {chakra.name}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
+                        onClick={(e) => {
+                          e.stopPropagation(); // Prevent selecting the chakra when clicking the info button
+                          setSelectedChakraNotionPageId(chakra.id);
+                          setIsChakraModalOpen(true);
+                        }}
+                      >
+                        <Info className="h-4 w-4" />
+                      </Button>
                     </CommandItem>
                   ))}
                 </CommandGroup>
@@ -255,14 +271,17 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
             <CardHeader className="flex flex-row items-center justify-between p-4 pb-2">
               <CardTitle className="text-xl font-bold text-purple-800 flex items-center gap-2">
                 {selectedChakra.name}
-                <a
-                  href={`https://www.notion.so/${selectedChakra.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="ml-2 text-purple-600 hover:text-purple-800"
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
+                  onClick={() => {
+                    setSelectedChakraNotionPageId(selectedChakra.id);
+                    setIsChakraModalOpen(true);
+                  }}
                 >
                   <ExternalLink className="w-4 h-4" />
-                </a>
+                </Button>
               </CardTitle>
               <div className="flex gap-2">
                 {selectedChakra.color && (
