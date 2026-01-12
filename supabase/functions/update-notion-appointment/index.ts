@@ -123,6 +123,32 @@ serve(async (req) => {
         rich_text: [{ type: "text", text: { content: updates.sessionNorthStar } }]
       };
     }
+    if (updates.acupointId !== undefined) { // New: Add Acupoint Relation update
+      // First, fetch the current relations to append the new one
+      const currentAppointmentResponse = await fetch('https://api.notion.com/v1/pages/' + appointmentId, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${secrets.notion_integration_token}`,
+          'Content-Type': 'application/json',
+          'Notion-Version': '2022-06-28'
+        }
+      });
+
+      if (!currentAppointmentResponse.ok) {
+        const errorText = await currentAppointmentResponse.text();
+        console.error("[update-notion-appointment] Failed to fetch current appointment for acupoint relation:", errorText);
+        throw new Error('Failed to fetch current appointment to update acupoint relation.');
+      }
+      const currentAppointmentData = await currentAppointmentResponse.json();
+      const currentAcupointsRelation = currentAppointmentData.properties.Acupoints?.relation || [];
+      
+      const newAcupointsRelation = [...currentAcupointsRelation, { id: updates.acupointId }];
+      
+      notionProperties["Acupoints"] = {
+        relation: newAcupointsRelation
+      };
+    }
+
 
     console.log("[update-notion-appointment] Updating Notion page:", appointmentId, "with properties:", notionProperties)
 

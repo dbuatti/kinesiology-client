@@ -9,7 +9,9 @@
     import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
     import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
     import { Label } from '@/components/ui/label';
-    import { Calendar, User, Star, Target, Clock, Settings, AlertCircle, Check, ChevronsUpDown, Lightbulb, Hand, XCircle } from 'lucide-react';
+    import { Badge } from '@/components/ui/badge'; // Import Badge for tags
+    import { Input } from '@/components/ui/input'; // Added missing import for Input
+    import { Calendar, User, Star, Target, Clock, Settings, AlertCircle, Check, ChevronsUpDown, Lightbulb, Hand, XCircle, Search, PlusCircle } from 'lucide-react';
     import { useToast } from '@/components/ui/use-toast';
     import { supabase } from '@/integrations/supabase/client';
     import { cn } from '@/lib/utils';
@@ -31,6 +33,18 @@
       actionNote: string;
     }
 
+    interface Acupoint {
+      id: string;
+      name: string;
+      for: string;
+      kinesiology: string;
+      psychology: string;
+      akMuscles: string[];
+      channel: string;
+      typeOfPoint: string[];
+      time: string[];
+    }
+
     const ActiveSession = () => {
       const { appointmentId } = useParams<{ appointmentId: string }>();
       const [appointment, setAppointment] = useState<Appointment | null>(null);
@@ -38,10 +52,21 @@
       const [error, setError] = useState<string | null>(null);
       const [needsConfig, setNeedsConfig] = useState(false);
       const [sessionAnchorText, setSessionAnchorText] = useState('');
-      const [sessionNorthStarText, setSessionNorthStarText] = useState(''); // New state for Session North Star
+      const [sessionNorthStarText, setSessionNorthStarText] = useState('');
       const [modes, setModes] = useState<Mode[]>([]);
       const [selectedMode, setSelectedMode] = useState<Mode | null>(null);
       const [isModeSelectOpen, setIsModeSelectOpen] = useState(false);
+
+      // Acupoint Search States
+      const [acupointSearchTerm, setAcupointSearchTerm] = useState('');
+      const [symptomSearchTerm, setSymptomSearchTerm] = useState('');
+      const [foundAcupoints, setFoundAcupoints] = useState<Acupoint[]>([]);
+      const [selectedAcupoint, setSelectedAcupoint] = useState<Acupoint | null>(null);
+      const [isAcupointSearchOpen, setIsAcupointSearchOpen] = useState(false);
+      const [isSymptomSearchOpen, setIsSymptomSearchOpen] = useState(false);
+      const [isAcupointSearching, setIsAcupointSearching] = useState(false);
+
+
       const navigate = useNavigate();
       const { toast } = useToast();
 
@@ -85,12 +110,12 @@
           const response = await fetch(
             `${supabaseUrl}/functions/v1/get-single-appointment`,
             {
-              method: 'POST', // Changed to POST as per edge function
+              method: 'POST',
               headers: {
                 'Authorization': `Bearer ${session.access_token}`,
                 'Content-Type': 'application/json'
               },
-              body: JSON.stringify({ appointmentId }) // Pass appointmentId in body
+              body: JSON.stringify({ appointmentId })
             }
           );
 
@@ -103,7 +128,7 @@
           const fetchedAppointment = data.appointment;
           setAppointment(fetchedAppointment);
           setSessionAnchorText(fetchedAppointment.sessionAnchor || '');
-          setSessionNorthStarText(fetchedAppointment.sessionNorthStar || ''); // Set new state
+          setSessionNorthStarText(fetchedAppointment.sessionNorthStar || '');
         } catch (err: any) {
           console.error('Error fetching single appointment:', err);
           toast({
@@ -148,6 +173,56 @@
           });
         }
       }, [toast, supabaseUrl]);
+
+      const fetchAcupoints = useCallback(async (term: string, type: 'point' | 'symptom') => {
+        if (!term.trim()) {
+          setFoundAcupoints([]);
+          return;
+        }
+        setIsAcupointSearching(true);
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) {
+            toast({
+              variant: 'destructive',
+              title: 'Not authenticated',
+              description: 'Please log in first',
+            });
+            navigate('/login');
+            return;
+          }
+
+          const response = await fetch(
+            `${supabaseUrl}/functions/v1/get-acupoints`,
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${session.access_token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ searchTerm: term, searchType: type })
+            }
+          );
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `Failed to search for ${type === 'point' ? 'acupoints' : 'symptoms'}`);
+          }
+
+          const data = await response.json();
+          setFoundAcupoints(data.acupoints);
+        } catch (err: any) {
+          console.error(`Error fetching acupoints by ${type}:`, err);
+          toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: `Failed to search: ${err.message}`
+          });
+          setFoundAcupoints([]);
+        } finally {
+          setIsAcupointSearching(false);
+        }
+      }, [navigate, toast, supabaseUrl]);
 
       useEffect(() => {
         fetchSingleAppointment();
@@ -214,7 +289,7 @@
           
           setAppointment(prev => prev ? { ...prev, ...updates } : null);
           if (updates.sessionAnchor !== undefined) setSessionAnchorText(updates.sessionAnchor);
-          if (updates.sessionNorthStar !== undefined) setSessionNorthStarText(updates.sessionNorthStar); // Update new state
+          if (updates.sessionNorthStar !== undefined) setSessionNorthStarText(updates.sessionNorthStar);
 
         } catch (err: any) {
           console.error('Error updating Notion appointment:', err);
@@ -261,6 +336,46 @@
 
       const handleConfigureNotion = () => {
         navigate('/notion-config');
+      };
+
+      const handleAcupointSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const term = e.target.value;
+        setAcupointSearchTerm(term);
+        fetchAcupoints(term, 'point');
+      };
+
+      const handleSymptomSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const term = e.target.value;
+        setSymptomSearchTerm(term);
+        fetchAcupoints(term, 'symptom');
+      };
+
+      const handleSelectAcupoint = (acupoint: Acupoint) => {
+        setSelectedAcupoint(acupoint);
+        setIsAcupointSearchOpen(false);
+        setIsSymptomSearchOpen(false);
+        setAcupointSearchTerm(acupoint.name); // Pre-fill point search with selected point
+        setSymptomSearchTerm(''); // Clear symptom search
+        setFoundAcupoints([]); // Clear search results
+      };
+
+      const handleAddAcupointToSession = async () => {
+        if (selectedAcupoint && appointmentId) {
+          await updateNotionAppointment({ acupointId: selectedAcupoint.id });
+          toast({
+            title: 'Acupoint Added',
+            description: `${selectedAcupoint.name} added to the current session.`,
+          });
+          // Optionally clear selected acupoint after adding
+          setSelectedAcupoint(null);
+          setAcupointSearchTerm('');
+        } else {
+          toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'No acupoint selected to add to session.',
+          });
+        }
       };
 
       if (loading) {
@@ -357,7 +472,7 @@
                   </CardHeader>
 
                   <CardContent className="pt-6 space-y-4">
-                    {appointment.sessionNorthStar && ( // Use new field here
+                    {appointment.sessionNorthStar && (
                       <div className="space-y-2">
                         <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                           <Target className="w-4 h-4 text-indigo-600" />
@@ -464,17 +579,168 @@
                         </p>
                       )}
                     </div>
-
-                    {/* Complete Session Button */}
-                    <Button
-                      className="w-full h-12 text-lg bg-red-500 hover:bg-red-600 text-white"
-                      onClick={handleCompleteSession}
-                    >
-                      <XCircle className="w-5 h-5 mr-2" />
-                      Complete Session
-                    </Button>
                   </CardContent>
                 </Card>
+
+                {/* Acupoint Insight Engine */}
+                <Card className="shadow-xl">
+                  <CardHeader className="bg-indigo-50 border-b border-indigo-200 rounded-t-lg p-4">
+                    <CardTitle className="text-xl font-bold text-indigo-800 flex items-center gap-2">
+                      <Search className="w-5 h-5" />
+                      Acupoint Insight Engine
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-6 space-y-6">
+                    {/* Point Search */}
+                    <div className="space-y-2">
+                      <Label htmlFor="point-search" className="flex items-center gap-2 font-semibold text-gray-700">
+                        <Search className="w-4 h-4 text-indigo-600" />
+                        Point Search (e.g., SP-06, Pc-6)
+                      </Label>
+                      <Popover open={isAcupointSearchOpen} onOpenChange={setIsAcupointSearchOpen}>
+                        <PopoverTrigger asChild>
+                          <Input
+                            id="point-search"
+                            type="text"
+                            placeholder="Search for an acupoint..."
+                            value={acupointSearchTerm}
+                            onChange={handleAcupointSearchChange}
+                            onFocus={() => setIsAcupointSearchOpen(true)}
+                            className="w-full"
+                          />
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                          <Command>
+                            {isAcupointSearching && <CommandInput value={acupointSearchTerm} onValueChange={setAcupointSearchTerm} placeholder="Searching..." />}
+                            {!isAcupointSearching && <CommandInput value={acupointSearchTerm} onValueChange={setAcupointSearchTerm} placeholder="Search acupoint..." />}
+                            <CommandEmpty>No acupoint found.</CommandEmpty>
+                            <CommandGroup>
+                              {foundAcupoints.map((point) => (
+                                <CommandItem
+                                  key={point.id}
+                                  value={point.name}
+                                  onSelect={() => handleSelectAcupoint(point)}
+                                >
+                                  {point.name}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+
+                    {/* Symptom Suggester */}
+                    <div className="space-y-2">
+                      <Label htmlFor="symptom-search" className="flex items-center gap-2 font-semibold text-gray-700">
+                        <Lightbulb className="w-4 h-4 text-indigo-600" />
+                        Symptom Suggester (e.g., Anxiety, Headache)
+                      </Label>
+                      <Popover open={isSymptomSearchOpen} onOpenChange={setIsSymptomSearchOpen}>
+                        <PopoverTrigger asChild>
+                          <Input
+                            id="symptom-search"
+                            type="text"
+                            placeholder="Search symptoms for point suggestions..."
+                            value={symptomSearchTerm}
+                            onChange={handleSymptomSearchChange}
+                            onFocus={() => setIsSymptomSearchOpen(true)}
+                            className="w-full"
+                          />
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                          <Command>
+                            {isAcupointSearching && <CommandInput value={symptomSearchTerm} onValueChange={setSymptomSearchTerm} placeholder="Searching..." />}
+                            {!isAcupointSearching && <CommandInput value={symptomSearchTerm} onValueChange={setSymptomSearchTerm} placeholder="Search symptom..." />}
+                            <CommandEmpty>No suggestions found.</CommandEmpty>
+                            <CommandGroup>
+                              {foundAcupoints.map((point) => (
+                                <CommandItem
+                                  key={point.id}
+                                  value={point.name}
+                                  onSelect={() => handleSelectAcupoint(point)}
+                                >
+                                  {point.name}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+
+                    {/* Insight Deck (Selected Acupoint Display) */}
+                    {selectedAcupoint && (
+                      <Card className="border-2 border-purple-300 bg-purple-50 shadow-md">
+                        <CardHeader className="flex flex-row items-center justify-between p-4 pb-2">
+                          <CardTitle className="text-xl font-bold text-purple-800">
+                            {selectedAcupoint.name}
+                          </CardTitle>
+                          <div className="flex gap-2">
+                            {selectedAcupoint.channel && (
+                              <Badge variant="secondary" className="bg-purple-200 text-purple-800">
+                                {selectedAcupoint.channel}
+                              </Badge>
+                            )}
+                            {selectedAcupoint.akMuscles.length > 0 && (
+                              <Badge variant="secondary" className="bg-purple-200 text-purple-800">
+                                {selectedAcupoint.akMuscles.join(', ')}
+                              </Badge>
+                            )}
+                          </div>
+                        </CardHeader>
+                        <CardContent className="pt-2 space-y-3 text-gray-800">
+                          {selectedAcupoint.for && (
+                            <div>
+                              <p className="font-semibold text-purple-700">For:</p>
+                              <p className="text-sm">{selectedAcupoint.for}</p>
+                            </div>
+                          )}
+                          {selectedAcupoint.kinesiology && (
+                            <div>
+                              <p className="font-semibold text-purple-700">Kinesiology:</p>
+                              <p className="text-sm">{selectedAcupoint.kinesiology}</p>
+                            </div>
+                          )}
+                          {selectedAcupoint.psychology && (
+                            <div>
+                              <p className="font-semibold text-purple-700">Psychology:</p>
+                              <p className="text-sm">{selectedAcupoint.psychology}</p>
+                            </div>
+                          )}
+                          <div className="flex flex-wrap gap-2 mt-3">
+                            {selectedAcupoint.typeOfPoint.length > 0 && (
+                              <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-300">
+                                Type: {selectedAcupoint.typeOfPoint.join(', ')}
+                              </Badge>
+                            )}
+                            {selectedAcupoint.time.length > 0 && (
+                              <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-300">
+                                Time: {selectedAcupoint.time.join(', ')}
+                              </Badge>
+                            )}
+                          </div>
+                          <Button
+                            className="w-full mt-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white"
+                            onClick={handleAddAcupointToSession}
+                          >
+                            <PlusCircle className="w-4 h-4 mr-2" />
+                            Add to Session
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Complete Session Button */}
+                <Button
+                  className="w-full h-12 text-lg bg-red-500 hover:bg-red-600 text-white"
+                  onClick={handleCompleteSession}
+                >
+                  <XCircle className="w-5 h-5 mr-2" />
+                  Complete Session
+                </Button>
               </div>
             ) : (
               <Card className="shadow-lg">
@@ -482,7 +748,7 @@
                   <div className="text-gray-400 mb-4">
                     <Calendar className="w-16 h-16 mx-auto" />
                   </div>
-                  <h2 className="text-xl font-semibold text-gray-700 mb-2">
+                  <h2 className="xl font-semibold text-gray-700 mb-2">
                     No Active Session
                   </h2>
                   <p className="text-gray-500">
