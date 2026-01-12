@@ -13,7 +13,6 @@ serve(async (req) => {
   }
 
   try {
-    // Get the user from the auth header
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
       return new Response('Unauthorized', { 
@@ -27,7 +26,6 @@ serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-    // Verify the user
     const { data: { user }, error: userError } = await supabase.auth.getUser(
       authHeader.replace('Bearer ', '')
     )
@@ -41,7 +39,6 @@ serve(async (req) => {
 
     console.log("[set-notion-secrets] User authenticated:", user.id)
 
-    // Parse request body
     const { notionToken, appointmentsDbId, crmDbId } = await req.json()
 
     if (!notionToken || !appointmentsDbId) {
@@ -53,11 +50,7 @@ serve(async (req) => {
       })
     }
 
-    // In a real implementation, you would use the Supabase Management API
-    // to set secrets. For now, we'll store them in a secure table
-    // that only the edge function can access
-    
-    // Store in a secure config table (user-specific)
+    // Upsert into notion_secrets table
     const { error: insertError } = await supabase
       .from('notion_secrets')
       .upsert({
@@ -71,7 +64,13 @@ serve(async (req) => {
 
     if (insertError) {
       console.error("[set-notion-secrets] Database error:", insertError)
-      throw insertError
+      return new Response(JSON.stringify({ 
+        error: 'Database error', 
+        details: insertError.message 
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
     }
 
     console.log("[set-notion-secrets] Secrets saved successfully for user:", user.id)

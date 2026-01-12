@@ -13,7 +13,6 @@ serve(async (req) => {
   }
 
   try {
-    // Get the user from the auth header
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
       return new Response('Unauthorized', { 
@@ -27,7 +26,6 @@ serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-    // Verify the user
     const { data: { user }, error: userError } = await supabase.auth.getUser(
       authHeader.replace('Bearer ', '')
     )

@@ -34,7 +34,6 @@ const ActiveSession = () => {
       setError(null);
       setNeedsConfig(false);
 
-      // Get the session token from Supabase
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
@@ -43,23 +42,21 @@ const ActiveSession = () => {
         return;
       }
 
-      // Check if user has Notion config first
-      const { data: config, error: configError } = await supabase
-        .from('notion_config')
+      // Check if user has Notion secrets configured
+      const { data: secrets, error: secretsError } = await supabase
+        .from('notion_secrets')
         .select('id')
         .eq('user_id', session.user.id)
         .single();
 
-      if (configError || !config) {
+      if (secretsError || !secrets) {
         setNeedsConfig(true);
         setLoading(false);
         return;
       }
 
-      // Get Supabase URL from environment or default
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://hcriagmovotwuqbppcfm.supabase.co';
 
-      // Call the edge function
       const response = await fetch(
         `${supabaseUrl}/functions/v1/get-todays-appointments`,
         {
@@ -124,7 +121,6 @@ const ActiveSession = () => {
     );
   }
 
-  // Show configuration prompt if Notion is not set up
   if (needsConfig) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center p-6">
@@ -176,7 +172,6 @@ const ActiveSession = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6">
       <div className="max-w-2xl mx-auto">
-        {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-indigo-900 mb-2">Active Session</h1>
           <p className="text-gray-600">
@@ -202,7 +197,6 @@ const ActiveSession = () => {
             </CardHeader>
             
             <CardContent className="pt-6 space-y-6">
-              {/* Goal Section */}
               {appointment.goal && (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
@@ -215,7 +209,6 @@ const ActiveSession = () => {
                 </div>
               )}
 
-              {/* Start Session Button */}
               <Button 
                 className="w-full h-12 text-lg font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
                 onClick={handleStartSession}
@@ -241,7 +234,6 @@ const ActiveSession = () => {
           </Card>
         )}
 
-        {/* Navigation */}
         <div className="mt-6 flex gap-2 justify-center">
           <Button 
             variant="outline" 
