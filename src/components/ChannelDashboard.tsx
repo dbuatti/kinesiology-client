@@ -26,32 +26,74 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
 
   const navigate = useNavigate();
 
-  const getElementColorClass = (elements: string[]): string => {
+  const getElementColorClasses = (elements: string[]): { bg: string, border: string, text: string, hoverBg: string, ring: string, icon: string } => {
     const primaryElement = elements[0]?.toLowerCase();
     switch (primaryElement) {
-      case 'fire':
-        return 'bg-red-100 border-red-300 text-red-800 hover:bg-red-200';
-      case 'metal':
-        return 'bg-gray-100 border-gray-300 text-gray-800 hover:bg-gray-200';
       case 'wood':
-        return 'bg-green-100 border-green-300 text-green-800 hover:bg-green-200';
-      case 'water':
-        return 'bg-blue-100 border-blue-300 text-blue-800 hover:bg-blue-200';
+        return {
+          bg: 'bg-green-100',
+          border: 'border-green-300',
+          text: 'text-green-800',
+          hoverBg: 'hover:bg-green-200',
+          ring: 'ring-green-500',
+          icon: 'text-green-600'
+        };
+      case 'fire':
+        return {
+          bg: 'bg-red-100',
+          border: 'border-red-300',
+          text: 'text-red-800',
+          hoverBg: 'hover:bg-red-200',
+          ring: 'ring-red-500',
+          icon: 'text-red-600'
+        };
       case 'earth':
-        return 'bg-yellow-100 border-yellow-300 text-yellow-800 hover:bg-yellow-200';
+        return {
+          bg: 'bg-yellow-100',
+          border: 'border-yellow-300',
+          text: 'text-yellow-800',
+          hoverBg: 'hover:bg-yellow-200',
+          ring: 'ring-yellow-500',
+          icon: 'text-yellow-600'
+        };
+      case 'metal':
+        return {
+          bg: 'bg-gray-100',
+          border: 'border-gray-300',
+          text: 'text-gray-800',
+          hoverBg: 'hover:bg-gray-200',
+          ring: 'ring-gray-500',
+          icon: 'text-gray-600'
+        };
+      case 'water':
+        return {
+          bg: 'bg-blue-100',
+          border: 'border-blue-300',
+          text: 'text-blue-800',
+          hoverBg: 'hover:bg-blue-200',
+          ring: 'ring-blue-500',
+          icon: 'text-blue-600'
+        };
       default:
-        return 'bg-indigo-100 border-indigo-300 text-indigo-800 hover:bg-indigo-200';
+        return {
+          bg: 'bg-indigo-100',
+          border: 'border-indigo-300',
+          text: 'text-indigo-800',
+          hoverBg: 'hover:bg-indigo-200',
+          ring: 'ring-indigo-500',
+          icon: 'text-indigo-600'
+        };
     }
   };
 
-  const getElementIcon = (element: string) => {
+  const getElementIcon = (element: string, className: string = "w-3 h-3") => {
     switch (element.toLowerCase()) {
-      case 'fire': return <Flame className="w-3 h-3 text-red-600" />;
-      case 'metal': return <Gem className="w-3 h-3 text-gray-600" />;
-      case 'wood': return <Leaf className="w-3 h-3 text-green-600" />;
-      case 'water': return <Droplet className="w-3 h-3 text-blue-600" />;
-      case 'earth': return <Sun className="w-3 h-3 text-yellow-600" />;
-      default: return <Sparkles className="w-3 h-3 text-indigo-600" />;
+      case 'fire': return <Flame className={cn(className, 'text-red-600')} />;
+      case 'metal': return <Gem className={cn(className, 'text-gray-600')} />;
+      case 'wood': return <Leaf className={cn(className, 'text-green-600')} />;
+      case 'water': return <Droplet className={cn(className, 'text-blue-600')} />;
+      case 'earth': return <Sun className={cn(className, 'text-yellow-600')} />;
+      default: return <Sparkles className={cn(className, 'text-indigo-600')} />;
     }
   };
 
@@ -228,21 +270,24 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
           <>
             {/* Meridian Channels */}
             <div className="flex flex-wrap gap-2">
-              {meridianChannels.map(channel => (
-                <Button
-                  key={channel.id}
-                  variant="outline"
-                  size="sm"
-                  className={cn(
-                    "justify-center text-xs h-auto py-1 px-3 rounded-full",
-                    getElementColorClass(channel.elements),
-                    selectedChannelForDisplay?.id === channel.id && "ring-2 ring-offset-2 ring-indigo-500"
-                  )}
-                  onClick={() => handleSelectChannel(channel)}
-                >
-                  {channel.name}
-                </Button>
-              ))}
+              {meridianChannels.map(channel => {
+                const colors = getElementColorClasses(channel.elements);
+                return (
+                  <Button
+                    key={channel.id}
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      "justify-center text-xs h-auto py-1 px-3 rounded-full",
+                      colors.bg, colors.border, colors.text, colors.hoverBg,
+                      selectedChannelForDisplay?.id === channel.id && `ring-2 ring-offset-2 ${colors.ring}`
+                    )}
+                    onClick={() => handleSelectChannel(channel)}
+                  >
+                    {channel.name}
+                  </Button>
+                );
+              })}
             </div>
 
             {/* Non-Meridian Channels */}
@@ -274,364 +319,371 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
         )}
 
         {/* Selected Channel Summary Display */}
-        {selectedChannelForDisplay && (
-          <Card className="border-2 border-indigo-300 bg-indigo-50 shadow-md mt-6 p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-bold text-indigo-800 flex items-center gap-2">
-                {selectedChannelForDisplay.name}
-                <a
-                  href={`https://www.notion.so/${selectedChannelForDisplay.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="ml-2 text-indigo-600 hover:text-indigo-800"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                </a>
-              </h3>
-              <div className="flex gap-1">
-                {selectedChannelForDisplay.elements.map((element, i) => (
-                  <Badge
-                    key={i}
-                    variant="secondary"
-                    className={cn(
-                      "bg-indigo-200 text-indigo-800 text-xs cursor-pointer hover:bg-indigo-300",
-                      getLoggedClass('channel_element', element)
-                    )}
-                    onClick={() => handleLogItemClick('channel_element', element)}
+        {selectedChannelForDisplay && (() => {
+          const colors = getElementColorClasses(selectedChannelForDisplay.elements);
+          return (
+            <Card className={cn("border-2 shadow-md mt-6 p-4", colors.border, colors.bg)}>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className={cn("text-lg font-bold flex items-center gap-2", colors.text)}>
+                  {selectedChannelForDisplay.name}
+                  <a
+                    href={`https://www.notion.so/${selectedChannelForDisplay.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={cn("ml-2", colors.icon, colors.hoverBg.replace('hover:', 'hover:text-'))}
                   >
-                    {getElementIcon(element)}
-                    <span className="ml-1">{element}</span>
-                  </Badge>
-                ))}
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2 text-sm text-gray-800">
-              <div className="flex items-start gap-2">
-                <Footprints className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center">
-                  <span className="font-semibold text-indigo-700 mr-1">Pathways:</span>
-                  {selectedChannelForDisplay.pathways ? (
-                    <span
-                      className={cn("cursor-pointer hover:underline", getLoggedClass('channel_pathway', selectedChannelForDisplay.pathways))}
-                      onClick={() => handleLogItemClick('channel_pathway', selectedChannelForDisplay.pathways)}
+                    <ExternalLink className="w-4 h-4" />
+                  </a>
+                </h3>
+                <div className="flex gap-1">
+                  {selectedChannelForDisplay.elements.map((element, i) => (
+                    <Badge
+                      key={i}
+                      variant="secondary"
+                      className={cn(
+                        "text-xs cursor-pointer",
+                        colors.bg.replace('-100', '-200'), // Slightly darker background for badge
+                        colors.text,
+                        colors.border,
+                        colors.hoverBg,
+                        getLoggedClass('channel_element', element)
+                      )}
+                      onClick={() => handleLogItemClick('channel_element', element)}
                     >
-                      {selectedChannelForDisplay.pathways}
-                    </span>
-                  ) : 'N/A'}
+                      {getElementIcon(element, "w-3 h-3")}
+                      <span className="ml-1">{element}</span>
+                    </Badge>
+                  ))}
                 </div>
               </div>
-              <div className="flex items-start gap-2">
-                <FlaskConical className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center">
-                  <span className="font-semibold text-indigo-700 mr-1">Functions:</span>
-                  {selectedChannelForDisplay.functions ? (
-                    <span
-                      className={cn("cursor-pointer hover:underline", getLoggedClass('channel_function', selectedChannelForDisplay.functions))}
-                      onClick={() => handleLogItemClick('channel_function', selectedChannelForDisplay.functions)}
-                    >
-                      {selectedChannelForDisplay.functions}
-                    </span>
-                  ) : 'N/A'}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2 text-sm text-gray-800">
+                <div className="flex items-start gap-2">
+                  <Footprints className={cn("w-4 h-4 flex-shrink-0 mt-0.5", colors.icon)} />
+                  <div className="flex items-center">
+                    <span className={cn("font-semibold mr-1", colors.icon)}>Pathways:</span>
+                    {selectedChannelForDisplay.pathways ? (
+                      <span
+                        className={cn("cursor-pointer hover:underline", getLoggedClass('channel_pathway', selectedChannelForDisplay.pathways))}
+                        onClick={() => handleLogItemClick('channel_pathway', selectedChannelForDisplay.pathways)}
+                      >
+                        {selectedChannelForDisplay.pathways}
+                      </span>
+                    ) : 'N/A'}
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <FlaskConical className={cn("w-4 h-4 flex-shrink-0 mt-0.5", colors.icon)} />
+                  <div className="flex items-center">
+                    <span className={cn("font-semibold mr-1", colors.icon)}>Functions:</span>
+                    {selectedChannelForDisplay.functions ? (
+                      <span
+                        className={cn("cursor-pointer hover:underline", getLoggedClass('channel_function', selectedChannelForDisplay.functions))}
+                        onClick={() => handleLogItemClick('channel_function', selectedChannelForDisplay.functions)}
+                      >
+                        {selectedChannelForDisplay.functions}
+                      </span>
+                    ) : 'N/A'}
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Heart className={cn("w-4 h-4 flex-shrink-0 mt-0.5", colors.icon)} />
+                  <div className="flex items-center">
+                    <span className={cn("font-semibold mr-1", colors.icon)}>Emotional Themes:</span>
+                    {selectedChannelForDisplay.emotions.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {selectedChannelForDisplay.emotions.map((emotion, i) => (
+                          <Badge
+                            key={i}
+                            variant="outline"
+                            className={cn(
+                              "text-xs cursor-pointer bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200",
+                              getLoggedClass('channel_emotion', emotion)
+                            )}
+                            onClick={() => handleLogItemClick('channel_emotion', emotion)}
+                          >
+                            {emotion}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : 'N/A'}
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Hand className={cn("w-4 h-4 flex-shrink-0 mt-0.5", colors.icon)} />
+                  <div className="flex items-center">
+                    <span className={cn("font-semibold mr-1", colors.icon)}>Front Mu:</span>
+                    {selectedChannelForDisplay.frontMu ? (
+                      <span
+                        className={cn("cursor-pointer hover:underline", getLoggedClass('channel_front_mu', selectedChannelForDisplay.frontMu))}
+                        onClick={() => handleLogItemClick('channel_front_mu', selectedChannelForDisplay.frontMu)}
+                      >
+                        {selectedChannelForDisplay.frontMu}
+                      </span>
+                    ) : 'N/A'}
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Waves className={cn("w-4 h-4 flex-shrink-0 mt-0.5", colors.icon)} />
+                  <div className="flex items-center">
+                    <span className={cn("font-semibold mr-1", colors.icon)}>He Sea:</span>
+                    {selectedChannelForDisplay.heSea ? (
+                      <span
+                        className={cn("cursor-pointer hover:underline", getLoggedClass('channel_he_sea', selectedChannelForDisplay.heSea))}
+                        onClick={() => handleLogItemClick('channel_he_sea', selectedChannelForDisplay.heSea)}
+                      >
+                        {selectedChannelForDisplay.heSea}
+                      </span>
+                    ) : 'N/A'}
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Droplet className={cn("w-4 h-4 flex-shrink-0 mt-0.5", colors.icon)} />
+                  <div className="flex items-center">
+                    <span className={cn("font-semibold mr-1", colors.icon)}>Jing River:</span>
+                    {selectedChannelForDisplay.jingRiver ? (
+                      <span
+                        className={cn("cursor-pointer hover:underline", getLoggedClass('channel_jing_river', selectedChannelForDisplay.jingRiver))}
+                        onClick={() => handleLogItemClick('channel_jing_river', selectedChannelForDisplay.jingRiver)}
+                      >
+                        {selectedChannelForDisplay.jingRiver}
+                      </span>
+                    ) : 'N/A'}
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Sparkles className={cn("w-4 h-4 flex-shrink-0 mt-0.5", colors.icon)} />
+                  <div className="flex items-center">
+                    <span className={cn("font-semibold mr-1", colors.icon)}>Jing Well:</span>
+                    {selectedChannelForDisplay.jingWell ? (
+                      <span
+                        className={cn("cursor-pointer hover:underline", getLoggedClass('channel_jing_well', selectedChannelForDisplay.jingWell))}
+                        onClick={() => handleLogItemClick('channel_jing_well', selectedChannelForDisplay.jingWell)}
+                      >
+                        {selectedChannelForDisplay.jingWell}
+                      </span>
+                    ) : 'N/A'}
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Hand className={cn("w-4 h-4 flex-shrink-0 mt-0.5", colors.icon)} />
+                  <div className="flex items-center">
+                    <span className={cn("font-semibold mr-1", colors.icon)}>AK Muscles:</span>
+                    {selectedChannelForDisplay.akMuscles.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {selectedChannelForDisplay.akMuscles.map((muscle, i) => (
+                          <Badge
+                            key={i}
+                            variant="outline"
+                            className={cn(
+                              "text-xs cursor-pointer bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200",
+                              getLoggedClass('channel_ak_muscle', muscle)
+                            )}
+                            onClick={() => handleLogItemClick('channel_ak_muscle', muscle)}
+                          >
+                            {muscle}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : 'N/A'}
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Bone className={cn("w-4 h-4 flex-shrink-0 mt-0.5", colors.icon)} />
+                  <div className="flex items-center">
+                    <span className={cn("font-semibold mr-1", colors.icon)}>TCM Muscles:</span>
+                    {selectedChannelForDisplay.tcmMuscles.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {selectedChannelForDisplay.tcmMuscles.map((muscle, i) => (
+                          <Badge
+                            key={i}
+                            variant="outline"
+                            className={cn(
+                              "text-xs cursor-pointer bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200",
+                              getLoggedClass('channel_tcm_muscle', muscle)
+                            )}
+                            onClick={() => handleLogItemClick('channel_tcm_muscle', muscle)}
+                          >
+                            {muscle}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : 'N/A'}
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Sparkles className={cn("w-4 h-4 flex-shrink-0 mt-0.5", colors.icon)} />
+                  <div className="flex items-center">
+                    <span className={cn("font-semibold mr-1", colors.icon)}>Yuan Points:</span>
+                    {selectedChannelForDisplay.yuanPoints ? (
+                      <span
+                        className={cn("cursor-pointer hover:underline", getLoggedClass('channel_yuan_point', selectedChannelForDisplay.yuanPoints))}
+                        onClick={() => handleLogItemClick('channel_yuan_point', selectedChannelForDisplay.yuanPoints)}
+                      >
+                        {selectedChannelForDisplay.yuanPoints}
+                      </span>
+                    ) : 'N/A'}
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <XCircle className={cn("w-4 h-4 flex-shrink-0 mt-0.5", colors.icon)} />
+                  <div className="flex items-center">
+                    <span className={cn("font-semibold mr-1", colors.icon)}>Sedate 1:</span>
+                    {selectedChannelForDisplay.sedate1 ? (
+                      <span
+                        className={cn("cursor-pointer hover:underline", getLoggedClass('channel_sedate1', selectedChannelForDisplay.sedate1))}
+                        onClick={() => handleLogItemClick('channel_sedate1', selectedChannelForDisplay.sedate1)}
+                      >
+                        {selectedChannelForDisplay.sedate1}
+                      </span>
+                    ) : 'N/A'}
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <XCircle className={cn("w-4 h-4 flex-shrink-0 mt-0.5", colors.icon)} />
+                  <div className="flex items-center">
+                    <span className={cn("font-semibold mr-1", colors.icon)}>Sedate 2:</span>
+                    {selectedChannelForDisplay.sedate2 ? (
+                      <span
+                        className={cn("cursor-pointer hover:underline", getLoggedClass('channel_sedate2', selectedChannelForDisplay.sedate2))}
+                        onClick={() => handleLogItemClick('channel_sedate2', selectedChannelForDisplay.sedate2)}
+                      >
+                        {selectedChannelForDisplay.sedate2}
+                      </span>
+                    ) : 'N/A'}
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <PlusCircle className={cn("w-4 h-4 flex-shrink-0 mt-0.5", colors.icon)} />
+                  <div className="flex items-center">
+                    <span className={cn("font-semibold mr-1", colors.icon)}>Tonify 1:</span>
+                    {selectedChannelForDisplay.tonify1 ? (
+                      <span
+                        className={cn("cursor-pointer hover:underline", getLoggedClass('channel_tonify1', selectedChannelForDisplay.tonify1))}
+                        onClick={() => handleLogItemClick('channel_tonify1', selectedChannelForDisplay.tonify1)}
+                      >
+                        {selectedChannelForDisplay.tonify1}
+                      </span>
+                    ) : 'N/A'}
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <PlusCircle className={cn("w-4 h-4 flex-shrink-0 mt-0.5", colors.icon)} />
+                  <div className="flex items-center">
+                    <span className={cn("font-semibold mr-1", colors.icon)}>Tonify 2:</span>
+                    {selectedChannelForDisplay.tonify2 ? (
+                      <span
+                        className={cn("cursor-pointer hover:underline", getLoggedClass('channel_tonify2', selectedChannelForDisplay.tonify2))}
+                        onClick={() => handleLogItemClick('channel_tonify2', selectedChannelForDisplay.tonify2)}
+                      >
+                        {selectedChannelForDisplay.tonify2}
+                      </span>
+                    ) : 'N/A'}
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Mic className={cn("w-4 h-4 flex-shrink-0 mt-0.5", colors.icon)} />
+                  <div className="flex items-center">
+                    <span className={cn("font-semibold mr-1", colors.icon)}>Appropriate Sound:</span>
+                    {selectedChannelForDisplay.appropriateSound ? (
+                      <span
+                        className={cn("cursor-pointer hover:underline", getLoggedClass('channel_appropriate_sound', selectedChannelForDisplay.appropriateSound))}
+                        onClick={() => handleLogItemClick('channel_appropriate_sound', selectedChannelForDisplay.appropriateSound)}
+                      >
+                        {selectedChannelForDisplay.appropriateSound}
+                      </span>
+                    ) : 'N/A'}
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Tag className={cn("w-4 h-4 flex-shrink-0 mt-0.5", colors.icon)} />
+                  <div className="flex items-center">
+                    <span className={cn("font-semibold mr-1", colors.icon)}>Tags:</span>
+                    {selectedChannelForDisplay.tags.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {selectedChannelForDisplay.tags.map((tag, i) => (
+                          <Badge
+                            key={i}
+                            variant="outline"
+                            className={cn(
+                              "text-xs cursor-pointer bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200",
+                              getLoggedClass('channel_tag', tag)
+                            )}
+                            onClick={() => handleLogItemClick('channel_tag', tag)}
+                          >
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : 'N/A'}
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Brain className={cn("w-4 h-4 flex-shrink-0 mt-0.5", colors.icon)} />
+                  <div className="flex items-center">
+                    <span className={cn("font-semibold mr-1", colors.icon)}>Brain Aspects:</span>
+                    {selectedChannelForDisplay.brainAspects ? (
+                      <span
+                        className={cn("cursor-pointer hover:underline", getLoggedClass('channel_brain_aspect', selectedChannelForDisplay.brainAspects))}
+                        onClick={() => handleLogItemClick('channel_brain_aspect', selectedChannelForDisplay.brainAspects)}
+                      >
+                        {selectedChannelForDisplay.brainAspects}
+                      </span>
+                    ) : 'N/A'}
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Hand className={cn("w-4 h-4 flex-shrink-0 mt-0.5", colors.icon)} />
+                  <div className="flex items-center">
+                    <span className={cn("font-semibold mr-1", colors.icon)}>Activate Sinew:</span>
+                    {selectedChannelForDisplay.activateSinew ? (
+                      <span
+                        className={cn("cursor-pointer hover:underline", getLoggedClass('channel_activate_sinew', selectedChannelForDisplay.activateSinew))}
+                        onClick={() => handleLogItemClick('channel_activate_sinew', selectedChannelForDisplay.activateSinew)}
+                      >
+                        {selectedChannelForDisplay.activateSinew}
+                      </span>
+                    ) : 'N/A'}
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Clock className={cn("w-4 h-4 flex-shrink-0 mt-0.5", colors.icon)} />
+                  <div className="flex items-center">
+                    <span className={cn("font-semibold mr-1", colors.icon)}>Time:</span>
+                    {selectedChannelForDisplay.time ? (
+                      <span
+                        className={cn("cursor-pointer hover:underline", getLoggedClass('channel_time', selectedChannelForDisplay.time))}
+                        onClick={() => handleLogItemClick('channel_time', selectedChannelForDisplay.time)}
+                      >
+                        {selectedChannelForDisplay.time}
+                      </span>
+                    ) : 'N/A'}
+                  </div>
+                </div>
+                {/* New: Sound field */}
+                <div className="flex items-start gap-2">
+                  <Volume2 className={cn("w-4 h-4 flex-shrink-0 mt-0.5", colors.icon)} />
+                  <div className="flex items-center">
+                    <span className={cn("font-semibold mr-1", colors.icon)}>Sound:</span>
+                    {selectedChannelForDisplay.sound ? (
+                      <span
+                        className={cn("cursor-pointer hover:underline", getLoggedClass('channel_sound', selectedChannelForDisplay.sound))}
+                        onClick={() => handleLogItemClick('channel_sound', selectedChannelForDisplay.sound)}
+                      >
+                        {selectedChannelForDisplay.sound}
+                      </span>
+                    ) : 'N/A'}
+                  </div>
                 </div>
               </div>
-              <div className="flex items-start gap-2">
-                <Heart className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center">
-                  <span className="font-semibold text-indigo-700 mr-1">Emotional Themes:</span>
-                  {selectedChannelForDisplay.emotions.length > 0 ? (
-                    <div className="flex flex-wrap gap-1">
-                      {selectedChannelForDisplay.emotions.map((emotion, i) => (
-                        <Badge
-                          key={i}
-                          variant="outline"
-                          className={cn(
-                            "bg-gray-100 text-gray-700 text-xs cursor-pointer hover:bg-gray-200",
-                            getLoggedClass('channel_emotion', emotion)
-                          )}
-                          onClick={() => handleLogItemClick('channel_emotion', emotion)}
-                        >
-                          {emotion}
-                        </Badge>
-                      ))}
-                    </div>
-                  ) : 'N/A'}
-                </div>
+              <div className="flex justify-end mt-4">
+                <Button variant="outline" onClick={handleClearSelection} size="sm">
+                  <XCircle className="h-4 w-4 mr-2" />
+                  Clear Selection
+                </Button>
               </div>
-              <div className="flex items-start gap-2">
-                <Hand className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center">
-                  <span className="font-semibold text-indigo-700 mr-1">Front Mu:</span>
-                  {selectedChannelForDisplay.frontMu ? (
-                    <span
-                      className={cn("cursor-pointer hover:underline", getLoggedClass('channel_front_mu', selectedChannelForDisplay.frontMu))}
-                      onClick={() => handleLogItemClick('channel_front_mu', selectedChannelForDisplay.frontMu)}
-                    >
-                      {selectedChannelForDisplay.frontMu}
-                    </span>
-                  ) : 'N/A'}
-                </div>
-              </div>
-              <div className="flex items-start gap-2">
-                <Waves className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center">
-                  <span className="font-semibold text-indigo-700 mr-1">He Sea:</span>
-                  {selectedChannelForDisplay.heSea ? (
-                    <span
-                      className={cn("cursor-pointer hover:underline", getLoggedClass('channel_he_sea', selectedChannelForDisplay.heSea))}
-                      onClick={() => handleLogItemClick('channel_he_sea', selectedChannelForDisplay.heSea)}
-                    >
-                      {selectedChannelForDisplay.heSea}
-                    </span>
-                  ) : 'N/A'}
-                </div>
-              </div>
-              <div className="flex items-start gap-2">
-                <Droplet className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center">
-                  <span className="font-semibold text-indigo-700 mr-1">Jing River:</span>
-                  {selectedChannelForDisplay.jingRiver ? (
-                    <span
-                      className={cn("cursor-pointer hover:underline", getLoggedClass('channel_jing_river', selectedChannelForDisplay.jingRiver))}
-                      onClick={() => handleLogItemClick('channel_jing_river', selectedChannelForDisplay.jingRiver)}
-                    >
-                      {selectedChannelForDisplay.jingRiver}
-                    </span>
-                  ) : 'N/A'}
-                </div>
-              </div>
-              <div className="flex items-start gap-2">
-                <Sparkles className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center">
-                  <span className="font-semibold text-indigo-700 mr-1">Jing Well:</span>
-                  {selectedChannelForDisplay.jingWell ? (
-                    <span
-                      className={cn("cursor-pointer hover:underline", getLoggedClass('channel_jing_well', selectedChannelForDisplay.jingWell))}
-                      onClick={() => handleLogItemClick('channel_jing_well', selectedChannelForDisplay.jingWell)}
-                    >
-                      {selectedChannelForDisplay.jingWell}
-                    </span>
-                  ) : 'N/A'}
-                </div>
-              </div>
-              <div className="flex items-start gap-2">
-                <Hand className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center">
-                  <span className="font-semibold text-indigo-700 mr-1">AK Muscles:</span>
-                  {selectedChannelForDisplay.akMuscles.length > 0 ? (
-                    <div className="flex flex-wrap gap-1">
-                      {selectedChannelForDisplay.akMuscles.map((muscle, i) => (
-                        <Badge
-                          key={i}
-                          variant="outline"
-                          className={cn(
-                            "bg-gray-100 text-gray-700 text-xs cursor-pointer hover:bg-gray-200",
-                            getLoggedClass('channel_ak_muscle', muscle)
-                          )}
-                          onClick={() => handleLogItemClick('channel_ak_muscle', muscle)}
-                        >
-                          {muscle}
-                        </Badge>
-                      ))}
-                    </div>
-                  ) : 'N/A'}
-                </div>
-              </div>
-              <div className="flex items-start gap-2">
-                <Bone className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center">
-                  <span className="font-semibold text-indigo-700 mr-1">TCM Muscles:</span>
-                  {selectedChannelForDisplay.tcmMuscles.length > 0 ? (
-                    <div className="flex flex-wrap gap-1">
-                      {selectedChannelForDisplay.tcmMuscles.map((muscle, i) => (
-                        <Badge
-                          key={i}
-                          variant="outline"
-                          className={cn(
-                            "bg-gray-100 text-gray-700 text-xs cursor-pointer hover:bg-gray-200",
-                            getLoggedClass('channel_tcm_muscle', muscle)
-                          )}
-                          onClick={() => handleLogItemClick('channel_tcm_muscle', muscle)}
-                        >
-                          {muscle}
-                        </Badge>
-                      ))}
-                    </div>
-                  ) : 'N/A'}
-                </div>
-              </div>
-              <div className="flex items-start gap-2">
-                <Sparkles className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center">
-                  <span className="font-semibold text-indigo-700 mr-1">Yuan Points:</span>
-                  {selectedChannelForDisplay.yuanPoints ? (
-                    <span
-                      className={cn("cursor-pointer hover:underline", getLoggedClass('channel_yuan_point', selectedChannelForDisplay.yuanPoints))}
-                      onClick={() => handleLogItemClick('channel_yuan_point', selectedChannelForDisplay.yuanPoints)}
-                    >
-                      {selectedChannelForDisplay.yuanPoints}
-                    </span>
-                  ) : 'N/A'}
-                </div>
-              </div>
-              <div className="flex items-start gap-2">
-                <XCircle className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center">
-                  <span className="font-semibold text-indigo-700 mr-1">Sedate 1:</span>
-                  {selectedChannelForDisplay.sedate1 ? (
-                    <span
-                      className={cn("cursor-pointer hover:underline", getLoggedClass('channel_sedate1', selectedChannelForDisplay.sedate1))}
-                      onClick={() => handleLogItemClick('channel_sedate1', selectedChannelForDisplay.sedate1)}
-                    >
-                      {selectedChannelForDisplay.sedate1}
-                    </span>
-                  ) : 'N/A'}
-                </div>
-              </div>
-              <div className="flex items-start gap-2">
-                <XCircle className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center">
-                  <span className="font-semibold text-indigo-700 mr-1">Sedate 2:</span>
-                  {selectedChannelForDisplay.sedate2 ? (
-                    <span
-                      className={cn("cursor-pointer hover:underline", getLoggedClass('channel_sedate2', selectedChannelForDisplay.sedate2))}
-                      onClick={() => handleLogItemClick('channel_sedate2', selectedChannelForDisplay.sedate2)}
-                    >
-                      {selectedChannelForDisplay.sedate2}
-                    </span>
-                  ) : 'N/A'}
-                </div>
-              </div>
-              <div className="flex items-start gap-2">
-                <PlusCircle className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center">
-                  <span className="font-semibold text-indigo-700 mr-1">Tonify 1:</span>
-                  {selectedChannelForDisplay.tonify1 ? (
-                    <span
-                      className={cn("cursor-pointer hover:underline", getLoggedClass('channel_tonify1', selectedChannelForDisplay.tonify1))}
-                      onClick={() => handleLogItemClick('channel_tonify1', selectedChannelForDisplay.tonify1)}
-                    >
-                      {selectedChannelForDisplay.tonify1}
-                    </span>
-                  ) : 'N/A'}
-                </div>
-              </div>
-              <div className="flex items-start gap-2">
-                <PlusCircle className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center">
-                  <span className="font-semibold text-indigo-700 mr-1">Tonify 2:</span>
-                  {selectedChannelForDisplay.tonify2 ? (
-                    <span
-                      className={cn("cursor-pointer hover:underline", getLoggedClass('channel_tonify2', selectedChannelForDisplay.tonify2))}
-                      onClick={() => handleLogItemClick('channel_tonify2', selectedChannelForDisplay.tonify2)}
-                    >
-                      {selectedChannelForDisplay.tonify2}
-                    </span>
-                  ) : 'N/A'}
-                </div>
-              </div>
-              <div className="flex items-start gap-2">
-                <Mic className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center">
-                  <span className="font-semibold text-indigo-700 mr-1">Appropriate Sound:</span>
-                  {selectedChannelForDisplay.appropriateSound ? (
-                    <span
-                      className={cn("cursor-pointer hover:underline", getLoggedClass('channel_appropriate_sound', selectedChannelForDisplay.appropriateSound))}
-                      onClick={() => handleLogItemClick('channel_appropriate_sound', selectedChannelForDisplay.appropriateSound)}
-                    >
-                      {selectedChannelForDisplay.appropriateSound}
-                    </span>
-                  ) : 'N/A'}
-                </div>
-              </div>
-              <div className="flex items-start gap-2">
-                <Tag className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center">
-                  <span className="font-semibold text-indigo-700 mr-1">Tags:</span>
-                  {selectedChannelForDisplay.tags.length > 0 ? (
-                    <div className="flex flex-wrap gap-1">
-                      {selectedChannelForDisplay.tags.map((tag, i) => (
-                        <Badge
-                          key={i}
-                          variant="outline"
-                          className={cn(
-                            "bg-gray-100 text-gray-700 text-xs cursor-pointer hover:bg-gray-200",
-                            getLoggedClass('channel_tag', tag)
-                          )}
-                          onClick={() => handleLogItemClick('channel_tag', tag)}
-                        >
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  ) : 'N/A'}
-                </div>
-              </div>
-              <div className="flex items-start gap-2">
-                <Brain className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center">
-                  <span className="font-semibold text-indigo-700 mr-1">Brain Aspects:</span>
-                  {selectedChannelForDisplay.brainAspects ? (
-                    <span
-                      className={cn("cursor-pointer hover:underline", getLoggedClass('channel_brain_aspect', selectedChannelForDisplay.brainAspects))}
-                      onClick={() => handleLogItemClick('channel_brain_aspect', selectedChannelForDisplay.brainAspects)}
-                    >
-                      {selectedChannelForDisplay.brainAspects}
-                    </span>
-                  ) : 'N/A'}
-                </div>
-              </div>
-              <div className="flex items-start gap-2">
-                <Hand className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center">
-                  <span className="font-semibold text-indigo-700 mr-1">Activate Sinew:</span>
-                  {selectedChannelForDisplay.activateSinew ? (
-                    <span
-                      className={cn("cursor-pointer hover:underline", getLoggedClass('channel_activate_sinew', selectedChannelForDisplay.activateSinew))}
-                      onClick={() => handleLogItemClick('channel_activate_sinew', selectedChannelForDisplay.activateSinew)}
-                    >
-                      {selectedChannelForDisplay.activateSinew}
-                    </span>
-                  ) : 'N/A'}
-                </div>
-              </div>
-              <div className="flex items-start gap-2">
-                <Clock className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center">
-                  <span className="font-semibold text-indigo-700 mr-1">Time:</span>
-                  {selectedChannelForDisplay.time ? (
-                    <span
-                      className={cn("cursor-pointer hover:underline", getLoggedClass('channel_time', selectedChannelForDisplay.time))}
-                      onClick={() => handleLogItemClick('channel_time', selectedChannelForDisplay.time)}
-                    >
-                      {selectedChannelForDisplay.time}
-                    </span>
-                  ) : 'N/A'}
-                </div>
-              </div>
-              {/* New: Sound field */}
-              <div className="flex items-start gap-2">
-                <Volume2 className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center">
-                  <span className="font-semibold text-indigo-700 mr-1">Sound:</span>
-                  {selectedChannelForDisplay.sound ? (
-                    <span
-                      className={cn("cursor-pointer hover:underline", getLoggedClass('channel_sound', selectedChannelForDisplay.sound))}
-                      onClick={() => handleLogItemClick('channel_sound', selectedChannelForDisplay.sound)}
-                    >
-                      {selectedChannelForDisplay.sound}
-                    </span>
-                  ) : 'N/A'}
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-end mt-4">
-              <Button variant="outline" onClick={handleClearSelection} size="sm">
-                <XCircle className="h-4 w-4 mr-2" />
-                Clear Selection
-              </Button>
-            </div>
-          </Card>
-        )}
+            </Card>
+          );
+        })()}
       </CardContent>
     </Card>
   );
