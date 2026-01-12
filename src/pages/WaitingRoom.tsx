@@ -14,7 +14,7 @@ interface Appointment {
   id: string; // Notion page ID
   clientName: string;
   starSign: string;
-  focus: string; // Session North Star
+  sessionNorthStar: string; // Changed from 'focus' to 'sessionNorthStar'
   goal: string;
   status: string; // To display in the waiting room
 }
@@ -245,7 +245,7 @@ const WaitingRoom = () => {
                   <div>
                     <p className="text-lg font-semibold text-indigo-800">{app.clientName}</p>
                     <p className="text-sm text-gray-600">Status: <span className="font-medium">{app.status}</span></p>
-                    {app.focus && <p className="text-xs text-gray-500 mt-1">Focus: {app.focus}</p>}
+                    {app.sessionNorthStar && <p className="text-xs text-gray-500 mt-1">Session North Star: {app.sessionNorthStar}</p>}
                   </div>
                   <Button
                     className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-6 py-3 rounded-md text-base flex items-center"

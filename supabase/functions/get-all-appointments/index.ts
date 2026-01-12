@@ -96,9 +96,9 @@ serve(async (req) => {
 
       let clientName = properties.Name?.title?.[0]?.plain_text || "Unknown Client"
       let starSign = "Unknown"
-      let focus = ""
       let clientEmail = ""
       let clientPhone = ""
+      let clientFocus = "" // Renamed from 'focus' to 'clientFocus' for clarity
 
       // Fetch client details from CRM if relation exists and crm_database_id is available
       const clientCrmRelation = properties["Client CRM"]?.relation?.[0]?.id
@@ -119,7 +119,7 @@ serve(async (req) => {
 
           clientName = clientProperties.Name?.title?.[0]?.plain_text || clientName
           starSign = clientProperties["Star Sign"]?.select?.name || "Unknown"
-          focus = clientProperties.Focus?.rich_text?.[0]?.plain_text || ""
+          clientFocus = clientProperties.Focus?.rich_text?.[0]?.plain_text || "" // Fetch general client focus
           clientEmail = clientProperties.Email?.email || ""
           clientPhone = clientProperties.Phone?.phone_number || ""
           console.log(`[get-all-appointments] CRM details fetched for ${clientName}`)
@@ -138,7 +138,8 @@ serve(async (req) => {
         clientName,
         clientCrmId: clientCrmRelation, // Include CRM page ID for potential direct client updates
         starSign,
-        focus,
+        clientFocus, // General client focus
+        sessionNorthStar: properties["Session North Star"]?.rich_text?.[0]?.plain_text || "", // New: Fetch Session North Star from appointment
         clientEmail,
         clientPhone,
         date: properties.Date?.date?.start || null,

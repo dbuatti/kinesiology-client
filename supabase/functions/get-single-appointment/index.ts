@@ -110,7 +110,7 @@ serve(async (req) => {
 
     let clientName = properties.Name?.title?.[0]?.plain_text || "Unknown Client"
     let starSign = "Unknown"
-    let focus = ""
+    // Removed 'focus' from CRM fetch for appointment context
 
     // Fetch client details from CRM if relation exists and crm_database_id is available
     const clientCrmRelation = properties["Client CRM"]?.relation?.[0]?.id
@@ -131,7 +131,7 @@ serve(async (req) => {
 
         clientName = clientProperties.Name?.title?.[0]?.plain_text || clientName
         starSign = clientProperties["Star Sign"]?.select?.name || "Unknown"
-        focus = clientProperties.Focus?.rich_text?.[0]?.plain_text || ""
+        // 'focus' is now specific to the appointment, not fetched from CRM here
         console.log(`[get-single-appointment] CRM details fetched for ${clientName}`)
       } else {
         const errorText = await notionClientResponse.text()
@@ -145,7 +145,7 @@ serve(async (req) => {
       id: page.id,
       clientName,
       starSign,
-      focus,
+      sessionNorthStar: properties["Session North Star"]?.rich_text?.[0]?.plain_text || "", // New: Fetch Session North Star from appointment
       goal: properties.Goal?.rich_text?.[0]?.plain_text || "",
       sessionAnchor: properties["Today we are really working with..."]?.rich_text?.[0]?.plain_text || "",
       bodyYes: properties["BODY YES"]?.checkbox || false,

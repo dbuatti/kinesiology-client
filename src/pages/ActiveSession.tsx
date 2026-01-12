@@ -19,7 +19,7 @@
       id: string; // Notion page ID
       clientName: string;
       starSign: string;
-      focus: string; // Session North Star
+      sessionNorthStar: string; // Changed from 'focus' to 'sessionNorthStar'
       goal: string;
       sessionAnchor: string; // Today we are really working with...
       bodyYes: boolean;
@@ -40,6 +40,7 @@
       const [error, setError] = useState<string | null>(null);
       const [needsConfig, setNeedsConfig] = useState(false);
       const [sessionAnchorText, setSessionAnchorText] = useState('');
+      const [sessionNorthStarText, setSessionNorthStarText] = useState(''); // New state for Session North Star
       const [modes, setModes] = useState<Mode[]>([]);
       const [selectedMode, setSelectedMode] = useState<Mode | null>(null);
       const [isModeSelectOpen, setIsModeSelectOpen] = useState(false);
@@ -106,6 +107,7 @@
           const fetchedAppointment = data.appointment;
           setAppointment(fetchedAppointment);
           setSessionAnchorText(fetchedAppointment.sessionAnchor || '');
+          setSessionNorthStarText(fetchedAppointment.sessionNorthStar || ''); // Set new state
           setBodyYesState(fetchedAppointment.bodyYes);
           setBodyNoState(fetchedAppointment.bodyNo);
         } catch (err: any) {
@@ -208,6 +210,7 @@
           
           setAppointment(prev => prev ? { ...prev, ...updates } : null);
           if (updates.sessionAnchor !== undefined) setSessionAnchorText(updates.sessionAnchor);
+          if (updates.sessionNorthStar !== undefined) setSessionNorthStarText(updates.sessionNorthStar); // Update new state
           if (updates.bodyYes !== undefined) setBodyYesState(updates.bodyYes);
           if (updates.bodyNo !== undefined) setBodyNoState(updates.bodyNo);
 
@@ -229,6 +232,17 @@
       const handleSessionAnchorBlur = () => {
         if (appointment && sessionAnchorText !== appointment.sessionAnchor) {
           updateNotionAppointment({ sessionAnchor: sessionAnchorText });
+        }
+      };
+
+      const handleSessionNorthStarChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const newText = e.target.value;
+        setSessionNorthStarText(newText);
+      };
+
+      const handleSessionNorthStarBlur = () => {
+        if (appointment && sessionNorthStarText !== appointment.sessionNorthStar) {
+          updateNotionAppointment({ sessionNorthStar: sessionNorthStarText });
         }
       };
 
@@ -347,15 +361,20 @@
                   </CardHeader>
 
                   <CardContent className="pt-6 space-y-4">
-                    {appointment.focus && (
+                    {appointment.sessionNorthStar && ( // Use new field here
                       <div className="space-y-2">
                         <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                           <Target className="w-4 h-4 text-indigo-600" />
                           <span>Session North Star (Client Focus)</span>
                         </div>
-                        <p className="text-gray-800 bg-gray-50 p-3 rounded-lg border border-gray-200">
-                          {appointment.focus}
-                        </p>
+                        <Textarea
+                          id="session-north-star"
+                          placeholder="e.g., 'Releasing tension in the shoulders related to stress.'"
+                          value={sessionNorthStarText}
+                          onChange={handleSessionNorthStarChange}
+                          onBlur={handleSessionNorthStarBlur}
+                          className="min-h-[80px]"
+                        />
                       </div>
                     )}
 

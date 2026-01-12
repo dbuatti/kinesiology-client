@@ -185,7 +185,7 @@ serve(async (req) => {
 
       let clientName = properties.Name?.title?.[0]?.plain_text || "Unknown Client"
       let starSign = "Unknown"
-      let focus = ""
+      // Removed 'focus' from CRM fetch for appointment context
 
       // Fetch client details from CRM if relation exists and crm_database_id is available
       const clientCrmRelation = properties["Client CRM"]?.relation?.[0]?.id
@@ -206,7 +206,7 @@ serve(async (req) => {
 
           clientName = clientProperties.Name?.title?.[0]?.plain_text || clientName
           starSign = clientProperties["Star Sign"]?.select?.name || "Unknown"
-          focus = clientProperties.Focus?.rich_text?.[0]?.plain_text || ""
+          // 'focus' is now specific to the appointment, not fetched from CRM here
           console.log(`[get-todays-appointments] CRM details fetched for ${clientName}`)
         } else {
           const errorText = await notionClientResponse.text()
@@ -216,9 +216,10 @@ serve(async (req) => {
         console.log("[get-todays-appointments] No Client CRM relation or CRM database ID available.")
       }
 
-      // Extract Goal from appointment
+      // Extract Goal and Session North Star from appointment properties
       const goal = properties.Goal?.rich_text?.[0]?.plain_text || ""
       const sessionAnchor = properties["Today we are really working with..."]?.rich_text?.[0]?.plain_text || ""
+      const sessionNorthStar = properties["Session North Star"]?.rich_text?.[0]?.plain_text || ""; // New: Fetch Session North Star from appointment
       const bodyYes = properties["BODY YES"]?.checkbox || false;
       const bodyNo = properties["BODY NO"]?.checkbox || false;
       const notionPageId = page.id;
@@ -227,7 +228,7 @@ serve(async (req) => {
         id: notionPageId,
         clientName,
         starSign,
-        focus,
+        sessionNorthStar, // Use the new field
         goal,
         sessionAnchor,
         bodyYes,

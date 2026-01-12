@@ -101,6 +101,11 @@ serve(async (req) => {
         rich_text: [{ type: "text", text: { content: updates.notes } }]
       };
     }
+    if (updates.sessionNorthStar !== undefined) { // New: Add Session North Star update
+      notionProperties["Session North Star"] = {
+        rich_text: [{ type: "text", text: { content: updates.sessionNorthStar } }]
+      };
+    }
 
     console.log("[update-notion-appointment] Updating Notion page:", appointmentId, "with properties:", notionProperties)
 

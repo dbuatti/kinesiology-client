@@ -21,7 +21,8 @@ interface Appointment {
   clientName: string;
   clientCrmId: string | null;
   starSign: string;
-  focus: string;
+  clientFocus: string; // General client focus from CRM
+  sessionNorthStar: string; // Specific session focus from appointment
   clientEmail: string;
   clientPhone: string;
   date: string | null;
@@ -118,6 +119,7 @@ const AllAppointments = () => {
       app.goal.toLowerCase().includes(lowerCaseSearchTerm) ||
       app.notes.toLowerCase().includes(lowerCaseSearchTerm) ||
       app.status.toLowerCase().includes(lowerCaseSearchTerm) ||
+      app.sessionNorthStar.toLowerCase().includes(lowerCaseSearchTerm) || // Search new field
       (app.priorityPattern && app.priorityPattern.toLowerCase().includes(lowerCaseSearchTerm))
     );
     setFilteredAppointments(filtered);
@@ -288,6 +290,7 @@ const AllAppointments = () => {
                       <TableHead className="min-w-[150px]">Client Name</TableHead>
                       <TableHead className="min-w-[120px]">Date</TableHead>
                       <TableHead className="min-w-[200px]">Goal</TableHead>
+                      <TableHead className="min-w-[200px]">Session North Star</TableHead> {/* New column */}
                       <TableHead className="min-w-[150px]">Priority Pattern</TableHead>
                       <TableHead className="min-w-[120px]">Status</TableHead>
                       <TableHead className="min-w-[250px]">Notes</TableHead>
@@ -303,6 +306,14 @@ const AllAppointments = () => {
                             value={app.goal}
                             onChange={(e) => handleFieldChange(app.id, 'goal', e.target.value)}
                             onBlur={(e) => updateNotionAppointment(app.id, { goal: e.target.value })}
+                            className="min-h-[60px] w-full"
+                          />
+                        </TableCell>
+                        <TableCell> {/* New cell for Session North Star */}
+                          <Textarea
+                            value={app.sessionNorthStar}
+                            onChange={(e) => handleFieldChange(app.id, 'sessionNorthStar', e.target.value)}
+                            onBlur={(e) => updateNotionAppointment(app.id, { sessionNorthStar: e.target.value })}
                             className="min-h-[60px] w-full"
                           />
                         </TableCell>
