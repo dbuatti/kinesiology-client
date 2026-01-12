@@ -11,12 +11,13 @@
     import { Label } from '@/components/ui/label';
     import { Badge } from '@/components/ui/badge';
     import { Input } from '@/components/ui/input';
-    import { Calendar, User, Star, Target, Clock, Settings, AlertCircle, Check, ChevronsUpDown, Lightbulb, Hand, XCircle, PlusCircle, Search, Sparkles, ListChecks, Trash2, Loader2, ExternalLink } from 'lucide-react';
+    import { Calendar, User, Star, Target, Clock, Settings, AlertCircle, Check, ChevronsUpDown, Lightbulb, Hand, XCircle, PlusCircle, Search, Sparkles, ListChecks, Trash2, Loader2, ExternalLink, Waves } from 'lucide-react';
     import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
     import { cn } from '@/lib/utils';
     import { format } from 'date-fns';
     import MuscleSelector from '@/components/MuscleSelector';
-    import ChakraSelector from '@/components/ChakraSelector'; // Import the new ChakraSelector
+    import ChakraSelector from '@/components/ChakraSelector';
+    import ChannelDashboard from '@/components/ChannelDashboard'; // Import the new ChannelDashboard
     import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
     import {
       Appointment, Mode, Acupoint, Muscle, Chakra, SessionLog, SessionMuscleLog,
@@ -793,6 +794,9 @@
                   onClearSelection={handleClearChakraSelection}
                   selectedChakra={selectedChakra} // Pass selected chakra to ChakraSelector
                 />
+
+                {/* Channel Dashboard Component */}
+                <ChannelDashboard appointmentId={appointmentId || ''} />
 
                 {/* Session Log */}
                 <Card className="shadow-xl">

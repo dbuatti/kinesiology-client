@@ -143,6 +143,19 @@ serve(async (req) => {
         pathways: properties.Pathways?.rich_text?.[0]?.plain_text || "",
         functions: properties.Functions?.rich_text?.[0]?.plain_text || "",
         emotions: properties.Emotions?.multi_select?.map((s: any) => s.name) || [],
+        frontMu: properties["Front Mu"]?.rich_text?.[0]?.plain_text || "",
+        heSea: properties["He Sea"]?.rich_text?.[0]?.plain_text || "",
+        jingRiver: properties["Jing River"]?.rich_text?.[0]?.plain_text || "",
+        jingWell: properties["Jing Well"]?.rich_text?.[0]?.plain_text || "",
+        akMuscles: properties["AK Muscles"]?.multi_select?.map((s: any) => s.name) || [],
+        tcmMuscles: properties["TCM Muscles"]?.multi_select?.map((s: any) => s.name) || [],
+        yuanPoints: properties["Yuan Points"]?.rich_text?.[0]?.plain_text || "",
+        sedate1: properties["Sedate 1"]?.rich_text?.[0]?.plain_text || "",
+        sedate2: properties["Sedate 2"]?.rich_text?.[0]?.plain_text || "",
+        tonify1: properties["Tonify 1"]?.rich_text?.[0]?.plain_text || "",
+        tonify2: properties["Tonify 2"]?.rich_text?.[0]?.plain_text || "",
+        appropriateSound: properties["Appropriate Sound"]?.rich_text?.[0]?.plain_text || "",
+        tags: properties.Tags?.multi_select?.map((s: any) => s.name) || [],
       }
     })
 

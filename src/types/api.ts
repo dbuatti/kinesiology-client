@@ -62,6 +62,19 @@ export interface Channel {
   pathways: string;
   functions: string;
   emotions: string[];
+  frontMu: string; // New
+  heSea: string; // New
+  jingRiver: string; // New
+  jingWell: string; // New
+  akMuscles: string[]; // New
+  tcmMuscles: string[]; // New
+  yuanPoints: string; // New
+  sedate1: string; // New
+  sedate2: string; // New
+  tonify1: string; // New
+  tonify2: string; // New
+  appropriateSound: string; // New
+  tags: string[]; // New
 }
 
 export interface Chakra {
