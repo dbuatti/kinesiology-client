@@ -146,15 +146,16 @@ serve(async (req) => {
       }
     };
 
+    // Corrected Notion property names based on logs
     updateProperty("sessionAnchor", "Today we are really working with...", updates.sessionAnchor, 'rich_text');
     updateProperty("status", "Status", updates.status, 'status');
-    updateProperty("goal", "Goal", updates.goal, 'rich_text'); // Assuming Notion 'Goal' property is changed to 'Text' type
-    updateProperty("priorityPattern", "Priority Pattern", updates.priorityPattern, 'select'); // This might still warn if name is different
-    updateProperty("notes", "Additional Notes", updates.notes, 'rich_text'); // Corrected name
+    updateProperty("goal", "Goal", updates.goal, 'rich_text'); 
+    updateProperty("priorityPattern", "Priority Pattern", updates.priorityPattern, 'select'); // Expecting 'select' type in Notion
+    updateProperty("notes", "Additional Notes", updates.notes, 'rich_text'); 
     updateProperty("sessionNorthStar", "Session North Star", updates.sessionNorthStar, 'rich_text');
     
     if (updates.acupointId !== undefined) {
-      updateProperty("acupointId", "🔺 Acupoints", updates.acupointId, 'relation'); // Corrected name
+      updateProperty("acupointId", "🔺 Acupoints", updates.acupointId, 'relation'); 
     }
 
     console.log("[update-notion-appointment] Updating Notion page:", appointmentId, "with properties:", notionProperties)
