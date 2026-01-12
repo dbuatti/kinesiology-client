@@ -29,6 +29,29 @@ const NotionConfig = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // Memoized callback for successful fetch of Notion secrets
+  const handleFetchSuccess = useCallback((data: GetNotionSecretsResponse) => {
+    const secrets = data.secrets;
+    setIntegrationToken(secrets.notion_integration_token || '');
+    setAppointmentsDbId(secrets.appointments_database_id || '');
+    setCrmDbId(secrets.crm_database_id || '');
+    setModesDbId(secrets.modes_database_id || '');
+    setAcupointsDbId(secrets.acupoints_database_id || '');
+    setMusculesDbId(secrets.muscles_database_id || '');
+    setChannelsDbId(secrets.channels_database_id || '');
+    setChakrasDbId(secrets.chakras_database_id || '');
+  }, []);
+
+  // Memoized callback for error during fetch of Notion secrets
+  const handleFetchError = useCallback((msg: string, errorCode?: string) => {
+    if (errorCode === 'NOTION_CONFIG_NOT_FOUND') {
+      console.log('Notion config not found, starting with empty fields.');
+      // This is expected if the user hasn't configured yet, so no toast error
+    } else {
+      toast({ variant: 'destructive', title: 'Error loading configuration', description: msg });
+    }
+  }, [toast]);
+
   // Hook for saving Notion secrets
   const {
     loading: savingConfig,
@@ -49,38 +72,21 @@ const NotionConfig = () => {
 
   // Hook for fetching Notion secrets
   const {
-    loading: loadingInitialFetch, // Renamed to avoid conflict and clarify origin
+    loading: loadingInitialFetch,
     error: fetchError,
     execute: fetchNotionSecrets,
   } = useSupabaseEdgeFunction<void, GetNotionSecretsResponse>(
-    'get-notion-secrets', // New edge function to fetch secrets
+    'get-notion-secrets',
     {
       requiresAuth: true,
-      onSuccess: (data) => {
-        const secrets = data.secrets;
-        setIntegrationToken(secrets.notion_integration_token || '');
-        setAppointmentsDbId(secrets.appointments_database_id || '');
-        setCrmDbId(secrets.crm_database_id || '');
-        setModesDbId(secrets.modes_database_id || '');
-        setAcupointsDbId(secrets.acupoints_database_id || '');
-        setMusculesDbId(secrets.muscles_database_id || '');
-        setChannelsDbId(secrets.channels_database_id || '');
-        setChakrasDbId(secrets.chakras_database_id || '');
-      },
-      onError: (msg, errorCode) => {
-        if (errorCode === 'NOTION_CONFIG_NOT_FOUND') {
-          console.log('Notion config not found, starting with empty fields.');
-          // This is expected if the user hasn't configured yet, so no toast error
-        } else {
-          toast({ variant: 'destructive', title: 'Error loading configuration', description: msg });
-        }
-      }
+      onSuccess: handleFetchSuccess, // Use the memoized callback
+      onError: handleFetchError,     // Use the memoized callback
     }
   );
 
   useEffect(() => {
     fetchNotionSecrets();
-  }, [fetchNotionSecrets]);
+  }, [fetchNotionSecrets]); // fetchNotionSecrets is now stable due to useCallback dependencies
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
