@@ -33,6 +33,18 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  // Memoized callbacks for fetchMuscles
+  const onMusclesSuccess = useCallback((data: GetMusclesResponse) => {
+    setAllMuscles(data.muscles);
+    setFilteredMuscles(data.muscles);
+  }, []);
+
+  const onMusclesError = useCallback((msg: string) => {
+    toast({ variant: 'destructive', title: 'Error', description: `Failed to load muscles: ${msg}` });
+    setAllMuscles([]);
+    setFilteredMuscles([]);
+  }, [toast]);
+
   const {
     data: fetchedMusclesData,
     loading: loadingMuscles,
@@ -44,15 +56,8 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
     {
       requiresAuth: true,
       requiresNotionConfig: true,
-      onSuccess: (data) => {
-        setAllMuscles(data.muscles);
-        setFilteredMuscles(data.muscles);
-      },
-      onError: (msg) => {
-        toast({ variant: 'destructive', title: 'Error', description: `Failed to load muscles: ${msg}` });
-        setAllMuscles([]);
-        setFilteredMuscles([]);
-      },
+      onSuccess: onMusclesSuccess, // Use memoized callback
+      onError: onMusclesError,     // Use memoized callback
     }
   );
 
