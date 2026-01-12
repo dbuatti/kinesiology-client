@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
-import { Settings, Loader2, Sparkles, ExternalLink, Waves, Leaf, Flame, Gem, Droplet, Sun, Heart, Hand, Footprints, Bone, FlaskConical, Mic, Tag, XCircle, PlusCircle, Brain, Clock, Volume2 } from 'lucide-react'; // Added Volume2 icon
+import { Settings, Loader2, Sparkles, ExternalLink, Waves, Leaf, Flame, Gem, Droplet, Sun, Heart, Hand, Footprints, Bone, FlaskConical, Mic, Tag, XCircle, PlusCircle, Brain, Clock, Volume2 } from 'lucide-react';
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
 import { Channel, GetChannelsPayload, GetChannelsResponse, LogSessionEventPayload, LogSessionEventResponse } from '@/types/api';
 
@@ -308,7 +308,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2 text-sm text-gray-800">
               <div className="flex items-start gap-2">
                 <Footprints className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <p className="flex items-center">
+                <div className="flex items-center"> {/* Changed <p> to <div> */}
                   <span className="font-semibold text-indigo-700 mr-1">Pathways:</span>
                   {selectedChannelForDisplay.pathways ? (
                     <span
@@ -318,11 +318,11 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
                       {selectedChannelForDisplay.pathways}
                     </span>
                   ) : 'N/A'}
-                </p>
+                </div>
               </div>
               <div className="flex items-start gap-2">
                 <FlaskConical className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <p className="flex items-center">
+                <div className="flex items-center"> {/* Changed <p> to <div> */}
                   <span className="font-semibold text-indigo-700 mr-1">Functions:</span>
                   {selectedChannelForDisplay.functions ? (
                     <span
@@ -332,11 +332,11 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
                       {selectedChannelForDisplay.functions}
                     </span>
                   ) : 'N/A'}
-                </p>
+                </div>
               </div>
               <div className="flex items-start gap-2">
                 <Heart className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <p className="flex items-center">
+                <div className="flex items-center"> {/* Changed <p> to <div> */}
                   <span className="font-semibold text-indigo-700 mr-1">Emotional Themes:</span>
                   {selectedChannelForDisplay.emotions.length > 0 ? (
                     <div className="flex flex-wrap gap-1">
@@ -355,11 +355,11 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
                       ))}
                     </div>
                   ) : 'N/A'}
-                </p>
+                </div>
               </div>
               <div className="flex items-start gap-2">
                 <Hand className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <p className="flex items-center">
+                <div className="flex items-center"> {/* Changed <p> to <div> */}
                   <span className="font-semibold text-indigo-700 mr-1">Front Mu:</span>
                   {selectedChannelForDisplay.frontMu ? (
                     <span
@@ -369,11 +369,11 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
                       {selectedChannelForDisplay.frontMu}
                     </span>
                   ) : 'N/A'}
-                </p>
+                </div>
               </div>
               <div className="flex items-start gap-2">
                 <Waves className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <p className="flex items-center">
+                <div className="flex items-center"> {/* Changed <p> to <div> */}
                   <span className="font-semibold text-indigo-700 mr-1">He Sea:</span>
                   {selectedChannelForDisplay.heSea ? (
                     <span
@@ -383,11 +383,11 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
                       {selectedChannelForDisplay.heSea}
                     </span>
                   ) : 'N/A'}
-                </p>
+                </div>
               </div>
               <div className="flex items-start gap-2">
                 <Droplet className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <p className="flex items-center">
+                <div className="flex items-center"> {/* Changed <p> to <div> */}
                   <span className="font-semibold text-indigo-700 mr-1">Jing River:</span>
                   {selectedChannelForDisplay.jingRiver ? (
                     <span
@@ -397,11 +397,11 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
                       {selectedChannelForDisplay.jingRiver}
                     </span>
                   ) : 'N/A'}
-                </p>
+                </div>
               </div>
               <div className="flex items-start gap-2">
                 <Sparkles className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <p className="flex items-center">
+                <div className="flex items-center"> {/* Changed <p> to <div> */}
                   <span className="font-semibold text-indigo-700 mr-1">Jing Well:</span>
                   {selectedChannelForDisplay.jingWell ? (
                     <span
@@ -411,11 +411,11 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
                       {selectedChannelForDisplay.jingWell}
                     </span>
                   ) : 'N/A'}
-                </p>
+                </div>
               </div>
               <div className="flex items-start gap-2">
                 <Hand className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <p className="flex items-center">
+                <div className="flex items-center"> {/* Changed <p> to <div> */}
                   <span className="font-semibold text-indigo-700 mr-1">AK Muscles:</span>
                   {selectedChannelForDisplay.akMuscles.length > 0 ? (
                     <div className="flex flex-wrap gap-1">
@@ -434,11 +434,11 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
                       ))}
                     </div>
                   ) : 'N/A'}
-                </p>
+                </div>
               </div>
               <div className="flex items-start gap-2">
                 <Bone className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <p className="flex items-center">
+                <div className="flex items-center"> {/* Changed <p> to <div> */}
                   <span className="font-semibold text-indigo-700 mr-1">TCM Muscles:</span>
                   {selectedChannelForDisplay.tcmMuscles.length > 0 ? (
                     <div className="flex flex-wrap gap-1">
@@ -457,11 +457,11 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
                       ))}
                     </div>
                   ) : 'N/A'}
-                </p>
+                </div>
               </div>
               <div className="flex items-start gap-2">
                 <Sparkles className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <p className="flex items-center">
+                <div className="flex items-center"> {/* Changed <p> to <div> */}
                   <span className="font-semibold text-indigo-700 mr-1">Yuan Points:</span>
                   {selectedChannelForDisplay.yuanPoints ? (
                     <span
@@ -471,11 +471,11 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
                       {selectedChannelForDisplay.yuanPoints}
                     </span>
                   ) : 'N/A'}
-                </p>
+                </div>
               </div>
               <div className="flex items-start gap-2">
                 <XCircle className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <p className="flex items-center">
+                <div className="flex items-center"> {/* Changed <p> to <div> */}
                   <span className="font-semibold text-indigo-700 mr-1">Sedate 1:</span>
                   {selectedChannelForDisplay.sedate1 ? (
                     <span
@@ -485,11 +485,11 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
                       {selectedChannelForDisplay.sedate1}
                     </span>
                   ) : 'N/A'}
-                </p>
+                </div>
               </div>
               <div className="flex items-start gap-2">
                 <XCircle className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <p className="flex items-center">
+                <div className="flex items-center"> {/* Changed <p> to <div> */}
                   <span className="font-semibold text-indigo-700 mr-1">Sedate 2:</span>
                   {selectedChannelForDisplay.sedate2 ? (
                     <span
@@ -499,11 +499,11 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
                       {selectedChannelForDisplay.sedate2}
                     </span>
                   ) : 'N/A'}
-                </p>
+                </div>
               </div>
               <div className="flex items-start gap-2">
                 <PlusCircle className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <p className="flex items-center">
+                <div className="flex items-center"> {/* Changed <p> to <div> */}
                   <span className="font-semibold text-indigo-700 mr-1">Tonify 1:</span>
                   {selectedChannelForDisplay.tonify1 ? (
                     <span
@@ -513,11 +513,11 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
                       {selectedChannelForDisplay.tonify1}
                     </span>
                   ) : 'N/A'}
-                </p>
+                </div>
               </div>
               <div className="flex items-start gap-2">
                 <PlusCircle className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <p className="flex items-center">
+                <div className="flex items-center"> {/* Changed <p> to <div> */}
                   <span className="font-semibold text-indigo-700 mr-1">Tonify 2:</span>
                   {selectedChannelForDisplay.tonify2 ? (
                     <span
@@ -527,11 +527,11 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
                       {selectedChannelForDisplay.tonify2}
                     </span>
                   ) : 'N/A'}
-                </p>
+                </div>
               </div>
               <div className="flex items-start gap-2">
                 <Mic className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <p className="flex items-center">
+                <div className="flex items-center"> {/* Changed <p> to <div> */}
                   <span className="font-semibold text-indigo-700 mr-1">Appropriate Sound:</span>
                   {selectedChannelForDisplay.appropriateSound ? (
                     <span
@@ -541,11 +541,11 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
                       {selectedChannelForDisplay.appropriateSound}
                     </span>
                   ) : 'N/A'}
-                </p>
+                </div>
               </div>
               <div className="flex items-start gap-2">
                 <Tag className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <p className="flex items-center">
+                <div className="flex items-center"> {/* Changed <p> to <div> */}
                   <span className="font-semibold text-indigo-700 mr-1">Tags:</span>
                   {selectedChannelForDisplay.tags.length > 0 ? (
                     <div className="flex flex-wrap gap-1">
@@ -564,11 +564,11 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
                       ))}
                     </div>
                   ) : 'N/A'}
-                </p>
+                </div>
               </div>
               <div className="flex items-start gap-2">
                 <Brain className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <p className="flex items-center">
+                <div className="flex items-center"> {/* Changed <p> to <div> */}
                   <span className="font-semibold text-indigo-700 mr-1">Brain Aspects:</span>
                   {selectedChannelForDisplay.brainAspects ? (
                     <span
@@ -578,11 +578,11 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
                       {selectedChannelForDisplay.brainAspects}
                     </span>
                   ) : 'N/A'}
-                </p>
+                </div>
               </div>
               <div className="flex items-start gap-2">
                 <Hand className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <p className="flex items-center">
+                <div className="flex items-center"> {/* Changed <p> to <div> */}
                   <span className="font-semibold text-indigo-700 mr-1">Activate Sinew:</span>
                   {selectedChannelForDisplay.activateSinew ? (
                     <span
@@ -592,11 +592,11 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
                       {selectedChannelForDisplay.activateSinew}
                     </span>
                   ) : 'N/A'}
-                </p>
+                </div>
               </div>
               <div className="flex items-start gap-2">
                 <Clock className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <p className="flex items-center">
+                <div className="flex items-center"> {/* Changed <p> to <div> */}
                   <span className="font-semibold text-indigo-700 mr-1">Time:</span>
                   {selectedChannelForDisplay.time ? (
                     <span
@@ -606,12 +606,12 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
                       {selectedChannelForDisplay.time}
                     </span>
                   ) : 'N/A'}
-                </p>
+                </div>
               </div>
               {/* New: Sound field */}
               <div className="flex items-start gap-2">
                 <Volume2 className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <p className="flex items-center">
+                <div className="flex items-center"> {/* Changed <p> to <div> */}
                   <span className="font-semibold text-indigo-700 mr-1">Sound:</span>
                   {selectedChannelForDisplay.sound ? (
                     <span
@@ -621,7 +621,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
                       {selectedChannelForDisplay.sound}
                     </span>
                   ) : 'N/A'}
-                </p>
+                </div>
               </div>
             </div>
             <div className="flex justify-end mt-4">
