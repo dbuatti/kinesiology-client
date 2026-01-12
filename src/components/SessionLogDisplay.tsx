@@ -10,6 +10,8 @@ import {
   GetSessionLogsResponse,
   DeleteSessionLogPayload,
   DeleteSessionLogResponse,
+  SessionLog,
+  SessionMuscleLog,
 } from '@/types/api';
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
 import { showError } from '@/utils/toast';
@@ -38,58 +40,63 @@ const SessionLogDisplay: React.FC<SessionLogDisplayProps> = ({
     new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   );
 
-  const renderLogDetails = (log: any) => {
-    if (log.log_type === 'muscle_strength_log') {
+  const renderLogDetails = (log: SessionLog | SessionMuscleLog) => {
+    // Type guard to differentiate between SessionLog and SessionMuscleLog
+    if ('muscle_id' in log) {
+      const muscleLog = log as SessionMuscleLog;
       return (
         <p className="text-sm text-gray-700">
-          Muscle: <span className="font-semibold">{log.muscle_name}</span> was tested{' '}
-          <Badge variant={log.is_strong ? 'default' : 'destructive'} className="ml-1">
-            {log.is_strong ? 'STRONG' : 'WEAK'}
+          Muscle: <span className="font-semibold">{muscleLog.muscle_name}</span> was tested{' '}
+          <Badge variant={muscleLog.is_strong ? 'default' : 'destructive'} className="ml-1">
+            {muscleLog.is_strong ? 'STRONG' : 'WEAK'}
           </Badge>
-          {log.notes && <span className="ml-2 italic">({log.notes})</span>}
+          {muscleLog.notes && <span className="ml-2 italic">({muscleLog.notes})</span>}
         </p>
       );
-    } else if (log.log_type === 'chakra_selected') {
+    } else {
+      const sessionLog = log as SessionLog;
+      if (sessionLog.log_type === 'chakra_selected') {
+        return (
+          <p className="text-sm text-gray-700">
+            Chakra: <span className="font-semibold">{sessionLog.details?.chakraName}</span> selected.
+            {sessionLog.details?.emotionalThemes?.length > 0 && (
+              <span className="ml-2">({sessionLog.details.emotionalThemes.join(', ')})</span>
+            )}
+          </p>
+        );
+      } else if (sessionLog.log_type.startsWith('channel_')) {
+        const itemType = sessionLog.log_type.replace('channel_', '').replace(/_/g, ' ');
+        return (
+          <p className="text-sm text-gray-700">
+            Channel: <span className="font-semibold">{sessionLog.details?.channelName}</span> - Logged{' '}
+            <span className="font-semibold capitalize">{itemType}</span>: "{sessionLog.details?.itemValue}"
+          </p>
+        );
+      } else if (sessionLog.log_type === 'acupoint_added') {
+        return (
+          <p className="text-sm text-gray-700">
+            Acupoint: <span className="font-semibold">{sessionLog.details?.acupointName}</span> added to session.
+          </p>
+        );
+      } else if (sessionLog.log_type === 'mode_selected') {
+        return (
+          <p className="text-sm text-gray-700">
+            Mode: <span className="font-semibold">{sessionLog.details?.modeName}</span> selected.
+          </p>
+        );
+      }
+      // Default rendering for other log types
       return (
         <p className="text-sm text-gray-700">
-          Chakra: <span className="font-semibold">{log.details?.chakraName}</span> selected.
-          {log.details?.emotionalThemes?.length > 0 && (
-            <span className="ml-2">({log.details.emotionalThemes.join(', ')})</span>
+          Type: <span className="font-semibold">{sessionLog.log_type.replace(/_/g, ' ')}</span>
+          {sessionLog.details && Object.keys(sessionLog.details).length > 0 && (
+            <span className="ml-2 italic">
+              (Details: {Object.entries(sessionLog.details).map(([key, value]) => `${key}: ${JSON.stringify(value)}`).join(', ')})
+            </span>
           )}
         </p>
       );
-    } else if (log.log_type.startsWith('channel_')) {
-      const itemType = log.log_type.replace('channel_', '').replace(/_/g, ' ');
-      return (
-        <p className="text-sm text-gray-700">
-          Channel: <span className="font-semibold">{log.details?.channelName}</span> - Logged{' '}
-          <span className="font-semibold capitalize">{itemType}</span>: "{log.details?.itemValue}"
-        </p>
-      );
-    } else if (log.log_type === 'acupoint_added') {
-      return (
-        <p className="text-sm text-gray-700">
-          Acupoint: <span className="font-semibold">{log.details?.acupointName}</span> added to session.
-        </p>
-      );
-    } else if (log.log_type === 'mode_selected') {
-      return (
-        <p className="text-sm text-gray-700">
-          Mode: <span className="font-semibold">{log.details?.modeName}</span> selected.
-        </p>
-      );
     }
-    // Default rendering for other log types
-    return (
-      <p className="text-sm text-gray-700">
-        Type: <span className="font-semibold">{log.log_type.replace(/_/g, ' ')}</span>
-        {log.details && Object.keys(log.details).length > 0 && (
-          <span className="ml-2 italic">
-            (Details: {Object.entries(log.details).map(([key, value]) => `${key}: ${JSON.stringify(value)}`).join(', ')})
-          </span>
-        )}
-      </p>
-    );
   };
 
   const handleDelete = async (logId: string, logType: 'session_log' | 'session_muscle_log') => {
