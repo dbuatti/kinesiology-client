@@ -96,6 +96,7 @@ serve(async (req) => {
     const clients = notionClientsData.results.map((page: any) => {
       const properties = page.properties
       const birthDate = properties["Born"]?.date?.start || null; // Fetch 'Born' date
+      console.log(`[get-all-clients] Client: ${properties.Name?.title?.[0]?.plain_text || "Unknown"}, Raw birthDate: ${birthDate}`); // DIAGNOSTIC LOG
       const starSign = calculateStarSign(birthDate); // Calculate star sign
 
       return {

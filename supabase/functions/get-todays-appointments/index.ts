@@ -208,8 +208,9 @@ serve(async (req) => {
 
           clientName = clientProperties.Name?.title?.[0]?.plain_text || clientName
           const birthDate = clientProperties["Born"]?.date?.start || null; // Fetch 'Born' date
+          console.log(`[get-todays-appointments] Client: ${clientName}, Raw birthDate from CRM: ${birthDate}`); // DIAGNOSTIC LOG
           starSign = calculateStarSign(birthDate); // Calculate star sign
-          console.log(`[get-todays-appointments] CRM details fetched for ${clientName}`)
+          console.log(`[get-todays-appointments] CRM details fetched for ${clientName}, starSign calculated: ${starSign}`)
         } else {
           const errorText = await notionClientResponse.text()
           console.warn(`[get-todays-appointments] Failed to fetch CRM details for client ID ${clientCrmRelation}:`, errorText)

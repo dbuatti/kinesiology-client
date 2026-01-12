@@ -136,7 +136,7 @@ serve(async (req) => {
 
         clientName = clientProperties.Name?.title?.[0]?.plain_text || clientName
         const birthDate = clientProperties["Born"]?.date?.start || null; // Fetch 'Born' date
-        console.log(`[get-single-appointment] Raw birthDate from CRM for ${clientName}:`, birthDate); // DIAGNOSTIC LOG
+        console.log(`[get-single-appointment] Client: ${clientName}, Raw birthDate from CRM: ${birthDate}`); // DIAGNOSTIC LOG
         starSign = calculateStarSign(birthDate); // Calculate star sign
         console.log(`[get-single-appointment] CRM details fetched for ${clientName}, starSign calculated: ${starSign}`)
       } else {
