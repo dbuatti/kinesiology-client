@@ -63,53 +63,62 @@ serve(async (req) => {
 
     const { searchTerm, searchType } = await req.json()
 
-    if (!searchTerm) {
-      console.warn("[get-acupoints] Bad request: Missing searchTerm")
-      return new Response(JSON.stringify({ error: 'Missing searchTerm in request body' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
+    let filter: any = undefined; // Initialize filter as undefined
+    const lowerCaseSearchTerm = searchTerm ? searchTerm.toLowerCase() : '';
+
+    if (searchTerm && searchTerm.trim() !== '') { // Only apply filter if searchTerm is not empty
+      if (searchType === 'point') {
+        filter = {
+          property: "Name",
+          title: {
+            contains: searchTerm // Case-sensitive, Notion API doesn't support case-insensitive for title
+          }
+        };
+      } else if (searchType === 'symptom') {
+        filter = {
+          or: [
+            {
+              property: "Tag (Primary)",
+              multi_select: {
+                contains: searchTerm
+              }
+            },
+            {
+              property: "subtag",
+              multi_select: {
+                contains: searchTerm
+              }
+            },
+            {
+              property: "Psychology",
+              rich_text: {
+                contains: searchTerm
+              }
+            }
+          ]
+        };
+      } else {
+        console.warn("[get-acupoints] Invalid searchType:", searchType)
+        return new Response(JSON.stringify({ error: 'Invalid searchType. Must be "point" or "symptom".' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+    } else {
+      console.log("[get-acupoints] No search term provided, fetching all acupoints.");
     }
 
-    let filter: any = {};
-    const lowerCaseSearchTerm = searchTerm.toLowerCase();
-
-    if (searchType === 'point') {
-      filter = {
-        property: "Name",
-        title: {
-          contains: searchTerm // Case-sensitive, Notion API doesn't support case-insensitive for title
+    const requestBody: any = {
+      sorts: [
+        {
+          property: "Name",
+          direction: "ascending"
         }
-      };
-    } else if (searchType === 'symptom') {
-      filter = {
-        or: [
-          {
-            property: "Tag (Primary)",
-            multi_select: {
-              contains: searchTerm
-            }
-          },
-          {
-            property: "subtag",
-            multi_select: {
-              contains: searchTerm
-            }
-          },
-          {
-            property: "Psychology",
-            rich_text: {
-              contains: searchTerm
-            }
-          }
-        ]
-      };
-    } else {
-      console.warn("[get-acupoints] Invalid searchType:", searchType)
-      return new Response(JSON.stringify({ error: 'Invalid searchType. Must be "point" or "symptom".' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
+      ]
+    };
+
+    if (filter) {
+      requestBody.filter = filter;
     }
 
     const notionAcupointsResponse = await fetch('https://api.notion.com/v1/databases/' + secrets.acupoints_database_id + '/query', {
@@ -119,15 +128,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
         'Notion-Version': '2022-06-28'
       },
-      body: JSON.stringify({
-        filter: filter,
-        sorts: [
-          {
-            property: "Name",
-            direction: "ascending"
-          }
-        ]
-      })
+      body: JSON.stringify(requestBody)
     })
 
     if (!notionAcupointsResponse.ok) {

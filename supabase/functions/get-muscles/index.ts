@@ -63,55 +63,63 @@ serve(async (req) => {
 
     const { searchTerm, searchType } = await req.json()
 
-    if (!searchTerm) {
-      console.warn("[get-muscles] Bad request: Missing searchTerm")
-      return new Response(JSON.stringify({ error: 'Missing searchTerm in request body' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
+    let filter: any = undefined; // Initialize filter as undefined
+    const lowerCaseSearchTerm = searchTerm ? searchTerm.toLowerCase() : '';
+
+    if (searchTerm && searchTerm.trim() !== '') { // Only apply filter if searchTerm is not empty
+      if (searchType === 'muscle') {
+        filter = {
+          property: "Muscle Name",
+          title: {
+            contains: searchTerm // Notion API title search is case-sensitive
+          }
+        };
+      } else if (searchType === 'meridian' || searchType === 'organ') {
+        filter = {
+          or: [
+            {
+              property: "Associated Meridian",
+              select: {
+                equals: searchTerm
+              }
+            },
+            {
+              property: "Organ System",
+              select: {
+                equals: searchTerm
+              }
+            }
+          ]
+        };
+      } else if (searchType === 'emotion') {
+        filter = {
+          property: "Emotional Theme",
+          multi_select: {
+            contains: searchTerm
+          }
+        };
+      } else {
+        console.warn("[get-muscles] Invalid searchType:", searchType)
+        return new Response(JSON.stringify({ error: 'Invalid searchType. Must be "muscle", "meridian", "organ", or "emotion".' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+    } else {
+      console.log("[get-muscles] No search term provided, fetching all muscles.");
     }
 
-    let filter: any = {};
-    const lowerCaseSearchTerm = searchTerm.toLowerCase();
+    const requestBody: any = {
+      sorts: [
+        {
+          property: "Muscle Name",
+          direction: "ascending"
+        }
+      ]
+    };
 
-    // Implement search logic based on user's provided schema and search types
-    if (searchType === 'muscle') {
-      filter = {
-        property: "Muscle Name",
-        title: {
-          contains: searchTerm // Notion API title search is case-sensitive
-        }
-      };
-    } else if (searchType === 'meridian' || searchType === 'organ') {
-      filter = {
-        or: [
-          {
-            property: "Associated Meridian",
-            select: {
-              equals: searchTerm
-            }
-          },
-          {
-            property: "Organ System",
-            select: {
-              equals: searchTerm
-            }
-          }
-        ]
-      };
-    } else if (searchType === 'emotion') {
-      filter = {
-        property: "Emotional Theme",
-        multi_select: {
-          contains: searchTerm
-        }
-      };
-    } else {
-      console.warn("[get-muscles] Invalid searchType:", searchType)
-      return new Response(JSON.stringify({ error: 'Invalid searchType. Must be "muscle", "meridian", "organ", or "emotion".' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
+    if (filter) {
+      requestBody.filter = filter;
     }
 
     const notionMusclesResponse = await fetch('https://api.notion.com/v1/databases/' + secrets.muscles_database_id + '/query', {
@@ -121,15 +129,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
         'Notion-Version': '2022-06-28'
       },
-      body: JSON.stringify({
-        filter: filter,
-        sorts: [
-          {
-            property: "Muscle Name",
-            direction: "ascending"
-          }
-        ]
-      })
+      body: JSON.stringify(requestBody)
     })
 
     if (!notionMusclesResponse.ok) {
