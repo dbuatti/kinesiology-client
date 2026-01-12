@@ -22,7 +22,8 @@
       GetSingleAppointmentPayload, GetSingleAppointmentResponse,
       GetNotionModesResponse,
       GetAcupointsPayload, GetAcupointsResponse,
-      UpdateNotionAppointmentPayload, UpdateNotionAppointmentResponse
+      UpdateNotionAppointmentPayload, UpdateNotionAppointmentResponse,
+      LogSessionEventPayload, LogSessionEventResponse
     } from '@/types/api';
 
     const ActiveSession = () => {
@@ -151,6 +152,23 @@
         }
       );
 
+      // New hook for logging general session events
+      const {
+        loading: loggingSessionEvent,
+        execute: logSessionEvent,
+      } = useSupabaseEdgeFunction<LogSessionEventPayload, LogSessionEventResponse>(
+        'log-session-event',
+        {
+          requiresAuth: true,
+          onSuccess: (data) => {
+            console.log('Session event logged to Supabase:', data.logId);
+          },
+          onError: (msg) => {
+            console.error('Failed to log session event to Supabase:', msg);
+          }
+        }
+      );
+
       useEffect(() => {
         if (appointmentId) {
           fetchSingleAppointment({ appointmentId });
@@ -223,10 +241,23 @@
 
       const handleAddAcupointToSession = async () => {
         if (selectedAcupoint && appointmentId) {
-          const payload = { appointmentId: appointmentId, updates: { acupointId: selectedAcupoint.id } };
-          console.log("[ActiveSession] Sending payload to update-notion-appointment:", payload); // Added log
-          await updateNotionAppointment(payload);
-          if (!updatingAppointment) {
+          // 1. Update Notion (if property exists)
+          const notionUpdatePayload = { appointmentId: appointmentId, updates: { acupointId: selectedAcupoint.id } };
+          console.log("[ActiveSession] Sending payload to update-notion-appointment:", notionUpdatePayload);
+          await updateNotionAppointment(notionUpdatePayload);
+
+          // 2. Log to Supabase
+          await logSessionEvent({
+            appointmentId: appointmentId,
+            logType: 'acupoint_added',
+            details: {
+              acupointId: selectedAcupoint.id,
+              acupointName: selectedAcupoint.name,
+              channel: selectedAcupoint.channel,
+            }
+          });
+
+          if (!updatingAppointment && !loggingSessionEvent) { // Only show toast if both operations are not loading
             toast({
               title: 'Acupoint Added',
               description: `${selectedAcupoint.name} added to the current session.`,
@@ -249,7 +280,21 @@
         console.log('Muscle selected:', muscle.name);
       };
 
-      // Removed handleMuscleStrengthLogged as it's now handled internally by MuscleSelector
+      const handleSelectMode = (mode: Mode) => {
+        setSelectedMode(mode);
+        setIsModeSelectOpen(false);
+        if (appointmentId) {
+          logSessionEvent({
+            appointmentId: appointmentId,
+            logType: 'mode_selected',
+            details: {
+              modeId: mode.id,
+              modeName: mode.name,
+              actionNote: mode.actionNote,
+            }
+          });
+        }
+      };
 
       if (loadingAppointment || loadingModes || loadingAcupoints) {
         return (
@@ -413,7 +458,7 @@
                             role="combobox"
                             aria-expanded={isModeSelectOpen}
                             className="w-full justify-between"
-                            disabled={loadingModes || updatingAppointment}
+                            disabled={loadingModes || updatingAppointment || loggingSessionEvent}
                           >
                             {selectedMode ? selectedMode.name : "Select mode..."}
                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -429,10 +474,7 @@
                                 <CommandItem
                                   key={mode.id}
                                   value={mode.name}
-                                  onSelect={() => {
-                                    setSelectedMode(mode);
-                                    setIsModeSelectOpen(false);
-                                  }}
+                                  onSelect={() => handleSelectMode(mode)}
                                 >
                                   <Check
                                     className={cn(
@@ -497,7 +539,7 @@
                                 onChange={handleAcupointSearchChange}
                                 onFocus={() => setIsAcupointSearchOpen(true)}
                                 className="w-full"
-                                disabled={loadingAcupoints || updatingAppointment}
+                                disabled={loadingAcupoints || updatingAppointment || loggingSessionEvent}
                               />
                             </PopoverTrigger>
                             <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
@@ -537,7 +579,7 @@
                                 onChange={handleSymptomSearchChange}
                                 onFocus={() => setIsSymptomSearchOpen(true)}
                                 className="w-full"
-                                disabled={loadingAcupoints || updatingAppointment}
+                                disabled={loadingAcupoints || updatingAppointment || loggingSessionEvent}
                               />
                             </PopoverTrigger>
                             <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
@@ -615,10 +657,10 @@
                               <Button
                                 className="w-full mt-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white"
                                 onClick={handleAddAcupointToSession}
-                                disabled={updatingAppointment}
+                                disabled={updatingAppointment || loggingSessionEvent}
                               >
                                 <PlusCircle className="w-4 h-4 mr-2" />
-                                {updatingAppointment ? 'Adding...' : 'Add to Session'}
+                                {updatingAppointment || loggingSessionEvent ? 'Adding...' : 'Add to Session'}
                               </Button>
                             </CardContent>
                           </Card>

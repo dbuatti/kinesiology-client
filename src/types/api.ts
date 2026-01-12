@@ -216,3 +216,14 @@ export interface LogMuscleStrengthResponse {
   success: boolean;
   logId: string;
 }
+
+export interface LogSessionEventPayload {
+  appointmentId: string;
+  logType: string;
+  details?: Record<string, any>;
+}
+
+export interface LogSessionEventResponse {
+  success: boolean;
+  logId: string;
+}
