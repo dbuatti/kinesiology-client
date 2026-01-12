@@ -7,19 +7,21 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Menu, Home, Calendar, Users, Settings, LogOut, UserCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
+import { showSuccess, showError } from '@/utils/toast';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const AppNavbar = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [userName, setUserName] = useState('Guest');
+  const [userEmail, setUserEmail] = useState('');
   const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   useEffect(() => {
     const fetchUserProfile = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        setUserEmail(user.email || '');
         const { data: profile, error } = await supabase
           .from('profiles')
           .select('first_name')
@@ -31,6 +33,8 @@ const AppNavbar = () => {
         } else if (error && error.code !== 'PGRST116') {
           console.error('Error fetching profile:', error);
         }
+      } else {
+        setUserEmail('');
       }
     };
 
@@ -41,6 +45,7 @@ const AppNavbar = () => {
         fetchUserProfile();
       } else {
         setUserName('Guest');
+        setUserEmail('');
       }
     });
 
@@ -108,9 +113,7 @@ const AppNavbar = () => {
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none">Hi, {userName}</p>
-                    <p className="text-xs leading-none text-muted-foreground">
-                      {/* User email could go here if needed */}
-                    </p>
+                    {userEmail && <p className="text-xs leading-none text-muted-foreground">{userEmail}</p>}
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
@@ -159,6 +162,7 @@ const AppNavbar = () => {
                       <DropdownMenuLabel className="font-normal">
                         <div className="flex flex-col space-y-1">
                           <p className="text-sm font-medium leading-none">Hi, {userName}</p>
+                          {userEmail && <p className="text-xs leading-none text-muted-foreground">{userEmail}</p>}
                         </div>
                       </DropdownMenuLabel>
                       <DropdownMenuSeparator />

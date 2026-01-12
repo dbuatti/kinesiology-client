@@ -13,6 +13,7 @@ export interface Appointment {
   status: string;
   notes: string;
   sessionAnchor: string;
+  acupointId: string | null; // Added to resolve TS2353
 }
 
 export interface Client {
@@ -232,6 +233,42 @@ export interface LogSessionEventPayload {
 export interface LogSessionEventResponse {
   success: boolean;
   logId: string;
+}
+
+// New interfaces for session logs
+export interface SessionLog {
+  id: string;
+  created_at: string;
+  user_id: string;
+  appointment_id: string;
+  log_type: string;
+  details: any;
+}
+
+export interface SessionMuscleLog {
+  id: string;
+  created_at: string;
+  user_id: string;
+  appointment_id: string;
+  muscle_id: string;
+  muscle_name: string;
+  is_strong: boolean;
+  notes: string | null;
+}
+
+export interface GetSessionLogsResponse {
+  sessionLogs: SessionLog[];
+  sessionMuscleLogs: SessionMuscleLog[];
+}
+
+export interface DeleteSessionLogPayload {
+  logId: string;
+  logType: 'session_log' | 'session_muscle_log';
+}
+
+export interface DeleteSessionLogResponse {
+  success: boolean;
+  deletedLogId: string;
 }
 
 export interface SetNotionSecretsPayload {

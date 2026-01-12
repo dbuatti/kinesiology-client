@@ -5,8 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Calendar, Settings, AlertCircle, PlayCircle, User, Star, Target, Lightbulb, Loader2 } from 'lucide-react';
-import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
+import { Calendar, Settings, AlertCircle, PlayCircle, User, Star, Target, Lightbulb, Loader2, RefreshCw } from 'lucide-react';
+import { showSuccess, showError } from '@/utils/toast';
 import { format } from 'date-fns';
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
 import { Appointment, GetTodaysAppointmentsResponse, UpdateNotionAppointmentPayload, UpdateNotionAppointmentResponse } from '@/types/api';
@@ -46,7 +46,7 @@ const WaitingRoom = () => {
       requiresNotionConfig: true,
       onSuccess: handleSuccess,
       onError: handleError,
-      onNotionConfigNeeded: handleNotionConfigNeeded, // Use the stable callback
+      onNotionConfigNeeded: handleNotionConfigNeeded,
     }
   );
 
@@ -77,12 +77,16 @@ const WaitingRoom = () => {
       appointmentId: appointmentId,
       updates: { status: 'OPEN' }
     });
-    if (!updatingAppointment) { // Only navigate if update was successful and not still loading
+    if (!updatingAppointment) {
       navigate(`/active-session/${appointmentId}`);
     }
   };
 
-  console.log('[WaitingRoom] Rendering with appointments:', appointments); // Log appointments state at render time
+  const handleRefresh = () => {
+    fetchTodaysAppointments();
+  };
+
+  console.log('[WaitingRoom] Rendering with appointments:', appointments);
 
   if (loadingAppointments) {
     return (
@@ -145,12 +149,21 @@ const WaitingRoom = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6">
       <div className="max-w-2xl mx-auto">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-indigo-900 mb-2">Waiting Room</h1>
-          <p className="text-gray-600">
-            {format(new Date(), 'EEEE, MMMM d, yyyy')}
-          </p>
+        <div className="text-center mb-8 flex items-center justify-center gap-4">
+          <h1 className="text-3xl font-bold text-indigo-900">Waiting Room</h1>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleRefresh}
+            disabled={loadingAppointments}
+            className="text-indigo-600 hover:bg-indigo-100 hover:text-indigo-800"
+          >
+            {loadingAppointments ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+          </Button>
         </div>
+        <p className="text-gray-600 text-center mb-8">
+          {format(new Date(), 'EEEE, MMMM d, yyyy')}
+        </p>
 
         {appointments.length === 0 ? (
           <Card className="shadow-lg">
