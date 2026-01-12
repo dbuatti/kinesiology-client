@@ -81,7 +81,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
     fetchChannels({ searchTerm: '', searchType: 'name' }); // Fetch all channels initially
   }, [fetchChannels]);
 
-  const { meridianChannels, nonMeridianChannels } = useMemo(() => {
+  const { meridian, nonMeridian } = useMemo(() => { // Changed variable names here
     const meridian: Channel[] = [];
     const nonMeridian: Channel[] = [];
 
@@ -107,7 +107,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
     // Sort non-meridian channels by name
     nonMeridian.sort((a, b) => a.name.localeCompare(b.name));
 
-    return { meridianChannels, nonMeridianChannels };
+    return { meridian, nonMeridian }; // Changed return object keys here
   }, [allChannels]);
 
   const handleSelectChannel = (channel: Channel) => {
@@ -165,7 +165,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
           <>
             {/* Meridian Channels */}
             <div className="flex flex-wrap gap-2">
-              {meridianChannels.map(channel => (
+              {meridian.map(channel => (
                 <Button
                   key={channel.id}
                   variant="outline"
@@ -183,14 +183,14 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
             </div>
 
             {/* Non-Meridian Channels */}
-            {nonMeridianChannels.length > 0 && (
+            {nonMeridian.length > 0 && (
               <>
                 <Separator className="my-6" />
                 <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1">
                   <Sparkles className="w-4 h-4 text-gray-600" /> Other Channels
                 </h3>
                 <div className="flex flex-wrap gap-2">
-                  {nonMeridianChannels.map(channel => (
+                  {nonMeridian.map(channel => (
                     <Button
                       key={channel.id}
                       variant="outline"
@@ -224,7 +224,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
                 >
                   <ExternalLink className="w-4 h-4" />
                 </a>
-              </h3>
+              </h3 >
               <div className="flex gap-1">
                 {selectedChannelForDisplay.elements.map((element, i) => (
                   <Badge key={i} variant="secondary" className="bg-indigo-200 text-indigo-800 text-xs">
