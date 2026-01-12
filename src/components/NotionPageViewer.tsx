@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Fragment, useEffect, useMemo } from 'react';
+import React, { Fragment, useEffect, useMemo, useState } from 'react'; // Import useState
 import { Loader2, AlertCircle, CheckSquare, Square, ChevronRight, Image as ImageIcon, Info } from 'lucide-react';
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
 import { NotionBlock, NotionRichText, GetNotionPageContentPayload, GetNotionPageContentResponse } from '@/types/api';
@@ -8,7 +8,6 @@ import { cn } from '@/lib/utils';
 
 interface NotionPageViewerProps {
   pageId: string | null;
-  pageTitle?: string | null; // New prop for dynamic title
 }
 
 const renderRichText = (richText: NotionRichText[]) => {
@@ -35,7 +34,9 @@ const renderRichText = (richText: NotionRichText[]) => {
   });
 };
 
-const NotionPageViewer: React.FC<NotionPageViewerProps> = ({ pageId, pageTitle }) => {
+const NotionPageViewer: React.FC<NotionPageViewerProps> = ({ pageId }) => {
+  const [internalPageTitle, setInternalPageTitle] = useState<string | null>(null); // Internal state for title
+
   const {
     data: pageContent,
     loading,
@@ -46,14 +47,23 @@ const NotionPageViewer: React.FC<NotionPageViewerProps> = ({ pageId, pageTitle }
     {
       requiresAuth: true,
       requiresNotionConfig: true,
-      onSuccess: (data) => console.log('[NotionPageViewer] Fetched page content:', data.title),
-      onError: (msg) => console.error('[NotionPageViewer] Error fetching page content:', msg),
+      onSuccess: (data) => {
+        console.log('[NotionPageViewer] Fetched page content:', data.title);
+        setInternalPageTitle(data.title); // Set internal title on success
+      },
+      onError: (msg) => {
+        console.error('[NotionPageViewer] Error fetching page content:', msg);
+        setInternalPageTitle(null); // Clear title on error
+      },
     }
   );
 
   useEffect(() => {
     if (pageId) {
+      setInternalPageTitle(null); // Clear title immediately when pageId changes
       fetchPageContent({ pageId });
+    } else {
+      setInternalPageTitle(null); // Clear title if no pageId
     }
   }, [pageId, fetchPageContent]);
 
@@ -204,7 +214,7 @@ const NotionPageViewer: React.FC<NotionPageViewerProps> = ({ pageId, pageTitle }
 
   return (
     <div className="notion-page-viewer p-4 max-h-[70vh] overflow-y-auto">
-      {/* The title is now passed as a prop to the CardHeader in ActiveSession.tsx */}
+      {/* The title is now managed internally by the component */}
       {pageContent.blocks.map(renderBlock)}
     </div>
   );

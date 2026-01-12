@@ -21,6 +21,8 @@ interface SessionLogDisplayProps {
   sessionMuscleLogs: GetSessionLogsResponse['sessionMuscleLogs'];
   onDeleteLog: (payload: DeleteSessionLogPayload) => Promise<void>;
   deletingLog: boolean;
+  onClearAllLogs: (payload: { appointmentId: string }) => Promise<void>; // New prop
+  clearingAllLogs: boolean; // New prop
 }
 
 const SessionLogDisplay: React.FC<SessionLogDisplayProps> = ({
@@ -29,6 +31,8 @@ const SessionLogDisplay: React.FC<SessionLogDisplayProps> = ({
   sessionMuscleLogs,
   onDeleteLog,
   deletingLog,
+  onClearAllLogs,
+  clearingAllLogs,
 }) => {
   const allLogs = [...sessionLogs, ...sessionMuscleLogs].sort((a, b) =>
     new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
@@ -92,6 +96,10 @@ const SessionLogDisplay: React.FC<SessionLogDisplayProps> = ({
     await onDeleteLog({ logId, logType });
   };
 
+  const handleClearAll = async () => {
+    await onClearAllLogs({ appointmentId });
+  };
+
   return (
     <Card className="shadow-xl">
       <CardHeader className="bg-indigo-50 border-b border-indigo-200 rounded-t-lg p-4">
@@ -127,6 +135,16 @@ const SessionLogDisplay: React.FC<SessionLogDisplayProps> = ({
                 </Button>
               </div>
             ))}
+            <Separator className="my-4" />
+            <Button
+              variant="destructive"
+              className="w-full"
+              onClick={handleClearAll}
+              disabled={clearingAllLogs || deletingLog}
+            >
+              {clearingAllLogs ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+              {clearingAllLogs ? 'Clearing All Logs...' : 'Clear All Logs'}
+            </Button>
           </div>
         )}
       </CardContent>

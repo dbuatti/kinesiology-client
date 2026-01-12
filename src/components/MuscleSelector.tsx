@@ -19,7 +19,7 @@ interface MuscleSelectorProps {
   onMuscleSelected: (muscle: Muscle) => void;
   onMuscleStrengthLogged: (muscle: Muscle, isStrong: boolean) => void;
   appointmentId: string;
-  onOpenNotionPage: (pageId: string, pageTitle: string) => void; // Changed prop name and type
+  onOpenNotionPage: (pageId: string) => void; // Changed prop name and type
 }
 
 const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMuscleStrengthLogged, appointmentId, onOpenNotionPage }) => {
@@ -101,7 +101,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
     setSelectedMuscle(null);
     setSearchTerm(''); // Clear search term in the trigger
     setFilteredMuscles(allMuscles);
-    setShowWeaknessChecklist(false);
+    setShowWeaknessChecklist(false); // Clear weakness checklist
   };
 
   if (needsConfig) {
@@ -135,7 +135,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
           <Hand className="w-5 h-5" />
           Muscle Testing & Insights
           {selectedMuscle && (
-            <Button variant="ghost" size="icon" className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100" onClick={() => onOpenNotionPage(selectedMuscle.id, selectedMuscle.name)}>
+            <Button variant="ghost" size="icon" className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100" onClick={() => onOpenNotionPage(selectedMuscle.id)}>
               <Info className="h-4 w-4" />
             </Button>
           )}
@@ -219,7 +219,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
                         className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
                         onClick={(e) => {
                           e.stopPropagation(); // Prevent selecting the muscle when clicking the info button
-                          onOpenNotionPage(muscle.id, muscle.name);
+                          onOpenNotionPage(muscle.id);
                         }}
                       >
                         <Info className="h-4 w-4" />
@@ -242,7 +242,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
                   variant="ghost"
                   size="icon"
                   className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
-                  onClick={() => onOpenNotionPage(selectedMuscle.id, selectedMuscle.name)}
+                  onClick={() => onOpenNotionPage(selectedMuscle.id)}
                 >
                   <ExternalLink className="h-4 w-4" />
                 </Button>

@@ -77,7 +77,7 @@ const ActiveSession = () => {
   // Tab and Notion Page Viewer States
   const [activeTab, setActiveTab] = useState('overview'); // Default active tab
   const [selectedNotionPageId, setSelectedNotionPageId] = useState<string | null>(null); // Centralized Notion page ID
-  const [selectedNotionPageTitle, setSelectedNotionPageTitle] = useState<string | null>(null); // Title for Notion Page Viewer
+  // Removed selectedNotionPageTitle state as NotionPageViewer will manage its own title
 
   // --- Supabase Edge Function Hooks (Declared first to resolve TS2448) ---
 
@@ -251,6 +251,26 @@ const ActiveSession = () => {
     }
   );
 
+  // New: Clear All Session Logs
+  const {
+    loading: clearingAllLogs,
+    execute: clearAllSessionLogs,
+  } = useSupabaseEdgeFunction<{ appointmentId: string }, { success: boolean }>(
+    'clear-session-logs', // New edge function name
+    {
+      requiresAuth: true,
+      onSuccess: useCallback(() => {
+        showSuccess('All session logs cleared.');
+        if (appointmentId) {
+          fetchSessionLogs({ appointmentId }); // Refresh logs after clearing
+        }
+      }, [appointmentId, fetchSessionLogs]),
+      onError: useCallback((msg: string) => {
+        showError(`Failed to clear all logs: ${msg}`);
+      }, []),
+    }
+  );
+
   // --- Effects ---
 
   useEffect(() => {
@@ -262,7 +282,7 @@ const ActiveSession = () => {
   }, [appointmentId, fetchSingleAppointment, fetchModes, fetchSessionLogs]);
 
   // Combine all loading states
-  const overallLoading = loadingAppointment || loadingModes || loadingAcupoints || loggingSessionEvent || loggingMuscleStrength || loadingSessionLogs || deletingSessionLog;
+  const overallLoading = loadingAppointment || loadingModes || loadingAcupoints || loggingSessionEvent || loggingMuscleStrength || loadingSessionLogs || deletingSessionLog || clearingAllLogs;
   // Combine all needsConfig states
   const overallNeedsConfig = appointmentNeedsConfig || modesNeedsConfig || acupointsNeedsConfig;
   // Combine all errors for initial display
@@ -402,11 +422,16 @@ const ActiveSession = () => {
   }, [appointmentId, fetchSessionLogs]);
 
   // Centralized handler for opening Notion pages
-  const handleOpenNotionPage = useCallback((pageId: string, pageTitle: string) => {
+  const handleOpenNotionPage = useCallback((pageId: string) => { // Removed pageTitle from here
     setSelectedNotionPageId(pageId);
-    setSelectedNotionPageTitle(pageTitle);
     setActiveTab('notion-page'); // Switch to the Notion Page tab
   }, []);
+
+  const handleClearAllSessionLogs = useCallback(async () => {
+    if (appointmentId && confirm('Are you sure you want to clear ALL logs for this session? This action cannot be undone.')) {
+      await clearAllSessionLogs({ appointmentId });
+    }
+  }, [appointmentId, clearAllSessionLogs]);
 
   // --- Render Logic ---
 
@@ -633,7 +658,7 @@ const ActiveSession = () => {
                                     size="icon"
                                     onClick={(e) => {
                                       e.stopPropagation(); // Prevent selecting the mode when clicking the info button
-                                      handleOpenNotionPage(mode.id, mode.name); // Use centralized handler
+                                      handleOpenNotionPage(mode.id); // Use centralized handler
                                     }}
                                   >
                                     <Info className="h-4 w-4" />
@@ -750,7 +775,7 @@ const ActiveSession = () => {
                                   className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
                                   onClick={(e) => {
                                     e.stopPropagation(); // Prevent selecting the acupoint when clicking the info button
-                                    handleOpenNotionPage(point.id, point.name); // Use centralized handler
+                                    handleOpenNotionPage(point.id); // Use centralized handler
                                   }}
                                 >
                                   <Info className="h-4 w-4" />
@@ -812,7 +837,7 @@ const ActiveSession = () => {
                                   className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
                                   onClick={(e) => {
                                     e.stopPropagation(); // Prevent selecting the acupoint when clicking the info button
-                                    handleOpenNotionPage(point.id, point.name); // Use centralized handler
+                                    handleOpenNotionPage(point.id); // Use centralized handler
                                   }}
                                 >
                                   <Info className="h-4 w-4" />
@@ -835,7 +860,7 @@ const ActiveSession = () => {
                             variant="ghost"
                             size="icon"
                             className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
-                            onClick={() => { handleOpenNotionPage(selectedAcupoint.id, selectedAcupoint.name); }} // Use centralized handler
+                            onClick={() => { handleOpenNotionPage(selectedAcupoint.id); }} // Use centralized handler
                           >
                             <Info className="h-4 w-4" />
                           </Button>
@@ -913,6 +938,8 @@ const ActiveSession = () => {
                 sessionMuscleLogs={sessionMuscleLogs}
                 onDeleteLog={deleteSessionLog}
                 deletingLog={deletingSessionLog}
+                onClearAllLogs={handleClearAllSessionLogs} // Pass new handler
+                clearingAllLogs={clearingAllLogs} // Pass new loading state
               />
             </TabsContent>
 
@@ -922,7 +949,7 @@ const ActiveSession = () => {
                 <CardHeader className="bg-indigo-50 border-b border-indigo-200 rounded-t-lg p-4">
                   <CardTitle className="text-xl font-bold text-indigo-800 flex items-center gap-2">
                     <Info className="w-5 h-5" />
-                    {selectedNotionPageTitle || "Notion Page Viewer"}
+                    Notion Page Viewer
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-6">
