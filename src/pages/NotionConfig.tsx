@@ -15,7 +15,8 @@ const NotionConfig = () => {
   const [appointmentsDbId, setAppointmentsDbId] = useState('');
   const [crmDbId, setCrmDbId] = useState('');
   const [modesDbId, setModesDbId] = useState('');
-  const [acupointsDbId, setAcupointsDbId] = useState(''); // New state for Acupoints DB ID
+  const [acupointsDbId, setAcupointsDbId] = useState('');
+  const [musclesDbId, setMusclesDbId] = useState(''); // New state for Muscles DB ID
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -32,7 +33,7 @@ const NotionConfig = () => {
 
         const { data, error } = await supabase
           .from('notion_secrets')
-          .select('notion_integration_token, appointments_database_id, crm_database_id, modes_database_id, acupoints_database_id') // Select new column
+          .select('notion_integration_token, appointments_database_id, crm_database_id, modes_database_id, acupoints_database_id, muscles_database_id') // Select new column
           .eq('user_id', session.user.id)
           .single();
 
@@ -45,7 +46,8 @@ const NotionConfig = () => {
           setAppointmentsDbId(data.appointments_database_id || '');
           setCrmDbId(data.crm_database_id || '');
           setModesDbId(data.modes_database_id || '');
-          setAcupointsDbId(data.acupoints_database_id || ''); // Set new state
+          setAcupointsDbId(data.acupoints_database_id || '');
+          setMusclesDbId(data.muscles_database_id || ''); // Set new state
         }
       } catch (error: any) {
         toast({
@@ -92,11 +94,20 @@ const NotionConfig = () => {
       setLoading(false);
       return;
     }
-    if (!acupointsDbId.trim()) { // New validation for Acupoints DB ID
+    if (!acupointsDbId.trim()) {
       toast({
         variant: 'destructive',
         title: 'Validation Error',
         description: 'Acupoints Database ID cannot be empty.',
+      });
+      setLoading(false);
+      return;
+    }
+    if (!musclesDbId.trim()) { // New validation for Muscles DB ID
+      toast({
+        variant: 'destructive',
+        title: 'Validation Error',
+        description: 'Muscles Database ID cannot be empty.',
       });
       setLoading(false);
       return;
@@ -132,7 +143,8 @@ const NotionConfig = () => {
             appointmentsDbId: appointmentsDbId,
             crmDbId: crmDbId || null,
             modesDbId: modesDbId || null,
-            acupointsDbId: acupointsDbId || null, // Send new ID
+            acupointsDbId: acupointsDbId || null,
+            musclesDbId: musclesDbId || null, // Send new ID
           })
         }
       );
@@ -274,7 +286,7 @@ const NotionConfig = () => {
                     </p>
                   </div>
 
-                  {/* Acupoints Database ID (New Field) */}
+                  {/* Acupoints Database ID */}
                   <div className="space-y-2">
                     <Label htmlFor="acupoints" className="flex items-center gap-2 font-semibold">
                       <Database className="w-4 h-4 text-indigo-600" />
@@ -290,6 +302,25 @@ const NotionConfig = () => {
                     />
                     <p className="text-xs text-gray-500">
                       ID for your Acupoints reference database.
+                    </p>
+                  </div>
+
+                  {/* Muscles Database ID (New Field) */}
+                  <div className="space-y-2">
+                    <Label htmlFor="muscles" className="flex items-center gap-2 font-semibold">
+                      <Database className="w-4 h-4 text-indigo-600" />
+                      Muscles Database ID
+                    </Label>
+                    <Input
+                      id="muscles"
+                      type="text"
+                      placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                      value={musclesDbId}
+                      onChange={(e) => setMusclesDbId(e.target.value)}
+                      disabled={loading}
+                    />
+                    <p className="text-xs text-gray-500">
+                      ID for your Muscles reference database.
                     </p>
                   </div>
 
@@ -318,7 +349,7 @@ const NotionConfig = () => {
                   <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
                     <li>Create a Notion integration at notion.com/my-integrations</li>
                     <li>Copy the "Internal Integration Token"</li>
-                    <li>Share your databases (Appointments, CRM, Modes, Acupoints) with the integration</li>
+                    <li>Share your databases (Appointments, CRM, Modes, Acupoints, Muscles) with the integration</li>
                     <li>Copy each database ID from its share link</li>
                     <li>Paste all values above and save</li>
                   </ol>
