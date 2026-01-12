@@ -95,13 +95,15 @@ serve(async (req) => {
 
     const channels = notionChannelsData.results.map((page: any) => {
       const properties = page.properties
+      console.log(`[get-channels] Raw Notion properties for channel ${properties.Meridian?.title?.[0]?.plain_text || page.id}:`, JSON.stringify(properties, null, 2)); // Log raw properties
+
       return {
         id: page.id,
         name: properties.Meridian?.title?.[0]?.plain_text || "Unknown Channel", // Changed from "Channel" to "Meridian"
         elements: properties.Elements?.multi_select?.map((s: any) => s.name) || [],
         pathways: properties.Pathways?.rich_text?.[0]?.plain_text || "",
         functions: properties.Functions?.rich_text?.[0]?.plain_text || "",
-        emotions: properties.Emotions?.multi_select?.map((s: any) => s.name) || [],
+        emotions: properties.Emotion?.multi_select?.map((s: any) => s.name) || [], // Corrected from 'Emotions' to 'Emotion'
         frontMu: properties["Front Mu"]?.rich_text?.[0]?.plain_text || "",
         heSea: properties["He Sea"]?.rich_text?.[0]?.plain_text || "",
         jingRiver: properties["Jing River"]?.rich_text?.[0]?.plain_text || "",

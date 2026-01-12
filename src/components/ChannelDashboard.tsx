@@ -81,21 +81,21 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
     fetchChannels({ searchTerm: '', searchType: 'name' }); // Fetch all channels initially
   }, [fetchChannels]);
 
-  const { meridian, nonMeridian } = useMemo(() => { // Corrected destructuring here
-    const meridianChannels: Channel[] = [];
-    const nonMeridianChannels: Channel[] = [];
+  const { meridianChannels, nonMeridianChannels } = useMemo(() => {
+    const meridian: Channel[] = [];
+    const nonMeridian: Channel[] = [];
 
     allChannels.forEach(channel => {
       const hasPrimaryElement = channel.elements.some(element => primaryElements.includes(element));
       if (hasPrimaryElement) {
-        meridianChannels.push(channel);
+        meridian.push(channel);
       } else {
-        nonMeridianChannels.push(channel);
+        nonMeridian.push(channel);
       }
     });
 
     // Sort meridian channels by element, then by name
-    meridianChannels.sort((a, b) => {
+    meridian.sort((a, b) => {
       const elementA = primaryElements.indexOf(a.elements[0] || '');
       const elementB = primaryElements.indexOf(b.elements[0] || '');
       if (elementA !== elementB) {
@@ -105,9 +105,9 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
     });
 
     // Sort non-meridian channels by name
-    nonMeridianChannels.sort((a, b) => a.name.localeCompare(b.name));
+    nonMeridian.sort((a, b) => a.name.localeCompare(b.name));
 
-    return { meridian: meridianChannels, nonMeridian: nonMeridianChannels }; // Return with correct keys
+    return { meridianChannels, nonMeridianChannels };
   }, [allChannels]);
 
   const handleSelectChannel = (channel: Channel) => {
@@ -165,7 +165,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
           <>
             {/* Meridian Channels */}
             <div className="flex flex-wrap gap-2">
-              {meridian.map(channel => (
+              {meridianChannels.map(channel => (
                 <Button
                   key={channel.id}
                   variant="outline"
@@ -183,14 +183,14 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
             </div>
 
             {/* Non-Meridian Channels */}
-            {nonMeridian.length > 0 && (
+            {nonMeridianChannels.length > 0 && (
               <>
                 <Separator className="my-6" />
                 <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1">
                   <Sparkles className="w-4 h-4 text-gray-600" /> Other Channels
                 </h3>
                 <div className="flex flex-wrap gap-2">
-                  {nonMeridian.map(channel => (
+                  {nonMeridianChannels.map(channel => (
                     <Button
                       key={channel.id}
                       variant="outline"
@@ -246,7 +246,11 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
               {/* Emotional Themes - Always render, show N/A if empty */}
               <div className="flex items-start gap-2">
                 <Heart className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <p><span className="font-semibold text-indigo-700">Emotional Themes:</span> {selectedChannelForDisplay.emotions.length > 0 ? selectedChannelForDisplay.emotions.join(', ') : 'N/A'}</p>
+                <p><span className="font-semibold text-indigo-700">Emotional Themes:</span> {selectedChannelForDisplay.emotions.length > 0 ? selectedChannelForDisplay.emotions.map((emotion, i) => (
+                    <Badge key={i} variant="outline" className="bg-gray-100 text-gray-700 text-xs">
+                      {emotion}
+                    </Badge>
+                  )) : 'N/A'}</p>
               </div>
               <div className="flex items-start gap-2">
                 <Hand className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
