@@ -1,7 +1,7 @@
 "use client";
 
     import React, { useState, useEffect, useCallback } from 'react';
-    import { useNavigate } from 'react-router-dom';
+    import { useNavigate, useParams } from 'react-router-dom';
     import { Button } from '@/components/ui/button';
     import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
     import { Skeleton } from '@/components/ui/skeleton';
@@ -13,6 +13,7 @@
     import { useToast } from '@/components/ui/use-toast';
     import { supabase } from '@/integrations/supabase/client';
     import { cn } from '@/lib/utils';
+    import { format } from 'date-fns';
 
     interface Appointment {
       id: string; // Notion page ID
@@ -23,6 +24,7 @@
       sessionAnchor: string; // Today we are really working with...
       bodyYes: boolean;
       bodyNo: boolean;
+      status: string; // Added status to the interface
     }
 
     interface Mode {
@@ -32,6 +34,7 @@
     }
 
     const ActiveSession = () => {
+      const { appointmentId } = useParams<{ appointmentId: string }>();
       const [appointment, setAppointment] = useState<Appointment | null>(null);
       const [loading, setLoading] = useState(true);
       const [error, setError] = useState<string | null>(null);
@@ -47,7 +50,13 @@
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://hcriagmovotwuqbppcfm.supabase.co';
 
-      const fetchTodaysAppointment = useCallback(async () => {
+      const fetchSingleAppointment = useCallback(async () => {
+        if (!appointmentId) {
+          setError('No appointment ID provided.');
+          setLoading(false);
+          return;
+        }
+
         try {
           setLoading(true);
           setError(null);
@@ -61,14 +70,13 @@
             return;
           }
 
-          // Check if user has Notion secrets configured
           const { data: secrets, error: secretsError } = await supabase
             .from('notion_secrets')
             .select('id')
             .eq('user_id', session.user.id)
             .single();
 
-          if (secretsError && secretsError.code !== 'PGRST116') { // PGRST116 means no rows found, which is fine if user hasn't configured yet
+          if (secretsError && secretsError.code !== 'PGRST116') {
             throw secretsError;
           }
           if (!secrets) {
@@ -78,43 +86,30 @@
           }
 
           const response = await fetch(
-            `${supabaseUrl}/functions/v1/get-todays-appointments`,
+            `${supabaseUrl}/functions/v1/get-single-appointment`,
             {
-              method: 'GET',
+              method: 'POST', // Changed to POST as per edge function
               headers: {
                 'Authorization': `Bearer ${session.access_token}`,
                 'Content-Type': 'application/json'
-              }
+              },
+              body: JSON.stringify({ appointmentId }) // Pass appointmentId in body
             }
           );
 
           if (!response.ok) {
             const errorData = await response.json();
-            if (errorData.errorCode === 'PROFILE_NOT_FOUND' || errorData.errorCode === 'PRACTITIONER_NAME_MISSING') {
-              toast({
-                variant: 'destructive',
-                title: 'Profile Required',
-                description: errorData.error || 'Please complete your profile to access sessions.',
-              });
-              navigate('/profile-setup');
-              return;
-            }
-            throw new Error(errorData.error || 'Failed to fetch appointments');
+            throw new Error(errorData.error || 'Failed to fetch appointment');
           }
 
           const data = await response.json();
-
-          if (data.appointments && data.appointments.length > 0) {
-            const fetchedAppointment = data.appointments[0];
-            setAppointment(fetchedAppointment);
-            setSessionAnchorText(fetchedAppointment.sessionAnchor || '');
-            setBodyYesState(fetchedAppointment.bodyYes);
-            setBodyNoState(fetchedAppointment.bodyNo);
-          } else {
-            setAppointment(null);
-          }
+          const fetchedAppointment = data.appointment;
+          setAppointment(fetchedAppointment);
+          setSessionAnchorText(fetchedAppointment.sessionAnchor || '');
+          setBodyYesState(fetchedAppointment.bodyYes);
+          setBodyNoState(fetchedAppointment.bodyNo);
         } catch (err: any) {
-          console.error('Error fetching appointment:', err);
+          console.error('Error fetching single appointment:', err);
           setError(err.message);
           toast({
             variant: 'destructive',
@@ -124,7 +119,7 @@
         } finally {
           setLoading(false);
         }
-      }, [navigate, toast, supabaseUrl]);
+      }, [appointmentId, navigate, toast, supabaseUrl]);
 
       const fetchModes = useCallback(async () => {
         try {
@@ -160,9 +155,9 @@
       }, [toast, supabaseUrl]);
 
       useEffect(() => {
-        fetchTodaysAppointment();
+        fetchSingleAppointment();
         fetchModes();
-      }, [fetchTodaysAppointment, fetchModes]);
+      }, [fetchSingleAppointment, fetchModes]);
 
       const updateNotionAppointment = useCallback(async (updates: any) => {
         if (!appointment?.id) {
@@ -210,8 +205,7 @@
             title: 'Success',
             description: 'Appointment updated in Notion.',
           });
-          // Re-fetch appointment to get latest state, or update local state
-          // For now, let's update local state for immediate feedback
+          
           setAppointment(prev => prev ? { ...prev, ...updates } : null);
           if (updates.sessionAnchor !== undefined) setSessionAnchorText(updates.sessionAnchor);
           if (updates.bodyYes !== undefined) setBodyYesState(updates.bodyYes);
@@ -230,8 +224,6 @@
       const handleSessionAnchorChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         const newText = e.target.value;
         setSessionAnchorText(newText);
-        // Debounce or save on blur for performance
-        // For now, let's save on blur
       };
 
       const handleSessionAnchorBlur = () => {
@@ -254,14 +246,14 @@
         updateNotionAppointment({ bodyYes: false, bodyNo: newState });
       };
 
-      const handleCompleteSession = () => {
+      const handleCompleteSession = async () => {
         if (appointment) {
-          updateNotionAppointment({ status: 'CH' }); // Set status to Charged/Complete
+          await updateNotionAppointment({ status: 'CH' }); // Set status to Charged/Complete
           toast({
             title: 'Session Completed',
             description: `${appointment.clientName}'s session marked as complete.`,
           });
-          navigate('/active-session'); // Refresh to show no active session
+          navigate('/'); // Return to Waiting Room
         }
       };
 
@@ -318,7 +310,7 @@
                 <h2 className="text-xl font-bold mb-2">Error Loading Appointment</h2>
                 <p className="text-gray-600 mb-4">{error}</p>
                 <div className="space-y-2">
-                  <Button onClick={fetchTodaysAppointment}>Try Again</Button>
+                  <Button onClick={fetchSingleAppointment}>Try Again</Button>
                   <Button variant="outline" onClick={() => navigate('/notion-config')}>
                     Check Configuration
                   </Button>
@@ -335,12 +327,7 @@
             <div className="text-center mb-8">
               <h1 className="text-3xl font-bold text-indigo-900 mb-2">Active Session</h1>
               <p className="text-gray-600">
-                {new Date().toLocaleDateString('en-US', {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                })}
+                {format(new Date(), 'EEEE, MMMM d, yyyy')}
               </p>
             </div>
 
@@ -513,10 +500,10 @@
                     <Calendar className="w-16 h-16 mx-auto" />
                   </div>
                   <h2 className="text-xl font-semibold text-gray-700 mb-2">
-                    No Sessions Scheduled
+                    No Active Session
                   </h2>
                   <p className="text-gray-500">
-                    You don't have any appointments scheduled for today.
+                    No session is currently active. Please select one from the Waiting Room.
                   </p>
                 </CardContent>
               </Card>
@@ -528,7 +515,7 @@
                 onClick={() => navigate('/')}
                 className="text-indigo-600 hover:text-indigo-800"
               >
-                ← Back to Home
+                ← Back to Waiting Room
               </Button>
               <Button
                 variant="outline"
