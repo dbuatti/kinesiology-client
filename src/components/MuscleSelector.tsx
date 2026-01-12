@@ -99,7 +99,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
 
   const handleClearSelection = () => {
     setSelectedMuscle(null);
-    setSearchTerm('');
+    setSearchTerm(''); // Clear search term in the trigger
     setFilteredMuscles(allMuscles);
     setShowWeaknessChecklist(false);
   };

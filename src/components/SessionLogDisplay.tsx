@@ -78,7 +78,12 @@ const SessionLogDisplay: React.FC<SessionLogDisplayProps> = ({
     // Default rendering for other log types
     return (
       <p className="text-sm text-gray-700">
-        Type: <span className="font-semibold">{log.log_type}</span> - Details: {JSON.stringify(log.details)}
+        Type: <span className="font-semibold">{log.log_type.replace(/_/g, ' ')}</span>
+        {log.details && Object.keys(log.details).length > 0 && (
+          <span className="ml-2 italic">
+            (Details: {Object.entries(log.details).map(([key, value]) => `${key}: ${JSON.stringify(value)}`).join(', ')})
+          </span>
+        )}
       </p>
     );
   };
