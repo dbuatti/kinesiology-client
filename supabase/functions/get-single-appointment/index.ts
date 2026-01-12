@@ -47,8 +47,8 @@ serve(async (req) => {
 
     const { data: secretsData, error: secretsError } = await serviceRoleSupabase
       .from('notion_secrets')
-      .select('notion_integration_token, appointments_database_id, crm_database_id, muscles_database_id, channels_database_id, chakras_database_id') // Added chakras_database_id
-      .eq('id', user.id) // Changed from 'user_id' to 'id'
+      .select('notion_integration_token, appointments_database_id, crm_database_id, muscles_database_id, channels_database_id, chakras_database_id')
+      .eq('id', user.id)
       .limit(1);
 
     if (secretsError) {
@@ -107,7 +107,6 @@ serve(async (req) => {
 
     const page = await notionAppointmentResponse.json()
     console.log("[get-single-appointment] Found appointment page:", page.id)
-    console.log("[get-single-appointment] All properties of the appointment page:", JSON.stringify(page.properties, null, 2)); // NEW DIAGNOSTIC LOG
 
     const properties = page.properties
 
@@ -116,8 +115,9 @@ serve(async (req) => {
     console.log("[get-single-appointment] Initial starSign:", starSign);
 
     // Fetch client details from CRM if relation exists and crm_database_id is available
-    const clientCrmRelation = properties["Client CRM"]?.relation?.[0]?.id
-    console.log("[get-single-appointment] Client CRM Relation ID:", clientCrmRelation);
+    // Use the 'Star Sign' relation property from the appointment page to link to the client in CRM
+    const clientCrmRelation = properties["Star Sign"]?.relation?.[0]?.id
+    console.log("[get-single-appointment] Client CRM Relation ID (from 'Star Sign' property):", clientCrmRelation);
     console.log("[get-single-appointment] CRM Database ID configured:", !!secrets.crm_database_id);
 
     if (clientCrmRelation && secrets.crm_database_id) {
@@ -136,7 +136,7 @@ serve(async (req) => {
         const clientProperties = clientData.properties
 
         clientName = clientProperties.Name?.title?.[0]?.plain_text || clientName
-        const birthDate = clientProperties["Born"]?.date?.start || null; // Fetch 'Born' date
+        const birthDate = clientProperties["Born"]?.date?.start || null; // Fetch 'Born' date from CRM
         console.log(`[get-single-appointment] Client: ${clientName}, Raw birthDate from CRM: ${birthDate}`); // DIAGNOSTIC LOG
         starSign = calculateStarSign(birthDate); // Calculate star sign
         console.log(`[get-single-appointment] CRM details fetched for ${clientName}, starSign calculated: ${starSign}`)

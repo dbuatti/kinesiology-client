@@ -96,8 +96,8 @@ serve(async (req) => {
     // Fetch Notion credentials from secure secrets table
     const { data: secrets, error: secretsError } = await serviceRoleSupabase
       .from('notion_secrets')
-      .select('notion_integration_token, appointments_database_id, crm_database_id, chakras_database_id') // Added chakras_database_id
-      .eq('id', user.id) // Changed from 'user_id' to 'id'
+      .select('notion_integration_token, appointments_database_id, crm_database_id, chakras_database_id')
+      .eq('id', user.id)
       .single()
 
     if (secretsError || !secrets) {
@@ -190,7 +190,8 @@ serve(async (req) => {
       // Removed 'focus' from CRM fetch for appointment context
 
       // Fetch client details from CRM if relation exists and crm_database_id is available
-      const clientCrmRelation = properties["Client CRM"]?.relation?.[0]?.id
+      // Use the 'Star Sign' relation property from the appointment page to link to the client in CRM
+      const clientCrmRelation = properties["Star Sign"]?.relation?.[0]?.id
       if (clientCrmRelation && secrets.crm_database_id) {
         console.log(`[get-todays-appointments] Fetching CRM details for client ID: ${clientCrmRelation}`)
         const notionClientResponse = await fetch('https://api.notion.com/v1/pages/' + clientCrmRelation, {
@@ -207,7 +208,7 @@ serve(async (req) => {
           const clientProperties = clientData.properties
 
           clientName = clientProperties.Name?.title?.[0]?.plain_text || clientName
-          const birthDate = clientProperties["Born"]?.date?.start || null; // Fetch 'Born' date
+          const birthDate = clientProperties["Born"]?.date?.start || null; // Fetch 'Born' date from CRM
           console.log(`[get-todays-appointments] Client: ${clientName}, Raw birthDate from CRM: ${birthDate}`); // DIAGNOSTIC LOG
           starSign = calculateStarSign(birthDate); // Calculate star sign
           console.log(`[get-todays-appointments] CRM details fetched for ${clientName}, starSign calculated: ${starSign}`)
