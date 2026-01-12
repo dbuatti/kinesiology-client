@@ -24,13 +24,15 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')
     
-    const supabase = createClient(supabaseUrl, supabaseAnonKey)
+    // Create a Supabase client for authentication (using anon key is fine for auth.getUser)
+    const authSupabase = createClient(supabaseUrl, supabaseAnonKey)
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    )
+    const token = authHeader.replace('Bearer ', '')
+
+    const { data: { user }, error: userError } = await authSupabase.auth.getUser(token)
 
     if (userError || !user) {
+      console.error("[get-todays-appointments] User authentication failed:", userError)
       return new Response('Unauthorized', { 
         status: 401, 
         headers: corsHeaders 
@@ -39,15 +41,24 @@ serve(async (req) => {
 
     console.log("[get-todays-appointments] User authenticated:", user.id)
 
-    // Fetch Notion credentials from secure secrets table
-    const { data: secrets, error: secretsError } = await supabase
+    // Create a Supabase client for database operations, authenticated with the user's token
+    const authenticatedSupabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    })
+
+    // Fetch Notion credentials from secure secrets table using the authenticated client
+    const { data: secrets, error: secretsError } = await authenticatedSupabase
       .from('notion_secrets')
       .select('notion_integration_token, appointments_database_id')
       .eq('user_id', user.id)
       .single()
 
     if (secretsError || !secrets) {
-      console.error("[get-todays-appointments] Secrets not found:", secretsError)
+      console.error("[get-todays-appointments] Secrets not found for user:", user.id, secretsError)
       return new Response(JSON.stringify({ 
         error: 'Notion configuration not found. Please configure your Notion credentials first.' 
       }), {
@@ -56,7 +67,7 @@ serve(async (req) => {
       })
     }
 
-    console.log("[get-todays-appointments] Secrets loaded successfully")
+    console.log("[get-todays-appointments] Secrets loaded successfully for user:", user.id)
 
     // Get today's date in Notion format (YYYY-MM-DD)
     const today = new Date()
