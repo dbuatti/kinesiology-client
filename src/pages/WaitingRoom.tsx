@@ -41,6 +41,15 @@ const WaitingRoom = () => {
     }
   );
 
+  useEffect(() => {
+    console.log('[WaitingRoom] loadingAppointments state:', loadingAppointments);
+  }, [loadingAppointments]);
+
+  useEffect(() => {
+    console.log('[WaitingRoom] Initial fetch for appointments.');
+    fetchTodaysAppointments();
+  }, [fetchTodaysAppointments]);
+
   const {
     loading: updatingAppointment,
     execute: updateNotionAppointment,
@@ -56,10 +65,6 @@ const WaitingRoom = () => {
       }
     }
   );
-
-  useEffect(() => {
-    fetchTodaysAppointments();
-  }, [fetchTodaysAppointments]);
 
   const handleStartSession = async (appointmentId: string) => {
     await updateNotionAppointment({
