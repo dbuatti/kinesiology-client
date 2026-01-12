@@ -17,13 +17,11 @@ import { Muscle, GetMusclesPayload, GetMusclesResponse, LogMuscleStrengthPayload
 
 interface MuscleSelectorProps {
   onMuscleSelected: (muscle: Muscle) => void;
-  // Removed onMuscleStrengthLogged prop as it will be handled internally
   appointmentId: string;
 }
 
 const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, appointmentId }) => {
-  const [allMuscles, setAllMuscles] = useState<Muscle[]>([]);
-  const [filteredMuscles, setFilteredMuscles] = useState<Muscle[]>([]);
+  const [muscles, setMuscles] = useState<Muscle[]>([]); // This will now hold the *filtered* results from the API
   const [searchTerm, setSearchTerm] = useState('');
   const [searchType, setSearchType] = useState<'muscle' | 'meridian' | 'organ' | 'emotion'>('muscle');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -35,18 +33,15 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, appoi
 
   // Memoized callbacks for fetchMuscles
   const onMusclesSuccess = useCallback((data: GetMusclesResponse) => {
-    setAllMuscles(data.muscles);
-    setFilteredMuscles(data.muscles);
+    setMuscles(data.muscles); // Now 'muscles' state will be the result of the filtered API call
   }, []);
 
   const onMusclesError = useCallback((msg: string) => {
     toast({ variant: 'destructive', title: 'Error', description: `Failed to load muscles: ${msg}` });
-    setAllMuscles([]);
-    setFilteredMuscles([]);
+    setMuscles([]);
   }, [toast]);
 
   const {
-    data: fetchedMusclesData,
     loading: loadingMuscles,
     error: musclesError,
     needsConfig,
@@ -56,8 +51,8 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, appoi
     {
       requiresAuth: true,
       requiresNotionConfig: true,
-      onSuccess: onMusclesSuccess, // Use memoized callback
-      onError: onMusclesError,     // Use memoized callback
+      onSuccess: onMusclesSuccess,
+      onError: onMusclesError,
     }
   );
 
@@ -80,25 +75,11 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, appoi
   );
 
   useEffect(() => {
-    fetchMuscles({ searchTerm: '', searchType: 'muscle' }); // Fetch all muscles initially
-  }, [fetchMuscles]);
-
-  useEffect(() => {
-    const lowerCaseSearchTerm = searchTerm.toLowerCase();
-    const filtered = allMuscles.filter(muscle => {
-      if (searchType === 'muscle') {
-        return muscle.name.toLowerCase().includes(lowerCaseSearchTerm);
-      } else if (searchType === 'meridian') {
-        return muscle.meridian.toLowerCase().includes(lowerCaseSearchTerm);
-      } else if (searchType === 'organ') {
-        return muscle.organSystem.toLowerCase().includes(lowerCaseSearchTerm);
-      } else if (searchType === 'emotion') {
-        return muscle.emotionalTheme.some(theme => theme.toLowerCase().includes(lowerCaseSearchTerm));
-      }
-      return false;
-    });
-    setFilteredMuscles(filtered);
-  }, [searchTerm, allMuscles, searchType]);
+    // Trigger fetch whenever searchTerm or searchType changes
+    // This makes the filtering server-side by calling the edge function
+    console.log(`[MuscleSelector] Fetching muscles with searchTerm: "${searchTerm}", searchType: "${searchType}"`);
+    fetchMuscles({ searchTerm, searchType });
+  }, [searchTerm, searchType, fetchMuscles]);
 
   const handleSelectMuscle = (muscle: Muscle) => {
     setSelectedMuscle(muscle);
@@ -115,7 +96,6 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, appoi
         muscleId: selectedMuscle.id,
         muscleName: selectedMuscle.name,
         isStrong: isStrong,
-        // notes: "Optional notes here" // Can add a field for notes if needed
       });
 
       if (!isStrong) {
@@ -134,8 +114,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, appoi
 
   const handleSearchTypeChange = (type: 'muscle' | 'meridian' | 'organ' | 'emotion') => {
     setSearchType(type);
-    setSearchTerm(''); // Clear search term when type changes
-    setFilteredMuscles(allMuscles); // Reset filtered muscles
+    setSearchTerm(''); // Clear search term when type changes, which will trigger a new fetch via useEffect
     setIsSearchOpen(true); // Open popover for new search
   };
 
@@ -223,7 +202,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, appoi
                 {!loadingMuscles && <CommandInput value={searchTerm} onValueChange={setSearchTerm} placeholder={`Search ${searchType}...`} />}
                 <CommandEmpty>No muscles found.</CommandEmpty>
                 <CommandGroup>
-                  {filteredMuscles.map((muscle) => (
+                  {muscles.map((muscle) => ( // Render 'muscles' state, which is already filtered by the API
                     <CommandItem
                       key={muscle.id}
                       value={muscle.name}
