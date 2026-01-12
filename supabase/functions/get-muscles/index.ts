@@ -69,7 +69,7 @@ serve(async (req) => {
     if (searchTerm && searchTerm.trim() !== '') { // Only apply filter if searchTerm is not empty
       if (searchType === 'muscle') {
         filter = {
-          property: "Muscle Name",
+          property: "Name", // Changed from "Muscle Name" to "Name"
           title: {
             contains: searchTerm // Notion API title search is case-sensitive
           }
@@ -112,7 +112,7 @@ serve(async (req) => {
     const requestBody: any = {
       sorts: [
         {
-          property: "Muscle Name",
+          property: "Name", // Changed from "Muscle Name" to "Name"
           direction: "ascending"
         }
       ]
@@ -148,7 +148,7 @@ serve(async (req) => {
       const properties = page.properties
       return {
         id: page.id,
-        name: properties["Muscle Name"]?.title?.[0]?.plain_text || "Unknown Muscle",
+        name: properties["Name"]?.title?.[0]?.plain_text || "Unknown Muscle", // Changed from "Muscle Name" to "Name"
         meridian: properties["Associated Meridian"]?.select?.name || "",
         organSystem: properties["Organ System"]?.select?.name || "",
         nlPoints: properties["NL Points (Neurolymphatic)"]?.rich_text?.[0]?.plain_text || "",
