@@ -77,7 +77,11 @@ serve(async (req) => {
     console.log("[update-notion-appointment] Secrets loaded successfully for user:", user.id)
 
     // Use req.json() directly for parsing the request body
-    const { appointmentId, updates } = await req.json();
+    const requestBody = await req.json();
+    console.log("[update-notion-appointment] Raw request body received:", JSON.stringify(requestBody));
+
+    const appointmentId = requestBody.appointmentId;
+    const updates = requestBody.updates;
 
     console.log("[update-notion-appointment] Parsed appointmentId:", appointmentId);
     console.log("[update-notion-appointment] Parsed updates:", updates);

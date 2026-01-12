@@ -223,7 +223,9 @@
 
       const handleAddAcupointToSession = async () => {
         if (selectedAcupoint && appointmentId) {
-          await updateNotionAppointment({ appointmentId: appointmentId, updates: { acupointId: selectedAcupoint.id } });
+          const payload = { appointmentId: appointmentId, updates: { acupointId: selectedAcupoint.id } };
+          console.log("[ActiveSession] Sending payload to update-notion-appointment:", payload); // Added log
+          await updateNotionAppointment(payload);
           if (!updatingAppointment) {
             toast({
               title: 'Acupoint Added',
