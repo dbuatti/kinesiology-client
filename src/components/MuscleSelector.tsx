@@ -11,7 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
-import { Search, Check, ChevronsUpDown, Hand, Heart, Brain, FlaskConical, XCircle, CircleCheck, Info, Image } from 'lucide-react';
+import { Search, Check, ChevronsUpDown, Hand, Heart, Brain, FlaskConical, XCircle, CircleCheck, Info, Image, Settings } from 'lucide-react';
+import { useNavigate } from 'react-router-dom'; // Import useNavigate
 
 interface Muscle {
   id: string;
@@ -40,18 +41,21 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
   const [loading, setLoading] = useState(false);
   const [selectedMuscle, setSelectedMuscle] = useState<Muscle | null>(null);
   const [showWeaknessChecklist, setShowWeaknessChecklist] = useState(false);
+  const [needsConfig, setNeedsConfig] = useState(false); // New state for config check
 
   const { toast } = useToast();
+  const navigate = useNavigate(); // Initialize useNavigate
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://hcriagmovotwuqbppcfm.supabase.co';
 
   const fetchMuscles = useCallback(async (term: string = '', type: 'muscle' | 'meridian' | 'organ' | 'emotion' = 'muscle') => {
     console.log('[MuscleSelector][fetchMuscles] Function called with term:', term, 'and type:', type);
     setLoading(true);
+    setNeedsConfig(false); // Reset config state
     try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) {
-        console.error('[MuscleSelector][fetchMuscles] Supabase session error:', sessionError.message);
-        throw sessionError;
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) {
+        console.error('[MuscleSelector][fetchMuscles] Supabase session error:', error.message);
+        throw error;
       }
       if (!session) {
         console.warn('[MuscleSelector][fetchMuscles] No active session, showing toast.');
@@ -59,6 +63,23 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
         return;
       }
       console.log('[MuscleSelector][fetchMuscles] User session found:', session.user?.id);
+
+      // Check Notion secrets for muscles_database_id
+      const { data: secrets, error: secretsError } = await supabase
+        .from('notion_secrets')
+        .select('muscles_database_id')
+        .eq('user_id', session.user.id)
+        .single();
+
+      if (secretsError && secretsError.code !== 'PGRST116') { // PGRST116 means "no rows found"
+        throw secretsError;
+      }
+      if (!secrets || !secrets.muscles_database_id) {
+        setNeedsConfig(true);
+        setLoading(false);
+        return;
+      }
+
 
       const edgeFunctionUrl = `${supabaseUrl}/functions/v1/get-muscles`;
       const requestBody = JSON.stringify({ searchTerm: term, searchType: type });
@@ -98,7 +119,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
       setLoading(false);
       console.log('[MuscleSelector][fetchMuscles] Function execution finished.');
     }
-  }, [toast, supabaseUrl]);
+  }, [toast, supabaseUrl, navigate]);
 
   useEffect(() => {
     fetchMuscles(); // Fetch all muscles initially
@@ -150,6 +171,30 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
     setFilteredMuscles(allMuscles); // Reset filtered muscles
     setIsSearchOpen(true); // Open popover for new search
   };
+
+  if (needsConfig) {
+    return (
+      <Card className="max-w-md w-full shadow-xl mx-auto">
+        <CardContent className="pt-8 text-center">
+          <div className="mx-auto mb-4 p-4 bg-indigo-100 rounded-full w-20 h-20 flex items-center justify-center">
+            <Settings className="w-10 h-10 text-indigo-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-indigo-900 mb-2">
+            Notion Muscles Database Required
+          </h2>
+          <p className="text-gray-600 mb-6">
+            Please configure your Notion Muscles Database ID to use the Muscle Selector.
+          </p>
+          <Button
+            className="w-full h-12 text-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+            onClick={() => navigate('/notion-config')}
+          >
+            Configure Notion
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="shadow-xl">
