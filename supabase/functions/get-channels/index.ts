@@ -61,44 +61,7 @@ serve(async (req) => {
 
     console.log("[get-channels] Channels database ID loaded:", secrets.channels_database_id)
 
-    const { searchTerm, searchType } = await req.json()
-
-    let filter: any = undefined;
-    const lowerCaseSearchTerm = searchTerm ? searchTerm.toLowerCase() : '';
-
-    if (searchTerm && searchTerm.trim() !== '') {
-      if (searchType === 'name') {
-        filter = {
-          property: "Meridian", // Changed from "Channel" to "Meridian"
-          title: {
-            contains: searchTerm
-          }
-        };
-      } else if (searchType === 'element') {
-        filter = {
-          property: "Elements",
-          multi_select: {
-            contains: searchTerm
-          }
-        };
-      } else if (searchType === 'emotion') {
-        filter = {
-          property: "Emotions",
-          multi_select: {
-            contains: searchTerm
-          }
-        };
-      } else {
-        console.warn("[get-channels] Invalid searchType:", searchType)
-        return new Response(JSON.stringify({ error: 'Invalid searchType. Must be "name", "element", or "emotion".' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        })
-      }
-    } else {
-      console.log("[get-channels] No search term provided, fetching all channels.");
-    }
-
+    // Removed search functionality as per user request
     const requestBody: any = {
       sorts: [
         {
@@ -107,10 +70,6 @@ serve(async (req) => {
         }
       ]
     };
-
-    if (filter) {
-      requestBody.filter = filter;
-    }
 
     const notionChannelsResponse = await fetch('https://api.notion.com/v1/databases/' + secrets.channels_database_id + '/query', {
       method: 'POST',
@@ -156,6 +115,9 @@ serve(async (req) => {
         tonify2: properties["Tonify 2"]?.rich_text?.[0]?.plain_text || "",
         appropriateSound: properties["Appropriate Sound"]?.rich_text?.[0]?.plain_text || "",
         tags: properties.Tags?.multi_select?.map((s: any) => s.name) || [],
+        brainAspects: properties["Brain Aspects"]?.rich_text?.[0]?.plain_text || "", // New
+        activateSinew: properties["Activate Sinew"]?.rich_text?.[0]?.plain_text || "", // New
+        time: properties["Time"]?.rich_text?.[0]?.plain_text || "", // New
       }
     })
 

@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
-import { Settings, Loader2, Sparkles, ExternalLink, Waves, Leaf, Flame, Gem, Droplet, Sun, Heart, Hand, Footprints, Bone, FlaskConical, Mic, Tag, XCircle, PlusCircle } from 'lucide-react';
+import { Settings, Loader2, Sparkles, ExternalLink, Waves, Leaf, Flame, Gem, Droplet, Sun, Heart, Hand, Footprints, Bone, FlaskConical, Mic, Tag, XCircle, PlusCircle, Brain, Clock } from 'lucide-react';
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
 import { Channel, GetChannelsPayload, GetChannelsResponse } from '@/types/api';
 
@@ -299,11 +299,24 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
                 <Tag className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
                 <div className="flex flex-wrap gap-1">
                   <p><span className="font-semibold text-indigo-700">Tags:</span> {selectedChannelForDisplay.tags.length > 0 ? selectedChannelForDisplay.tags.map((tag, i) => (
-                    <Badge key={i} variant="outline" className="bg-gray-100 text-gray-700 text-xs">
+                    <Badge key={i} variant="outline" className="bg-gray-100 text-gray-700">
                       {tag}
                     </Badge>
                   )) : 'N/A'}</p>
                 </div>
+              </div>
+              {/* New fields */}
+              <div className="flex items-start gap-2">
+                <Brain className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
+                <p><span className="font-semibold text-indigo-700">Brain Aspects:</span> {selectedChannelForDisplay.brainAspects || 'N/A'}</p>
+              </div>
+              <div className="flex items-start gap-2">
+                <Hand className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" /> {/* Reusing Hand icon, consider a more specific one if available */}
+                <p><span className="font-semibold text-indigo-700">Activate Sinew:</span> {selectedChannelForDisplay.activateSinew || 'N/A'}</p>
+              </div>
+              <div className="flex items-start gap-2">
+                <Clock className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
+                <p><span className="font-semibold text-indigo-700">Time:</span> {selectedChannelForDisplay.time || 'N/A'}</p>
               </div>
             </div>
             <div className="flex justify-end mt-4">

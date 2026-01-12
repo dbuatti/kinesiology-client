@@ -74,6 +74,9 @@ export interface Channel {
   tonify2: string; // New
   appropriateSound: string; // New
   tags: string[]; // New
+  brainAspects: string; // New: Brain Aspects
+  activateSinew: string; // New: Activate Sinew
+  time: string; // New: Time
 }
 
 export interface Chakra {
