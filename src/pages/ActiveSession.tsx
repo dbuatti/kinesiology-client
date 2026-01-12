@@ -352,15 +352,32 @@
       const handleSelectMode = (mode: Mode) => {
         setSelectedMode(mode);
         setIsModeSelectOpen(false);
-        if (appointmentId) {
-          logSessionEvent({
+      };
+
+      const handleAddModeToSession = async () => {
+        if (selectedMode && appointmentId) {
+          await logSessionEvent({
             appointmentId: appointmentId,
             logType: 'mode_selected',
             details: {
-              modeId: mode.id,
-              modeName: mode.name,
-              actionNote: mode.actionNote,
+              modeId: selectedMode.id,
+              modeName: selectedMode.name,
+              actionNote: selectedMode.actionNote,
             }
+          });
+
+          if (!loggingSessionEvent) {
+            toast({
+              title: 'Mode Added',
+              description: `${selectedMode.name} logged to the current session.`,
+            });
+            handleClearModeSelection(); // Clear selected mode after logging
+          }
+        } else {
+          toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Please select a mode to add to the session.',
           });
         }
       };
@@ -551,15 +568,35 @@
                         </PopoverContent>
                       </Popover>
                       {selectedMode && (
-                        <div className="flex items-center justify-between bg-purple-50 p-3 rounded-lg border border-purple-200 mt-2">
-                          <p className="text-sm text-purple-800">
-                            <strong>Selected:</strong> {selectedMode.name}
-                            {selectedMode.actionNote && <span className="ml-2">({selectedMode.actionNote})</span>}
-                          </p>
-                          <Button variant="ghost" size="sm" onClick={handleClearModeSelection} disabled={loggingSessionEvent}>
-                            <Trash2 className="h-4 w-4 text-purple-600" />
-                          </Button>
-                        </div>
+                        <Card className="border-2 border-purple-300 bg-purple-50 shadow-md mt-4">
+                          <CardHeader className="flex flex-row items-center justify-between p-4 pb-2">
+                            <CardTitle className="text-xl font-bold text-purple-800">
+                              {selectedMode.name}
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="pt-2 space-y-3 text-gray-800">
+                            {selectedMode.actionNote && (
+                              <div>
+                                <p className="font-semibold text-purple-700">Action Note:</p>
+                                <p className="text-sm">{selectedMode.actionNote}</p>
+                              </div>
+                            )}
+                            <div className="flex gap-2 mt-4">
+                              <Button
+                                className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white"
+                                onClick={handleAddModeToSession}
+                                disabled={loggingSessionEvent}
+                              >
+                                <PlusCircle className="w-4 h-4 mr-2" />
+                                {loggingSessionEvent ? 'Adding...' : 'Add to Session Log'}
+                              </Button>
+                              <Button variant="outline" onClick={handleClearModeSelection} disabled={loggingSessionEvent}>
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Clear
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
                       )}
                     </div>
                   </CardContent>
