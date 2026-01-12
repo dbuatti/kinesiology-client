@@ -27,7 +27,10 @@ const WaitingRoom = () => {
     {
       requiresAuth: true,
       requiresNotionConfig: true,
-      onSuccess: (data) => setAppointments(data.appointments),
+      onSuccess: (data) => {
+        console.log('[WaitingRoom] Received appointments data:', data.appointments);
+        setAppointments(data.appointments);
+      },
       onError: (msg, code) => {
         if (code === 'PROFILE_NOT_FOUND' || code === 'PRACTITIONER_NAME_MISSING') {
           // Navigation handled by hook's onError
