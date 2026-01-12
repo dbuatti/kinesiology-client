@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'; // Keep Dialog for now, might be needed for other things
 import { Input } from '@/components/ui/input';
-import { Calendar, User, Star, Target, Clock, Settings, AlertCircle, Check, ChevronsUpDown, Lightbulb, Hand, XCircle, PlusCircle, Search, Trash2, Info } from 'lucide-react';
+import { Calendar, User, Star, Target, Clock, Settings, AlertCircle, Check, ChevronsUpDown, Lightbulb, Hand, XCircle, PlusCircle, Search, Trash2, Info, Loader2 } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -333,7 +333,14 @@ const ActiveSession = () => {
     setIsSymptomSearchOpen(false);
     setAcupointSearchTerm(acupoint.name); // Display selected acupoint name in the point search trigger
     setSymptomSearchTerm(''); // Clear symptom search when a point is selected
-    setFoundAcupoints([]);
+    setFoundAcupoints([]); // Clear found acupoints after selection
+  }, []);
+
+  const handleClearSelectedAcupoint = useCallback(() => {
+    setSelectedAcupoint(null);
+    setAcupointSearchTerm('');
+    setSymptomSearchTerm('');
+    setFoundAcupoints([]); // Clear any previous search results
   }, []);
 
   const handleAddAcupointToSession = useCallback(async () => {
@@ -349,14 +356,12 @@ const ActiveSession = () => {
       });
       if (!loggingSessionEvent) {
         showSuccess(`${selectedAcupoint.name} added to the current session.`);
-        setSelectedAcupoint(null);
-        setAcupointSearchTerm('');
-        setSymptomSearchTerm('');
+        handleClearSelectedAcupoint(); // Clear selected acupoint after logging
       }
     } else {
       showError('No acupoint selected to add to session.');
     }
-  }, [selectedAcupoint, appointmentId, loggingSessionEvent, logSessionEvent]);
+  }, [selectedAcupoint, appointmentId, loggingSessionEvent, logSessionEvent, handleClearSelectedAcupoint]);
 
   const handleMuscleSelected = useCallback((muscle: Muscle) => {
     setSelectedMuscle(muscle);
@@ -705,6 +710,7 @@ const ActiveSession = () => {
                             placeholder="Search acupoint..."
                             value={acupointSearchTerm}
                             onValueChange={handleAcupointSearchChange}
+                            disabled={loadingAcupoints}
                           />
                           <CommandEmpty>No acupoint found.</CommandEmpty>
                           <CommandGroup>
@@ -765,6 +771,7 @@ const ActiveSession = () => {
                             placeholder="Search symptom..."
                             value={symptomSearchTerm}
                             onValueChange={handleSymptomSearchChange}
+                            disabled={loadingAcupoints}
                           />
                           <CommandEmpty>No suggestions found.</CommandEmpty>
                           <CommandGroup>
@@ -859,14 +866,20 @@ const ActiveSession = () => {
                             </Badge>
                           )}
                         </div>
-                        <Button
-                          className="w-full mt-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white"
-                          onClick={handleAddAcupointToSession}
-                          disabled={loggingSessionEvent}
-                        >
-                          <PlusCircle className="w-4 h-4 mr-2" />
-                          Add to Session
-                        </Button>
+                        <div className="flex gap-2 mt-4">
+                          <Button
+                            className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white"
+                            onClick={handleAddAcupointToSession}
+                            disabled={loggingSessionEvent}
+                          >
+                            {loggingSessionEvent ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <PlusCircle className="w-4 h-4 mr-2" />}
+                            {loggingSessionEvent ? 'Adding...' : 'Add Acupoint to Session Log'}
+                          </Button>
+                          <Button variant="outline" onClick={handleClearSelectedAcupoint} disabled={loggingSessionEvent}>
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Clear
+                          </Button>
+                        </div>
                       </CardContent>
                     </Card>
                   )}

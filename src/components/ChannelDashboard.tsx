@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
-import { Settings, Loader2, Sparkles, ExternalLink, Waves, Leaf, Flame, Gem, Droplet, Sun, Heart, Hand, Footprints, Bone, FlaskConical, Mic, Tag, XCircle, PlusCircle, Brain, Clock, Volume2, Info } from 'lucide-react';
+import { Settings, Loader2, Sparkles, ExternalLink, Waves, Leaf, Flame, Gem, Droplet, Sun, Heart, Hand, Footprints, Bone, FlaskConical, Mic, Tag, XCircle, PlusCircle, Brain, Clock, Volume2, Info, CheckCircle2 } from 'lucide-react'; // Added CheckCircle2
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
 import { Channel, GetChannelsPayload, GetChannelsResponse, LogSessionEventPayload, LogSessionEventResponse } from '@/types/api';
 import NotionPageViewer from './NotionPageViewer';
@@ -246,7 +246,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
   };
 
   const getLoggedClass = (itemType: string, itemValue: string) => {
-    return isItemLogged(itemType, itemValue) ? 'bg-gray-200 text-gray-700 border-gray-300' : '';
+    return isItemLogged(itemType, itemValue) ? 'bg-green-100 text-green-800 border-green-300' : 'bg-gray-100 text-gray-700 border-gray-300';
   };
 
   const getCanonicalChannelName = (channelName: string): string => {
@@ -312,6 +312,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                       selectedChannelForDisplay?.id === channel.id && `ring-2 ring-offset-2 ${colors.ring}`
                     )}
                     onClick={() => handleSelectChannel(channel)}
+                    disabled={loggingSessionEvent}
                   >
                     {channel.name}
                   </Button>
@@ -337,6 +338,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                         selectedChannelForDisplay?.id === channel.id && "ring-2 ring-offset-2 ring-indigo-500"
                       )}
                       onClick={() => handleSelectChannel(channel)}
+                      disabled={loggingSessionEvent}
                     >
                       {channel.name}
                     </Button>
@@ -359,22 +361,23 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
               <div className="flex items-center justify-between mb-3">
                 <h3 className={cn("text-lg font-bold flex items-center gap-2", colors.text)}>
                   {selectedChannelForDisplay.name}
-                  <a
-                    href={`https://www.notion.so/${selectedChannelForDisplay.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={cn("ml-2", colors.icon, colors.hoverBg.replace('hover:', 'hover:text-'))}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn("ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100", colors.icon, colors.hoverBg.replace('hover:', 'hover:text-'))}
+                    onClick={() => onOpenNotionPage(selectedChannelForDisplay.id)}
                   >
                     <ExternalLink className="w-4 h-4" />
-                  </a>
+                  </Button>
                 </h3>
                 <div className="flex gap-1">
                   {selectedChannelForDisplay.elements.map((element, i) => (
-                    <Badge
+                    <Button
                       key={i}
                       variant="secondary"
+                      size="sm"
                       className={cn(
-                        "text-xs cursor-pointer",
+                        "text-xs h-auto py-1 px-2 rounded-full flex items-center gap-1",
                         colors.bg.replace('-100', '-200'),
                         colors.text,
                         colors.border,
@@ -382,10 +385,12 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                         getLoggedClass('channel_element', element)
                       )}
                       onClick={() => handleLogItemClick('channel_element', element)}
+                      disabled={loggingSessionEvent}
                     >
                       {getElementIcon(element, "w-3 h-3")}
                       <span className="ml-1">{element}</span>
-                    </Badge>
+                      {isItemLogged('channel_element', element) && <CheckCircle2 className="w-3 h-3 text-green-600" />}
+                    </Button>
                   ))}
                 </div>
               </div>
@@ -398,17 +403,20 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                     <span className={cn("font-semibold mr-2", colors.icon)}>Emotional Themes:</span>
                     <div className="flex flex-wrap gap-1">
                       {selectedChannelForDisplay.emotions.map((emotion, i) => (
-                        <Badge
+                        <Button
                           key={i}
                           variant="outline"
+                          size="sm"
                           className={cn(
-                            "text-xs cursor-pointer bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200",
+                            "text-xs h-auto py-1 px-2 rounded-full flex items-center gap-1",
                             getLoggedClass('channel_emotion', emotion)
                           )}
                           onClick={() => handleLogItemClick('channel_emotion', emotion)}
+                          disabled={loggingSessionEvent}
                         >
                           {emotion}
-                        </Badge>
+                          {isItemLogged('channel_emotion', emotion) && <CheckCircle2 className="w-3 h-3 text-green-600" />}
+                        </Button>
                       ))}
                     </div>
                   </div>
@@ -421,10 +429,11 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                     <span className={cn("font-semibold mr-1", colors.icon)}>Pathways:</span>
                     {selectedChannelForDisplay.pathways ? (
                       <span
-                        className={cn("cursor-pointer hover:underline", getLoggedClass('channel_pathway', selectedChannelForDisplay.pathways))}
+                        className={cn("cursor-pointer hover:underline flex items-center gap-1", getLoggedClass('channel_pathway', selectedChannelForDisplay.pathways))}
                         onClick={() => handleLogItemClick('channel_pathway', selectedChannelForDisplay.pathways)}
                       >
                         {selectedChannelForDisplay.pathways}
+                        {isItemLogged('channel_pathway', selectedChannelForDisplay.pathways) && <CheckCircle2 className="w-3 h-3 text-green-600" />}
                       </span>
                     ) : 'N/A'}
                   </div>
@@ -435,10 +444,11 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                     <span className={cn("font-semibold mr-1", colors.icon)}>Functions:</span>
                     {selectedChannelForDisplay.functions ? (
                       <span
-                        className={cn("cursor-pointer hover:underline", getLoggedClass('channel_function', selectedChannelForDisplay.functions))}
+                        className={cn("cursor-pointer hover:underline flex items-center gap-1", getLoggedClass('channel_function', selectedChannelForDisplay.functions))}
                         onClick={() => handleLogItemClick('channel_function', selectedChannelForDisplay.functions)}
                       >
                         {selectedChannelForDisplay.functions}
+                        {isItemLogged('channel_function', selectedChannelForDisplay.functions) && <CheckCircle2 className="w-3 h-3 text-green-600" />}
                       </span>
                     ) : 'N/A'}
                   </div>
@@ -449,10 +459,11 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                     <span className={cn("font-semibold mr-1", colors.icon)}>Front Mu (Alarm):</span>
                     {derivedFrontMu ? (
                       <span
-                        className={cn("cursor-pointer hover:underline", getLoggedClass('channel_front_mu', derivedFrontMu))}
+                        className={cn("cursor-pointer hover:underline flex items-center gap-1", getLoggedClass('channel_front_mu', derivedFrontMu))}
                         onClick={() => handleLogItemClick('channel_front_mu', derivedFrontMu)}
                       >
                         {derivedFrontMu}
+                        {isItemLogged('channel_front_mu', derivedFrontMu) && <CheckCircle2 className="w-3 h-3 text-green-600" />}
                       </span>
                     ) : 'N/A'}
                   </div>
@@ -463,10 +474,11 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                     <span className={cn("font-semibold mr-1", colors.icon)}>Yuan Points:</span>
                     {derivedYuanPoints ? (
                       <span
-                        className={cn("cursor-pointer hover:underline", getLoggedClass('channel_yuan_point', derivedYuanPoints))}
+                        className={cn("cursor-pointer hover:underline flex items-center gap-1", getLoggedClass('channel_yuan_point', derivedYuanPoints))}
                         onClick={() => handleLogItemClick('channel_yuan_point', derivedYuanPoints)}
                       >
                         {derivedYuanPoints}
+                        {isItemLogged('channel_yuan_point', derivedYuanPoints) && <CheckCircle2 className="w-3 h-3 text-green-600" />}
                       </span>
                     ) : 'N/A'}
                   </div>
@@ -483,12 +495,14 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                               variant="outline"
                               size="sm"
                               className={cn(
-                                "text-xs h-auto py-1 px-2 rounded-full bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200",
+                                "text-xs h-auto py-1 px-2 rounded-full flex items-center gap-1",
                                 getLoggedClass('channel_ak_muscle', muscle.name)
                               )}
                               onClick={() => handleLogItemClick('channel_ak_muscle', muscle.name)}
+                              disabled={loggingSessionEvent}
                             >
                               {muscle.name}
+                              {isItemLogged('channel_ak_muscle', muscle.name) && <CheckCircle2 className="w-3 h-3 text-green-600" />}
                             </Button>
                             <Button
                               variant="ghost"
@@ -516,12 +530,14 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                               variant="outline"
                               size="sm"
                               className={cn(
-                                "text-xs h-auto py-1 px-2 rounded-full bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200",
+                                "text-xs h-auto py-1 px-2 rounded-full flex items-center gap-1",
                                 getLoggedClass('channel_tcm_muscle', muscle.name)
                               )}
                               onClick={() => handleLogItemClick('channel_tcm_muscle', muscle.name)}
+                              disabled={loggingSessionEvent}
                             >
                               {muscle.name}
+                              {isItemLogged('channel_tcm_muscle', muscle.name) && <CheckCircle2 className="w-3 h-3 text-green-600" />}
                             </Button>
                             <Button
                               variant="ghost"
@@ -543,10 +559,11 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                     <span className={cn("font-semibold mr-1", colors.icon)}>He Sea:</span>
                     {selectedChannelForDisplay.heSea ? (
                       <span
-                        className={cn("cursor-pointer hover:underline", getLoggedClass('channel_he_sea', selectedChannelForDisplay.heSea))}
+                        className={cn("cursor-pointer hover:underline flex items-center gap-1", getLoggedClass('channel_he_sea', selectedChannelForDisplay.heSea))}
                         onClick={() => handleLogItemClick('channel_he_sea', selectedChannelForDisplay.heSea)}
                       >
                         {selectedChannelForDisplay.heSea}
+                        {isItemLogged('channel_he_sea', selectedChannelForDisplay.heSea) && <CheckCircle2 className="w-3 h-3 text-green-600" />}
                       </span>
                     ) : 'N/A'}
                   </div>
@@ -557,10 +574,11 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                     <span className={cn("font-semibold mr-1", colors.icon)}>Jing River:</span>
                     {selectedChannelForDisplay.jingRiver ? (
                       <span
-                        className={cn("cursor-pointer hover:underline", getLoggedClass('channel_jing_river', selectedChannelForDisplay.jingRiver))}
+                        className={cn("cursor-pointer hover:underline flex items-center gap-1", getLoggedClass('channel_jing_river', selectedChannelForDisplay.jingRiver))}
                         onClick={() => handleLogItemClick('channel_jing_river', selectedChannelForDisplay.jingRiver)}
                       >
                         {selectedChannelForDisplay.jingRiver}
+                        {isItemLogged('channel_jing_river', selectedChannelForDisplay.jingRiver) && <CheckCircle2 className="w-3 h-3 text-green-600" />}
                       </span>
                     ) : 'N/A'}
                   </div>
@@ -571,10 +589,11 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                     <span className={cn("font-semibold mr-1", colors.icon)}>Jing Well:</span>
                     {selectedChannelForDisplay.jingWell ? (
                       <span
-                        className={cn("cursor-pointer hover:underline", getLoggedClass('channel_jing_well', selectedChannelForDisplay.jingWell))}
+                        className={cn("cursor-pointer hover:underline flex items-center gap-1", getLoggedClass('channel_jing_well', selectedChannelForDisplay.jingWell))}
                         onClick={() => handleLogItemClick('channel_jing_well', selectedChannelForDisplay.jingWell)}
                       >
                         {selectedChannelForDisplay.jingWell}
+                        {isItemLogged('channel_jing_well', selectedChannelForDisplay.jingWell) && <CheckCircle2 className="w-3 h-3 text-green-600" />}
                       </span>
                     ) : 'N/A'}
                   </div>
@@ -585,10 +604,11 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                     <span className={cn("font-semibold mr-1", colors.icon)}>Sedate 1:</span>
                     {selectedChannelForDisplay.sedate1 ? (
                       <span
-                        className={cn("cursor-pointer hover:underline", getLoggedClass('channel_sedate1', selectedChannelForDisplay.sedate1))}
+                        className={cn("cursor-pointer hover:underline flex items-center gap-1", getLoggedClass('channel_sedate1', selectedChannelForDisplay.sedate1))}
                         onClick={() => handleLogItemClick('channel_sedate1', selectedChannelForDisplay.sedate1)}
                       >
                         {selectedChannelForDisplay.sedate1}
+                        {isItemLogged('channel_sedate1', selectedChannelForDisplay.sedate1) && <CheckCircle2 className="w-3 h-3 text-green-600" />}
                       </span>
                     ) : 'N/A'}
                   </div>
@@ -599,10 +619,11 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                     <span className={cn("font-semibold mr-1", colors.icon)}>Sedate 2:</span>
                     {selectedChannelForDisplay.sedate2 ? (
                       <span
-                        className={cn("cursor-pointer hover:underline", getLoggedClass('channel_sedate2', selectedChannelForDisplay.sedate2))}
+                        className={cn("cursor-pointer hover:underline flex items-center gap-1", getLoggedClass('channel_sedate2', selectedChannelForDisplay.sedate2))}
                         onClick={() => handleLogItemClick('channel_sedate2', selectedChannelForDisplay.sedate2)}
                       >
                         {selectedChannelForDisplay.sedate2}
+                        {isItemLogged('channel_sedate2', selectedChannelForDisplay.sedate2) && <CheckCircle2 className="w-3 h-3 text-green-600" />}
                       </span>
                     ) : 'N/A'}
                   </div>
@@ -613,10 +634,11 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                     <span className={cn("font-semibold mr-1", colors.icon)}>Tonify 1:</span>
                     {selectedChannelForDisplay.tonify1 ? (
                       <span
-                        className={cn("cursor-pointer hover:underline", getLoggedClass('channel_tonify1', selectedChannelForDisplay.tonify1))}
+                        className={cn("cursor-pointer hover:underline flex items-center gap-1", getLoggedClass('channel_tonify1', selectedChannelForDisplay.tonify1))}
                         onClick={() => handleLogItemClick('channel_tonify1', selectedChannelForDisplay.tonify1)}
                       >
                         {selectedChannelForDisplay.tonify1}
+                        {isItemLogged('channel_tonify1', selectedChannelForDisplay.tonify1) && <CheckCircle2 className="w-3 h-3 text-green-600" />}
                       </span>
                     ) : 'N/A'}
                   </div>
@@ -627,10 +649,11 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                     <span className={cn("font-semibold mr-1", colors.icon)}>Tonify 2:</span>
                     {selectedChannelForDisplay.tonify2 ? (
                       <span
-                        className={cn("cursor-pointer hover:underline", getLoggedClass('channel_tonify2', selectedChannelForDisplay.tonify2))}
+                        className={cn("cursor-pointer hover:underline flex items-center gap-1", getLoggedClass('channel_tonify2', selectedChannelForDisplay.tonify2))}
                         onClick={() => handleLogItemClick('channel_tonify2', selectedChannelForDisplay.tonify2)}
                       >
                         {selectedChannelForDisplay.tonify2}
+                        {isItemLogged('channel_tonify2', selectedChannelForDisplay.tonify2) && <CheckCircle2 className="w-3 h-3 text-green-600" />}
                       </span>
                     ) : 'N/A'}
                   </div>
@@ -641,10 +664,11 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                     <span className={cn("font-semibold mr-1", colors.icon)}>Appropriate Sound:</span>
                     {selectedChannelForDisplay.appropriateSound ? (
                       <span
-                        className={cn("cursor-pointer hover:underline", getLoggedClass('channel_appropriate_sound', selectedChannelForDisplay.appropriateSound))}
+                        className={cn("cursor-pointer hover:underline flex items-center gap-1", getLoggedClass('channel_appropriate_sound', selectedChannelForDisplay.appropriateSound))}
                         onClick={() => handleLogItemClick('channel_appropriate_sound', selectedChannelForDisplay.appropriateSound)}
                       >
                         {selectedChannelForDisplay.appropriateSound}
+                        {isItemLogged('channel_appropriate_sound', selectedChannelForDisplay.appropriateSound) && <CheckCircle2 className="w-3 h-3 text-green-600" />}
                       </span>
                     ) : 'N/A'}
                   </div>
@@ -656,17 +680,20 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                     {selectedChannelForDisplay.tags.length > 0 ? (
                       <div className="flex flex-wrap gap-1">
                         {selectedChannelForDisplay.tags.map((tag, i) => (
-                          <Badge
+                          <Button
                             key={i}
                             variant="outline"
+                            size="sm"
                             className={cn(
-                              "text-xs cursor-pointer bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200",
+                              "text-xs h-auto py-1 px-2 rounded-full flex items-center gap-1",
                               getLoggedClass('channel_tag', tag)
                             )}
                             onClick={() => handleLogItemClick('channel_tag', tag)}
+                            disabled={loggingSessionEvent}
                           >
                             {tag}
-                          </Badge>
+                            {isItemLogged('channel_tag', tag) && <CheckCircle2 className="w-3 h-3 text-green-600" />}
+                          </Button>
                         ))}
                       </div>
                     ) : 'N/A'}
@@ -678,10 +705,11 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                     <span className={cn("font-semibold mr-1", colors.icon)}>Brain Aspects:</span>
                     {selectedChannelForDisplay.brainAspects ? (
                       <span
-                        className={cn("cursor-pointer hover:underline", getLoggedClass('channel_brain_aspect', selectedChannelForDisplay.brainAspects))}
+                        className={cn("cursor-pointer hover:underline flex items-center gap-1", getLoggedClass('channel_brain_aspect', selectedChannelForDisplay.brainAspects))}
                         onClick={() => handleLogItemClick('channel_brain_aspect', selectedChannelForDisplay.brainAspects)}
                       >
                         {selectedChannelForDisplay.brainAspects}
+                        {isItemLogged('channel_brain_aspect', selectedChannelForDisplay.brainAspects) && <CheckCircle2 className="w-3 h-3 text-green-600" />}
                       </span>
                     ) : 'N/A'}
                   </div>
@@ -692,10 +720,11 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                     <span className={cn("font-semibold mr-1", colors.icon)}>Activate Sinew:</span>
                     {selectedChannelForDisplay.activateSinew ? (
                       <span
-                        className={cn("cursor-pointer hover:underline", getLoggedClass('channel_activate_sinew', selectedChannelForDisplay.activateSinew))}
+                        className={cn("cursor-pointer hover:underline flex items-center gap-1", getLoggedClass('channel_activate_sinew', selectedChannelForDisplay.activateSinew))}
                         onClick={() => handleLogItemClick('channel_activate_sinew', selectedChannelForDisplay.activateSinew)}
                       >
                         {selectedChannelForDisplay.activateSinew}
+                        {isItemLogged('channel_activate_sinew', selectedChannelForDisplay.activateSinew) && <CheckCircle2 className="w-3 h-3 text-green-600" />}
                       </span>
                     ) : 'N/A'}
                   </div>
@@ -706,10 +735,11 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                     <span className={cn("font-semibold mr-1", colors.icon)}>Time:</span>
                     {selectedChannelForDisplay.time ? (
                       <span
-                        className={cn("cursor-pointer hover:underline", getLoggedClass('channel_time', selectedChannelForDisplay.time))}
+                        className={cn("cursor-pointer hover:underline flex items-center gap-1", getLoggedClass('channel_time', selectedChannelForDisplay.time))}
                         onClick={() => handleLogItemClick('channel_time', selectedChannelForDisplay.time)}
                       >
                         {selectedChannelForDisplay.time}
+                        {isItemLogged('channel_time', selectedChannelForDisplay.time) && <CheckCircle2 className="w-3 h-3 text-green-600" />}
                       </span>
                     ) : 'N/A'}
                   </div>
@@ -720,10 +750,11 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                     <span className={cn("font-semibold mr-1", colors.icon)}>Sound:</span>
                     {selectedChannelForDisplay.sound ? (
                       <span
-                        className={cn("cursor-pointer hover:underline", getLoggedClass('channel_sound', selectedChannelForDisplay.sound))}
+                        className={cn("cursor-pointer hover:underline flex items-center gap-1", getLoggedClass('channel_sound', selectedChannelForDisplay.sound))}
                         onClick={() => handleLogItemClick('channel_sound', selectedChannelForDisplay.sound)}
                       >
                         {selectedChannelForDisplay.sound}
+                        {isItemLogged('channel_sound', selectedChannelForDisplay.sound) && <CheckCircle2 className="w-3 h-3 text-green-600" />}
                       </span>
                     ) : 'N/A'}
                   </div>
