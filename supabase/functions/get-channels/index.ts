@@ -69,7 +69,7 @@ serve(async (req) => {
     if (searchTerm && searchTerm.trim() !== '') {
       if (searchType === 'name') {
         filter = {
-          property: "Channel", // Changed from "Name" to "Channel"
+          property: "Meridian", // Changed from "Channel" to "Meridian"
           title: {
             contains: searchTerm
           }
@@ -102,7 +102,7 @@ serve(async (req) => {
     const requestBody: any = {
       sorts: [
         {
-          property: "Channel", // Changed from "Name" to "Channel"
+          property: "Meridian", // Changed from "Channel" to "Meridian"
           direction: "ascending"
         }
       ]
@@ -138,7 +138,7 @@ serve(async (req) => {
       const properties = page.properties
       return {
         id: page.id,
-        name: properties.Channel?.title?.[0]?.plain_text || "Unknown Channel", // Changed from "Name" to "Channel"
+        name: properties.Meridian?.title?.[0]?.plain_text || "Unknown Channel", // Changed from "Channel" to "Meridian"
         elements: properties.Elements?.multi_select?.map((s: any) => s.name) || [],
         pathways: properties.Pathways?.rich_text?.[0]?.plain_text || "",
         functions: properties.Functions?.rich_text?.[0]?.plain_text || "",
