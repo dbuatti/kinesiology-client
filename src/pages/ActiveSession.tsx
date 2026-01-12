@@ -7,15 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Calendar, User, Star, Target, Clock } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { createClient } from '@supabase/supabase-js';
-
-// Extend window interface for Supabase
-declare global {
-  interface Window {
-    supabase: ReturnType<typeof createClient>;
-    supabaseUrl: string;
-  }
-}
+import { supabase } from '@/integrations/supabase/client';
 
 interface Appointment {
   id: string;
@@ -41,7 +33,7 @@ const ActiveSession = () => {
       setError(null);
 
       // Get the session token from Supabase
-      const { data: { session } } = await window.supabase.auth.getSession();
+      const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
         setError('Please log in to view appointments');
@@ -49,9 +41,12 @@ const ActiveSession = () => {
         return;
       }
 
+      // Get Supabase URL from environment or default
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://hcriagmovotwuqbppcfm.supabase.co';
+
       // Call the edge function
       const response = await fetch(
-        `${window.supabaseUrl}/functions/v1/get-todays-appointments`,
+        `${supabaseUrl}/functions/v1/get-todays-appointments`,
         {
           method: 'GET',
           headers: {
