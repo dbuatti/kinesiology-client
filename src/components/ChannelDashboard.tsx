@@ -19,6 +19,22 @@ interface ChannelDashboardProps {
 
 const primaryElements = ['Wood', 'Fire', 'Earth', 'Metal', 'Water'];
 
+// Hardcoded knowledge base for Yuan Points and Front-Mu (Alarm) Points
+const yuanAndFrontMuPoints = new Map<string, { yuan: string; frontMu: string }>();
+yuanAndFrontMuPoints.set('Lung', { yuan: 'LU9 (Taiyuan)', frontMu: 'LU1 (Zhongfu)' });
+yuanAndFrontMuPoints.set('Large Intestine', { yuan: 'LI4 (Hegu)', frontMu: 'ST25 (Tianshu)' });
+yuanAndFrontMuPoints.set('Stomach', { yuan: 'ST42 (Chongyang)', frontMu: 'CV12 (Zhongwan)' });
+yuanAndFrontMuPoints.set('Spleen', { yuan: 'SP3 (Taibai)', frontMu: 'LV13 (Zhangmen)' });
+yuanAndFrontMuPoints.set('Heart', { yuan: 'HT7 (Shenmen)', frontMu: 'CV14 (Juque)' });
+yuanAndFrontMuPoints.set('Small Intestine', { yuan: 'SI4 (Wangu)', frontMu: 'CV4 (Guanyuan)' });
+yuanAndFrontMuPoints.set('Bladder', { yuan: 'BL64 (Jinggu)', frontMu: 'CV3 (Zhongji)' });
+yuanAndFrontMuPoints.set('Kidney', { yuan: 'KI3 (Taixi)', frontMu: 'GB25 (Jingmen)' });
+yuanAndFrontMuPoints.set('Pericardium', { yuan: 'PC7 (Daling)', frontMu: 'CV17 (Shanzhong)' });
+yuanAndFrontMuPoints.set('Triple Warmer', { yuan: 'SJ4 (Yangchi)', frontMu: 'CV5 (Shimen)' });
+yuanAndFrontMuPoints.set('Gallbladder', { yuan: 'GB40 (Qiuxu)', frontMu: 'GB24 (Riyue)' });
+yuanAndFrontMuPoints.set('Liver', { yuan: 'LV3 (Taichong)', frontMu: 'LV14 (Qimen)' });
+// Add more channels and their points as needed
+
 const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLogSuccess }) => {
   const [allChannels, setAllChannels] = useState<Channel[]>([]);
   const [selectedChannelForDisplay, setSelectedChannelForDisplay] = useState<Channel | null>(null);
@@ -321,6 +337,10 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
         {/* Selected Channel Summary Display */}
         {selectedChannelForDisplay && (() => {
           const colors = getElementColorClasses(selectedChannelForDisplay.elements);
+          // Derive Yuan and Front Mu points from hardcoded map, overriding Notion data
+          const derivedYuanPoints = yuanAndFrontMuPoints.get(selectedChannelForDisplay.name)?.yuan || selectedChannelForDisplay.yuanPoints;
+          const derivedFrontMu = yuanAndFrontMuPoints.get(selectedChannelForDisplay.name)?.frontMu || selectedChannelForDisplay.frontMu;
+
           return (
             <Card className={cn("border-2 shadow-md mt-6 p-4", colors.border, colors.bg)}>
               <div className="flex items-center justify-between mb-3">
@@ -411,13 +431,13 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                 <div className="flex items-start gap-2">
                   <Hand className={cn("w-4 h-4 flex-shrink-0 mt-0.5", colors.icon)} />
                   <div className="flex items-center">
-                    <span className={cn("font-semibold mr-1", colors.icon)}>Front Mu:</span>
-                    {selectedChannelForDisplay.frontMu ? (
+                    <span className={cn("font-semibold mr-1", colors.icon)}>Front Mu (Alarm):</span>
+                    {derivedFrontMu ? (
                       <span
-                        className={cn("cursor-pointer hover:underline", getLoggedClass('channel_front_mu', selectedChannelForDisplay.frontMu))}
-                        onClick={() => handleLogItemClick('channel_front_mu', selectedChannelForDisplay.frontMu)}
+                        className={cn("cursor-pointer hover:underline", getLoggedClass('channel_front_mu', derivedFrontMu))}
+                        onClick={() => handleLogItemClick('channel_front_mu', derivedFrontMu)}
                       >
-                        {selectedChannelForDisplay.frontMu}
+                        {derivedFrontMu}
                       </span>
                     ) : 'N/A'}
                   </div>
@@ -514,12 +534,12 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                   <Sparkles className={cn("w-4 h-4 flex-shrink-0 mt-0.5", colors.icon)} />
                   <div className="flex items-center">
                     <span className={cn("font-semibold mr-1", colors.icon)}>Yuan Points:</span>
-                    {selectedChannelForDisplay.yuanPoints ? (
+                    {derivedYuanPoints ? (
                       <span
-                        className={cn("cursor-pointer hover:underline", getLoggedClass('channel_yuan_point', selectedChannelForDisplay.yuanPoints))}
-                        onClick={() => handleLogItemClick('channel_yuan_point', selectedChannelForDisplay.yuanPoints)}
+                        className={cn("cursor-pointer hover:underline", getLoggedClass('channel_yuan_point', derivedYuanPoints))}
+                        onClick={() => handleLogItemClick('channel_yuan_point', derivedYuanPoints)}
                       >
-                        {selectedChannelForDisplay.yuanPoints}
+                        {derivedYuanPoints}
                       </span>
                     ) : 'N/A'}
                   </div>
