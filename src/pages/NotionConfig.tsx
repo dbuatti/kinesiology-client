@@ -18,7 +18,7 @@ const NotionConfig = () => {
   const [crmDbId, setCrmDbId] = useState('');
   const [modesDbId, setModesDbId] = useState('');
   const [acupointsDbId, setAcupointsDbId] = useState('');
-  const [musclesDbId, setMusclesDbId] = useState('');
+  const [musclesDbId, setMusculesDbId] = useState('');
   const [channelsDbId, setChannelsDbId] = useState('');
   const [chakrasDbId, setChakrasDbId] = useState(''); // New state for Chakras DB ID
   const [loadingInitial, setLoadingInitial] = useState(true); // Separate loading for initial fetch
@@ -70,7 +70,7 @@ const NotionConfig = () => {
           setCrmDbId(secrets.crm_database_id || '');
           setModesDbId(secrets.modes_database_id || '');
           setAcupointsDbId(secrets.acupoints_database_id || '');
-          setMusclesDbId(secrets.muscles_database_id || '');
+          setMusculesDbId(secrets.muscles_database_id || ''); // Fixed typo here
           setChannelsDbId(secrets.channels_database_id || '');
           setChakrasDbId(secrets.chakras_database_id || ''); // Set new chakrasDbId
         }
@@ -99,36 +99,18 @@ const NotionConfig = () => {
       toast({ variant: 'destructive', title: 'Validation Error', description: 'Appointments Database ID cannot be empty.' });
       return;
     }
-    if (!modesDbId.trim()) {
-      toast({ variant: 'destructive', title: 'Validation Error', description: 'Modes & Balances Database ID cannot be empty.' });
-      return;
-    }
-    if (!acupointsDbId.trim()) {
-      toast({ variant: 'destructive', title: 'Validation Error', description: 'Acupoints Database ID cannot be empty.' });
-      return;
-    }
-    if (!musclesDbId.trim()) {
-      toast({ variant: 'destructive', title: 'Validation Error', description: 'Muscles Database ID cannot be empty.' });
-      return;
-    }
-    if (!channelsDbId.trim()) {
-      toast({ variant: 'destructive', title: 'Validation Error', description: 'Channels Database ID cannot be empty.' });
-      return;
-    }
-    if (!chakrasDbId.trim()) { // New validation for Chakras DB ID
-      toast({ variant: 'destructive', title: 'Validation Error', description: 'Chakras Database ID cannot be empty.' });
-      return;
-    }
+    // The following fields are now optional, so no strict validation here.
+    // They will be passed as null if empty strings.
 
     await setNotionSecrets({
       notionToken: integrationToken,
       appointmentsDbId: appointmentsDbId,
-      crmDbId: crmDbId || null,
-      modesDbId: modesDbId || null,
-      acupointsDbId: acupointsDbId || null,
-      musclesDbId: musclesDbId || null,
-      channelsDbId: channelsDbId || null,
-      chakrasDbId: chakrasDbId || null, // Include new chakrasDbId
+      crmDbId: crmDbId.trim() || null,
+      modesDbId: modesDbId.trim() || null,
+      acupointsDbId: acupointsDbId.trim() || null,
+      musclesDbId: musclesDbId.trim() || null,
+      channelsDbId: channelsDbId.trim() || null,
+      chakrasDbId: chakrasDbId.trim() || null, // Include new chakrasDbId
     });
   };
 
@@ -168,7 +150,7 @@ const NotionConfig = () => {
                   <div className="space-y-2">
                     <Label htmlFor="token" className="flex items-center gap-2 font-semibold">
                       <Key className="w-4 h-4 text-indigo-600" />
-                      Integration Token
+                      Integration Token <span className="text-red-500">*</span>
                     </Label>
                     <Input
                       id="token"
@@ -187,7 +169,7 @@ const NotionConfig = () => {
                   <div className="space-y-2">
                     <Label htmlFor="appointments" className="flex items-center gap-2 font-semibold">
                       <Database className="w-4 h-4 text-indigo-600" />
-                      Appointments Database ID
+                      Appointments Database ID <span className="text-red-500">*</span>
                     </Label>
                     <Input
                       id="appointments"
@@ -225,7 +207,7 @@ const NotionConfig = () => {
                   <div className="space-y-2">
                     <Label htmlFor="modes" className="flex items-center gap-2 font-semibold">
                       <Database className="w-4 h-4 text-indigo-600" />
-                      Modes & Balances Database ID
+                      Modes & Balances Database ID (Optional)
                     </Label>
                     <Input
                       id="modes"
@@ -244,7 +226,7 @@ const NotionConfig = () => {
                   <div className="space-y-2">
                     <Label htmlFor="acupoints" className="flex items-center gap-2 font-semibold">
                       <Database className="w-4 h-4 text-indigo-600" />
-                      Acupoints Database ID
+                      Acupoints Database ID (Optional)
                     </Label>
                     <Input
                       id="acupoints"
@@ -263,14 +245,14 @@ const NotionConfig = () => {
                   <div className="space-y-2">
                     <Label htmlFor="muscles" className="flex items-center gap-2 font-semibold">
                       <Database className="w-4 h-4 text-indigo-600" />
-                      Muscles Database ID
+                      Muscles Database ID (Optional)
                     </Label>
                     <Input
                       id="muscles"
                       type="text"
                       placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
                       value={musclesDbId}
-                      onChange={(e) => setMusclesDbId(e.target.value)}
+                      onChange={(e) => setMusculesDbId(e.target.value)}
                       disabled={savingConfig}
                     />
                     <p className="text-xs text-gray-500">
@@ -282,7 +264,7 @@ const NotionConfig = () => {
                   <div className="space-y-2">
                     <Label htmlFor="channels" className="flex items-center gap-2 font-semibold">
                       <Database className="w-4 h-4 text-indigo-600" />
-                      Channels Database ID
+                      Channels Database ID (Optional)
                     </Label>
                     <Input
                       id="channels"
@@ -301,7 +283,7 @@ const NotionConfig = () => {
                   <div className="space-y-2">
                     <Label htmlFor="chakras" className="flex items-center gap-2 font-semibold">
                       <Database className="w-4 h-4 text-indigo-600" />
-                      Chakras Database ID
+                      Chakras Database ID (Optional)
                     </Label>
                     <Input
                       id="chakras"
