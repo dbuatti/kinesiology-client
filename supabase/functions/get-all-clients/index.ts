@@ -99,7 +99,8 @@ serve(async (req) => {
         focus: properties.Focus?.rich_text?.[0]?.plain_text || "",
         email: properties.Email?.email || "",
         phone: properties.Phone?.phone_number || "",
-        starSign: properties["Star Sign"]?.select?.name || "Unknown",
+        // Correctly parse Star Sign from an equation property
+        starSign: properties["Star Sign"]?.formula?.string || "Unknown",
       }
     })
 

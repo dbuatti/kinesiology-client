@@ -205,7 +205,8 @@ serve(async (req) => {
           const clientProperties = clientData.properties
 
           clientName = clientProperties.Name?.title?.[0]?.plain_text || clientName
-          starSign = clientProperties["Star Sign"]?.select?.name || "Unknown"
+          // Correctly parse Star Sign from an equation property
+          starSign = clientProperties["Star Sign"]?.formula?.string || "Unknown"
           // 'focus' is now specific to the appointment, not fetched from CRM here
           console.log(`[get-todays-appointments] CRM details fetched for ${clientName}`)
         } else {
