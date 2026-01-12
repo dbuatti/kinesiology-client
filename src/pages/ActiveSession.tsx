@@ -341,34 +341,34 @@ const ActiveSession = () => {
     navigate('/notion-config');
   }, [navigate]);
 
-  const handleAcupointSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const term = e.target.value;
-    setAcupointSearchTerm(term);
-    fetchAcupoints({ searchTerm: term, searchType: 'point' });
+  const handleAcupointSearchChange = (value: string) => {
+    setAcupointSearchTerm(value);
+    fetchAcupoints({ searchTerm: value, searchType: 'point' });
   };
 
   const handleClearAcupointSearch = useCallback(() => {
     setAcupointSearchTerm('');
     setFoundAcupoints([]);
+    setSelectedAcupoint(null); // Clear selected acupoint as well
   }, []);
 
-  const handleSymptomSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const term = e.target.value;
-    setSymptomSearchTerm(term);
-    fetchAcupoints({ searchTerm: term, searchType: 'symptom' });
+  const handleSymptomSearchChange = (value: string) => {
+    setSymptomSearchTerm(value);
+    fetchAcupoints({ searchTerm: value, searchType: 'symptom' });
   };
 
   const handleClearSymptomSearch = useCallback(() => {
     setSymptomSearchTerm('');
     setFoundAcupoints([]);
+    setSelectedAcupoint(null); // Clear selected acupoint as well
   }, []);
 
   const handleSelectAcupoint = useCallback((acupoint: Acupoint) => {
     setSelectedAcupoint(acupoint);
     setIsAcupointSearchOpen(false);
     setIsSymptomSearchOpen(false);
-    setAcupointSearchTerm(acupoint.name);
-    setSymptomSearchTerm('');
+    setAcupointSearchTerm(acupoint.name); // Display selected acupoint name in the point search trigger
+    setSymptomSearchTerm(''); // Clear symptom search when a point is selected
     setFoundAcupoints([]);
   }, []);
 
@@ -387,6 +387,7 @@ const ActiveSession = () => {
         showSuccess(`${selectedAcupoint.name} added to the current session.`);
         setSelectedAcupoint(null);
         setAcupointSearchTerm('');
+        setSymptomSearchTerm('');
       }
     } else {
       showError('No acupoint selected to add to session.');
@@ -639,7 +640,8 @@ const ActiveSession = () => {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => {
+                                onClick={(e) => {
+                                  e.stopPropagation(); // Prevent selecting the mode when clicking the info button
                                   setSelectedModeNotionPageId(mode.id); // Assuming mode.id is the Notion page ID
                                   setIsModeModalOpen(true);
                                 }}
@@ -678,34 +680,24 @@ const ActiveSession = () => {
                   </Label>
                   <Popover open={isAcupointSearchOpen} onOpenChange={setIsAcupointSearchOpen}>
                     <PopoverTrigger asChild>
-                      <div className="relative">
-                        <Input
-                          id="point-search"
-                          type="text"
-                          placeholder="Search for an acupoint..."
-                          value={acupointSearchTerm}
-                          onChange={handleAcupointSearchChange}
-                          onFocus={() => setIsAcupointSearchOpen(true)}
-                          className="w-full pr-10"
-                          disabled={loadingAcupoints || updatingAppointment}
-                        />
-                        {acupointSearchTerm && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0 text-gray-500 hover:text-gray-700"
-                            onClick={handleClearAcupointSearch}
-                            disabled={loadingAcupoints || updatingAppointment}
-                          >
-                            <XCircle className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={isAcupointSearchOpen}
+                        className="w-full justify-between"
+                        disabled={loadingAcupoints || updatingAppointment}
+                      >
+                        {selectedAcupoint ? selectedAcupoint.name : (acupointSearchTerm || "Search for an acupoint...")}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                       <Command>
-                        {loadingAcupoints && <CommandInput value={acupointSearchTerm} onValueChange={setAcupointSearchTerm} placeholder="Searching..." disabled />}
-                        {!loadingAcupoints && <CommandInput value={acupointSearchTerm} onValueChange={setAcupointSearchTerm} placeholder="Search acupoint..." />}
+                        <CommandInput
+                          placeholder="Search acupoint..."
+                          value={acupointSearchTerm}
+                          onValueChange={handleAcupointSearchChange}
+                        />
                         <CommandEmpty>No acupoint found.</CommandEmpty>
                         <CommandGroup>
                           {foundAcupoints.map((point) => (
@@ -714,6 +706,12 @@ const ActiveSession = () => {
                               value={point.name}
                               onSelect={() => handleSelectAcupoint(point)}
                             >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  selectedAcupoint?.id === point.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
                               {point.name}
                               <Button
                                 variant="ghost"
@@ -743,34 +741,24 @@ const ActiveSession = () => {
                   </Label>
                   <Popover open={isSymptomSearchOpen} onOpenChange={setIsSymptomSearchOpen}>
                     <PopoverTrigger asChild>
-                      <div className="relative">
-                        <Input
-                          id="symptom-search"
-                          type="text"
-                          placeholder="Search symptoms for point suggestions..."
-                          value={symptomSearchTerm}
-                          onChange={handleSymptomSearchChange}
-                          onFocus={() => setIsSymptomSearchOpen(true)}
-                          className="w-full pr-10"
-                          disabled={loadingAcupoints || updatingAppointment}
-                        />
-                        {symptomSearchTerm && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0 text-gray-500 hover:text-gray-700"
-                            onClick={handleClearSymptomSearch}
-                            disabled={loadingAcupoints || updatingAppointment}
-                          >
-                            <XCircle className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={isSymptomSearchOpen}
+                        className="w-full justify-between"
+                        disabled={loadingAcupoints || updatingAppointment}
+                      >
+                        {selectedAcupoint ? selectedAcupoint.name : (symptomSearchTerm || "Search symptoms for point suggestions...")}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                       <Command>
-                        {loadingAcupoints && <CommandInput value={symptomSearchTerm} onValueChange={setSymptomSearchTerm} placeholder="Searching..." disabled />}
-                        {!loadingAcupoints && <CommandInput value={symptomSearchTerm} onValueChange={setSymptomSearchTerm} placeholder="Search symptom..." />}
+                        <CommandInput
+                          placeholder="Search symptom..."
+                          value={symptomSearchTerm}
+                          onValueChange={handleSymptomSearchChange}
+                        />
                         <CommandEmpty>No suggestions found.</CommandEmpty>
                         <CommandGroup>
                           {foundAcupoints.map((point) => (
@@ -779,6 +767,12 @@ const ActiveSession = () => {
                               value={point.name}
                               onSelect={() => handleSelectAcupoint(point)}
                             >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  selectedAcupoint?.id === point.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
                               {point.name}
                               <Button
                                 variant="ghost"

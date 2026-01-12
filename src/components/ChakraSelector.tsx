@@ -221,21 +221,27 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
           </div>
           <Popover open={isSearchOpen} onOpenChange={setIsSearchOpen}>
             <PopoverTrigger asChild>
-              <Input
-                id="chakra-search"
-                type="text"
-                placeholder={`Search by ${searchType}...`}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                onFocus={() => setIsSearchOpen(true)}
-                className="w-full"
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={isSearchOpen}
+                className="w-full justify-between"
                 disabled={loadingChakras || loggingSessionEvent}
-              />
+              >
+                {selectedChakra ? selectedChakra.name : (searchTerm || `Search by ${searchType}...`)}
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
             </PopoverTrigger>
             <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
               <Command>
-                {loadingChakras && <CommandInput value={searchTerm} onValueChange={setSearchTerm} placeholder="Loading chakras..." disabled />}
-                {!loadingChakras && <CommandInput value={searchTerm} onValueChange={setSearchTerm} placeholder={`Search ${searchType}...`} />}
+                <CommandInput
+                  placeholder={`Search ${searchType}...`}
+                  value={searchTerm}
+                  onValueChange={(value) => {
+                    setSearchTerm(value);
+                    fetchChakras({ searchTerm: value, searchType });
+                  }}
+                />
                 <CommandEmpty>No chakras found.</CommandEmpty>
                 <CommandGroup>
                   {filteredChakras.map((chakra) => (
@@ -244,6 +250,12 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
                       value={chakra.name}
                       onSelect={() => handleSelectChakra(chakra)}
                     >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          selectedChakra?.id === chakra.id ? "opacity-100" : "opacity-0"
+                        )}
+                      />
                       {chakra.name}
                       <Button
                         variant="ghost"

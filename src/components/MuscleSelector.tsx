@@ -148,7 +148,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
             <Search className="w-4 h-4 text-indigo-600" />
             Search Muscles
           </Label>
-          <div className="flex gap-2 mb-4">
+          <div className="flex gap-2 mb-4 flex-wrap">
             <Button
               variant={searchType === 'muscle' ? 'default' : 'outline'}
               onClick={() => handleSearchTypeChange('muscle')}
@@ -176,34 +176,27 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
           </div>
           <Popover open={isSearchOpen} onOpenChange={setIsSearchOpen}>
             <PopoverTrigger asChild>
-              <div className="relative">
-                <Input
-                  id="muscle-search"
-                  type="text"
-                  placeholder={`Search by ${searchType}...`}
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  onFocus={() => setIsSearchOpen(true)}
-                  className="w-full pr-10"
-                  disabled={loadingMuscles}
-                />
-                {searchTerm && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0 text-gray-500 hover:text-gray-700"
-                    onClick={handleClearSearch}
-                    disabled={loadingMuscles}
-                  >
-                    <XCircle className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={isSearchOpen}
+                className="w-full justify-between"
+                disabled={loadingMuscles}
+              >
+                {selectedMuscle ? selectedMuscle.name : (searchTerm || `Search by ${searchType}...`)}
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
             </PopoverTrigger>
             <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
               <Command>
-                {loadingMuscles && <CommandInput value={searchTerm} onValueChange={setSearchTerm} placeholder="Loading muscles..." disabled />}
-                {!loadingMuscles && <CommandInput value={searchTerm} onValueChange={setSearchTerm} placeholder={`Search ${searchType}...`} />}
+                <CommandInput
+                  placeholder={`Search ${searchType}...`}
+                  value={searchTerm}
+                  onValueChange={(value) => {
+                    setSearchTerm(value);
+                    fetchMuscles({ searchTerm: value, searchType });
+                  }}
+                />
                 <CommandEmpty>No muscles found.</CommandEmpty>
                 <CommandGroup>
                   {filteredMuscles.map((muscle) => (
@@ -212,6 +205,12 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
                       value={muscle.name}
                       onSelect={() => handleSelectMuscle(muscle)}
                     >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          selectedMuscle?.id === muscle.id ? "opacity-100" : "opacity-0"
+                        )}
+                      />
                       {muscle.name}
                       <Button
                         variant="ghost"
