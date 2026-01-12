@@ -81,21 +81,21 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
     fetchChannels({ searchTerm: '', searchType: 'name' }); // Fetch all channels initially
   }, [fetchChannels]);
 
-  const { meridianChannels, nonMeridianChannels } = useMemo(() => {
-    const meridian: Channel[] = [];
-    const nonMeridian: Channel[] = [];
+  const { meridian, nonMeridian } = useMemo(() => { // Corrected destructuring here
+    const meridianChannels: Channel[] = [];
+    const nonMeridianChannels: Channel[] = [];
 
     allChannels.forEach(channel => {
       const hasPrimaryElement = channel.elements.some(element => primaryElements.includes(element));
       if (hasPrimaryElement) {
-        meridian.push(channel);
+        meridianChannels.push(channel);
       } else {
-        nonMeridian.push(channel);
+        nonMeridianChannels.push(channel);
       }
     });
 
     // Sort meridian channels by element, then by name
-    meridian.sort((a, b) => {
+    meridianChannels.sort((a, b) => {
       const elementA = primaryElements.indexOf(a.elements[0] || '');
       const elementB = primaryElements.indexOf(b.elements[0] || '');
       if (elementA !== elementB) {
@@ -105,9 +105,9 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
     });
 
     // Sort non-meridian channels by name
-    nonMeridian.sort((a, b) => a.name.localeCompare(b.name));
+    nonMeridianChannels.sort((a, b) => a.name.localeCompare(b.name));
 
-    return { meridianChannels, nonMeridianChannels };
+    return { meridian: meridianChannels, nonMeridian: nonMeridianChannels }; // Return with correct keys
   }, [allChannels]);
 
   const handleSelectChannel = (channel: Channel) => {
@@ -165,7 +165,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
           <>
             {/* Meridian Channels */}
             <div className="flex flex-wrap gap-2">
-              {meridianChannels.map(channel => (
+              {meridian.map(channel => (
                 <Button
                   key={channel.id}
                   variant="outline"
@@ -183,14 +183,14 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
             </div>
 
             {/* Non-Meridian Channels */}
-            {nonMeridianChannels.length > 0 && (
+            {nonMeridian.length > 0 && (
               <>
                 <Separator className="my-6" />
                 <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1">
                   <Sparkles className="w-4 h-4 text-gray-600" /> Other Channels
                 </h3>
                 <div className="flex flex-wrap gap-2">
-                  {nonMeridianChannels.map(channel => (
+                  {nonMeridian.map(channel => (
                     <Button
                       key={channel.id}
                       variant="outline"
