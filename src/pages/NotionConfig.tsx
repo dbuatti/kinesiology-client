@@ -196,7 +196,7 @@ const NotionConfig = () => {
                       disabled={savingConfig}
                     />
                     <p className="text-xs text-gray-500">
-                      Used for client management. Can be added later.
+                      Used for client management and fetching client details like **Star Sign**. Can be added later.
                     </p>
                   </div>
 
