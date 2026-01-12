@@ -9,8 +9,9 @@ import ActiveSession from "./pages/ActiveSession";
 import Login from "./pages/Login";
 import AuthCallback from "./pages/AuthCallback";
 import NotionConfig from "./pages/NotionConfig";
-import AllAppointments from "./pages/AllAppointments"; // New import
-import AllClients from "./pages/AllClients"; // New import
+import AllAppointments from "./pages/AllAppointments";
+import AllClients from "./pages/AllClients";
+import ProfileSetup from "./pages/ProfileSetup"; // New import
 
 const queryClient = new QueryClient();
 
@@ -26,8 +27,9 @@ const App = () => (
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/active-session" element={<ActiveSession />} />
           <Route path="/notion-config" element={<NotionConfig />} />
-          <Route path="/all-appointments" element={<AllAppointments />} /> {/* New route */}
-          <Route path="/all-clients" element={<AllClients />} /> {/* New route */}
+          <Route path="/all-appointments" element={<AllAppointments />} />
+          <Route path="/all-clients" element={<AllClients />} />
+          <Route path="/profile-setup" element={<ProfileSetup />} /> {/* New route */}
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

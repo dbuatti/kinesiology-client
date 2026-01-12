@@ -68,7 +68,10 @@
             .eq('user_id', session.user.id)
             .single();
 
-          if (secretsError || !secrets) {
+          if (secretsError && secretsError.code !== 'PGRST116') { // PGRST116 means no rows found, which is fine if user hasn't configured yet
+            throw secretsError;
+          }
+          if (!secrets) {
             setNeedsConfig(true);
             setLoading(false);
             return;
@@ -87,6 +90,15 @@
 
           if (!response.ok) {
             const errorData = await response.json();
+            if (errorData.errorCode === 'PROFILE_NOT_FOUND' || errorData.errorCode === 'PRACTITIONER_NAME_MISSING') {
+              toast({
+                variant: 'destructive',
+                title: 'Profile Required',
+                description: errorData.error || 'Please complete your profile to access sessions.',
+              });
+              navigate('/profile-setup');
+              return;
+            }
             throw new Error(errorData.error || 'Failed to fetch appointments');
           }
 
