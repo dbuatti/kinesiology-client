@@ -123,12 +123,11 @@ const NotionConfig = () => {
           </CardHeader>
           
           <CardContent className="pt-6">
-            {(loadingInitialFetch || savingConfig) && (
+            {loadingInitialFetch ? (
               <div className="flex justify-center items-center h-40">
                 <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
               </div>
-            )}
-            {!loadingInitialFetch && (
+            ) : (
               <>
                 <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-start gap-3">
                   <Shield className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
