@@ -42,7 +42,7 @@ serve(async (req) => {
 
     console.log("[set-notion-secrets] User authenticated:", user.id)
 
-    const { notionToken, appointmentsDbId, crmDbId, modesDbId, acupointsDbId, musclesDbId, channelsDbId, chakrasDbId } = await req.json() // Destructure new chakrasDbId
+    const { notionToken, appointmentsDbId, crmDbId, modesDbId, acupointsDbId, musclesDbId, channelsDbId, chakrasDbId } = await req.json()
 
     // Upsert into notion_secrets table using service role
     const { error: insertError } = await supabase
@@ -56,7 +56,8 @@ serve(async (req) => {
         acupoints_database_id: acupointsDbId || null,
         muscles_database_id: musclesDbId || null,
         channels_database_id: channelsDbId || null,
-        chakras_database_id: chakrasDbId || null, // Store new chakrasDbId
+        chakras_database_id: chakrasDbId || null,
+        updated_at: new Date().toISOString(), // Explicitly update timestamp
       }, {
         onConflict: 'user_id'
       })
