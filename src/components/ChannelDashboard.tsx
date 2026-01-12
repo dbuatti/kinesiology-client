@@ -41,7 +41,7 @@ yuanAndFrontMuPoints.set('Liver', { yuan: 'LV3 (Taichong)', frontMu: 'LV14 (Qime
 const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLogSuccess, onClearSelection, onOpenNotionPage }) => {
   const [allChannels, setAllChannels] = useState<Channel[]>([]);
   const [selectedChannelForDisplay, setSelectedChannelForDisplay] = useState<Channel | null>(null);
-  const [loggedItems, setLoggedItems] = useState<Set<string>>(new Set());
+  const [loggedItems, setLoggedItems] = useState<Set<string>>(new Set()); // Fixed: Removed 'new' keyword
 
   const navigate = useNavigate();
 

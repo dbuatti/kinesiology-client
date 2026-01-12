@@ -21,6 +21,7 @@ import ChakraSelector from '@/components/ChakraSelector';
 import ChannelDashboard from '@/components/ChannelDashboard';
 import NotionPageViewer from '@/components/NotionPageViewer'; // Import NotionPageViewer
 import SessionLogDisplay from '@/components/SessionLogDisplay';
+import AcupointSelector from '@/components/AcupointSelector'; // Import new AcupointSelector
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'; // Import Tabs components
 
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
@@ -55,14 +56,6 @@ const ActiveSession = () => {
   const [modes, setModes] = useState<Mode[]>([]);
   const [selectedMode, setSelectedMode] = useState<Mode | null>(null);
   const [isModeSelectOpen, setIsModeSelectOpen] = useState(false);
-
-  // Acupoint Search States
-  const [acupointSearchTerm, setAcupointSearchTerm] = useState('');
-  const [symptomSearchTerm, setSymptomSearchTerm] = useState('');
-  const [foundAcupoints, setFoundAcupoints] = useState<Acupoint[]>([]);
-  const [selectedAcupoint, setSelectedAcupoint] = useState<Acupoint | null>(null);
-  const [isAcupointSearchOpen, setIsAcupointSearchOpen] = useState(false);
-  const [isSymptomSearchOpen, setIsSymptomSearchOpen] = useState(false);
 
   // Muscle States
   const [selectedMuscle, setSelectedMuscle] = useState<Muscle | null>(null);  // State for selected muscle
@@ -144,26 +137,6 @@ const ActiveSession = () => {
       requiresNotionConfig: true,
       onSuccess: useCallback((data: GetNotionModesResponse) => setModes(data.modes), []),
       onError: useCallback((msg: string) => showError(`Failed to load modes: ${msg}`), []),
-    }
-  );
-
-  // Fetch Acupoints
-  const {
-    data: fetchedAcupointsData,
-    loading: loadingAcupoints,
-    error: acupointsError,
-    needsConfig: acupointsNeedsConfig,
-    execute: fetchAcupoints,
-  } = useSupabaseEdgeFunction<GetAcupointsPayload, GetAcupointsResponse>(
-    'get-acupoints',
-    {
-      requiresAuth: true,
-      requiresNotionConfig: true,
-      onSuccess: useCallback((data: GetAcupointsResponse) => setFoundAcupoints(data.acupoints), []),
-      onError: useCallback((msg: string) => {
-        showError(`Failed to search: ${msg}`);
-        setFoundAcupoints([]);
-      }, []),
     }
   );
 
@@ -281,12 +254,20 @@ const ActiveSession = () => {
     }
   }, [appointmentId, fetchSingleAppointment, fetchModes, fetchSessionLogs]);
 
+  // Clear Notion page viewer when switching tabs
+  useEffect(() => {
+    if (activeTab !== 'notion-page') {
+      setSelectedNotionPageId(null);
+      setSelectedNotionPageTitle(null);
+    }
+  }, [activeTab]);
+
   // Combine all loading states
-  const overallLoading = loadingAppointment || loadingModes || loadingAcupoints || loggingSessionEvent || loggingMuscleStrength || loadingSessionLogs || deletingSessionLog || clearingAllLogs;
+  const overallLoading = loadingAppointment || loadingModes || loggingSessionEvent || loggingMuscleStrength || loadingSessionLogs || deletingSessionLog || clearingAllLogs;
   // Combine all needsConfig states
-  const overallNeedsConfig = appointmentNeedsConfig || modesNeedsConfig || acupointsNeedsConfig;
+  const overallNeedsConfig = appointmentNeedsConfig || modesNeedsConfig; // Acupoints needsConfig is now handled by AcupointSelector
   // Combine all errors for initial display
-  const overallError = appointmentError || modesError || acupointsError || sessionLogsError;
+  const overallError = appointmentError || modesError || sessionLogsError; // Acupoints error is now handled by AcupointSelector
 
   // --- Handlers ---
 
@@ -326,80 +307,13 @@ const ActiveSession = () => {
     navigate('/notion-config');
   }, [navigate]);
 
-  const handleAcupointSearchChange = (value: string) => {
-    setAcupointSearchTerm(value);
-    fetchAcupoints({ searchTerm: value, searchType: 'point' });
-  };
-
-  const handleClearAcupointSearch = useCallback(() => {
-    setAcupointSearchTerm('');
-    setSymptomSearchTerm(''); // Clear symptom search as well
-    setFoundAcupoints([]);
-    setSelectedAcupoint(null);
-    // If the Notion page viewer was showing this acupoint, clear it
-    if (selectedNotionPageId && selectedAcupoint?.id === selectedNotionPageId) {
+  const handleClearSelectedMode = useCallback(() => {
+    setSelectedMode(null);
+    if (selectedNotionPageId === selectedMode?.id) {
       setSelectedNotionPageId(null);
       setSelectedNotionPageTitle(null);
     }
-  }, [selectedAcupoint?.id, selectedNotionPageId]);
-
-  const handleSymptomSearchChange = (value: string) => {
-    setSymptomSearchTerm(value);
-    fetchAcupoints({ searchTerm: value, searchType: 'symptom' });
-  };
-
-  const handleClearSymptomSearch = useCallback(() => {
-    setSymptomSearchTerm('');
-    setAcupointSearchTerm(''); // Clear acupoint search as well
-    setFoundAcupoints([]);
-    setSelectedAcupoint(null);
-    // If the Notion page viewer was showing this acupoint, clear it
-    if (selectedNotionPageId && selectedAcupoint?.id === selectedNotionPageId) {
-      setSelectedNotionPageId(null);
-      setSelectedNotionPageTitle(null);
-    }
-  }, [selectedAcupoint?.id, selectedNotionPageId]);
-
-  const handleSelectAcupoint = useCallback((acupoint: Acupoint) => {
-    setSelectedAcupoint(acupoint);
-    setIsAcupointSearchOpen(false);
-    setIsSymptomSearchOpen(false);
-    setAcupointSearchTerm(acupoint.name); // Display selected acupoint name in the point search trigger
-    setSymptomSearchTerm(''); // Clear symptom search when a point is selected
-    setFoundAcupoints([]); // Clear found acupoints after selection
-  }, []);
-
-  const handleClearSelectedAcupoint = useCallback(() => {
-    setSelectedAcupoint(null);
-    setAcupointSearchTerm('');
-    setSymptomSearchTerm('');
-    setFoundAcupoints([]); // Clear any previous search results
-    // If the Notion page viewer was showing this acupoint, clear it
-    if (selectedNotionPageId && selectedAcupoint?.id === selectedNotionPageId) {
-      setSelectedNotionPageId(null);
-      setSelectedNotionPageTitle(null);
-    }
-  }, [selectedAcupoint?.id, selectedNotionPageId]);
-
-  const handleAddAcupointToSession = useCallback(async () => {
-    if (selectedAcupoint && appointmentId) {
-      await logSessionEvent({
-        appointmentId: appointmentId,
-        logType: 'acupoint_added',
-        details: {
-          acupointId: selectedAcupoint.id,
-          acupointName: selectedAcupoint.name,
-          channel: selectedAcupoint.channel,
-        }
-      });
-      if (!loggingSessionEvent) {
-        showSuccess(`${selectedAcupoint.name} added to the current session.`);
-        handleClearSelectedAcupoint(); // Clear selected acupoint after logging
-      }
-    } else {
-      showError('No acupoint selected to add to session.');
-    }
-  }, [selectedAcupoint, appointmentId, loggingSessionEvent, logSessionEvent, handleClearSelectedAcupoint]);
+  }, [selectedMode?.id, selectedNotionPageId]);
 
   const handleMuscleSelected = useCallback((muscle: Muscle) => {
     setSelectedMuscle(muscle);
@@ -408,8 +322,7 @@ const ActiveSession = () => {
 
   const handleClearMuscleSelection = useCallback(() => {
     setSelectedMuscle(null);
-    // If the Notion page viewer was showing this muscle, clear it
-    if (selectedNotionPageId && selectedMuscle?.id === selectedNotionPageId) {
+    if (selectedNotionPageId === selectedMuscle?.id) {
       setSelectedNotionPageId(null);
       setSelectedNotionPageTitle(null);
     }
@@ -433,21 +346,11 @@ const ActiveSession = () => {
 
   const handleClearChakraSelection = useCallback(() => {
     setSelectedChakra(null);
-    // If the Notion page viewer was showing this chakra, clear it
-    if (selectedNotionPageId && selectedChakra?.id === selectedNotionPageId) {
+    if (selectedNotionPageId === selectedChakra?.id) {
       setSelectedNotionPageId(null);
       setSelectedNotionPageTitle(null);
     }
   }, [selectedChakra?.id, selectedNotionPageId]);
-
-  const handleClearSelectedMode = useCallback(() => {
-    setSelectedMode(null);
-    // If the Notion page viewer was showing this mode, clear it
-    if (selectedNotionPageId && selectedMode?.id === selectedNotionPageId) {
-      setSelectedNotionPageId(null);
-      setSelectedNotionPageTitle(null);
-    }
-  }, [selectedMode?.id, selectedNotionPageId]);
 
   const handleLogChannelItemSuccess = useCallback(() => {
     if (appointmentId) {
@@ -456,12 +359,20 @@ const ActiveSession = () => {
   }, [appointmentId, fetchSessionLogs]);
 
   const handleClearChannelSelection = useCallback(() => {
-    // When ChannelDashboard clears its selection, we should also clear the Notion viewer
-    // if it was displaying a channel page.
     setSelectedNotionPageId(null);
     setSelectedNotionPageTitle(null);
   }, []);
 
+  const handleLogAcupointSuccess = useCallback(() => {
+    if (appointmentId) {
+      fetchSessionLogs({ appointmentId }); // Refresh logs after acupoint is logged
+    }
+  }, [appointmentId, fetchSessionLogs]);
+
+  const handleClearAcupointSelection = useCallback(() => {
+    setSelectedNotionPageId(null);
+    setSelectedNotionPageTitle(null);
+  }, []);
 
   // Centralized handler for opening Notion pages
   const handleOpenNotionPage = useCallback((pageId: string, pageTitle: string) => {
@@ -763,216 +674,12 @@ const ActiveSession = () => {
 
             {/* Acupoints Tab */}
             <TabsContent value="acupoints" className="mt-6 space-y-6">
-              <Card className="shadow-xl">
-                <CardHeader className="bg-indigo-50 border-b border-indigo-200 rounded-t-lg p-4">
-                  <CardTitle className="text-xl font-bold text-indigo-800 flex items-center gap-2">
-                    <Search className="w-5 h-5" />
-                    Acupoint Insight Engine
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-6 space-y-6">
-                  {/* Point Search */}
-                  <div className="space-y-2">
-                    <Label htmlFor="point-search" className="flex items-center gap-2 font-semibold text-gray-700">
-                      <Search className="w-4 h-4 text-indigo-600" />
-                      Point Search (e.g., SP-06, Pc-6)
-                    </Label>
-                    <Popover open={isAcupointSearchOpen} onOpenChange={setIsAcupointSearchOpen}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          aria-expanded={isAcupointSearchOpen}
-                          className="w-full justify-between"
-                          disabled={loadingAcupoints || updatingAppointment}
-                        >
-                          {loadingAcupoints ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                          {selectedAcupoint ? selectedAcupoint.name : (acupointSearchTerm || "Search for an acupoint...")}
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                        <Command>
-                          <CommandInput
-                            placeholder="Search acupoint..."
-                            value={acupointSearchTerm}
-                            onValueChange={handleAcupointSearchChange}
-                            disabled={loadingAcupoints}
-                          />
-                          <CommandEmpty>No acupoint found.</CommandEmpty>
-                          <CommandGroup>
-                            {foundAcupoints.map((point) => (
-                              <CommandItem
-                                key={point.id}
-                                value={point.name}
-                                onSelect={() => handleSelectAcupoint(point)}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    selectedAcupoint?.id === point.id ? "opacity-100" : "opacity-0"
-                                  )}
-                                />
-                                {point.name}
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
-                                  onClick={(e) => {
-                                    e.stopPropagation(); // Prevent selecting the acupoint when clicking the info button
-                                    handleOpenNotionPage(point.id, point.name); // Use centralized handler
-                                  }}
-                                >
-                                  <Info className="h-4 w-4" />
-                                </Button>
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-
-                  {/* Symptom Suggester */}
-                  <div className="space-y-2">
-                    <Label htmlFor="symptom-search" className="flex items-center gap-2 font-semibold text-gray-700">
-                      <Lightbulb className="w-4 h-4 text-indigo-600" />
-                      Symptom Suggester (e.g., Anxiety, Headache)
-                    </Label>
-                    <Popover open={isSymptomSearchOpen} onOpenChange={setIsSymptomSearchOpen}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          aria-expanded={isSymptomSearchOpen}
-                          className="w-full justify-between"
-                          disabled={loadingAcupoints || updatingAppointment}
-                        >
-                          {loadingAcupoints ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                          {selectedAcupoint ? selectedAcupoint.name : (symptomSearchTerm || "Search symptoms for point suggestions...")}
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                        <Command>
-                          <CommandInput
-                            placeholder="Search symptom..."
-                            value={symptomSearchTerm}
-                            onValueChange={handleSymptomSearchChange}
-                            disabled={loadingAcupoints}
-                          />
-                          <CommandEmpty>No suggestions found.</CommandEmpty>
-                          <CommandGroup>
-                            {foundAcupoints.map((point) => (
-                              <CommandItem
-                                key={point.id}
-                                value={point.name}
-                                onSelect={() => handleSelectAcupoint(point)}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    selectedAcupoint?.id === point.id ? "opacity-100" : "opacity-0"
-                                  )}
-                                />
-                                {point.name}
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
-                                  onClick={(e) => {
-                                    e.stopPropagation(); // Prevent selecting the acupoint when clicking the info button
-                                    handleOpenNotionPage(point.id, point.name); // Use centralized handler
-                                  }}
-                                >
-                                  <Info className="h-4 w-4" />
-                                </Button>
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-
-                  {/* Insight Deck (Selected Acupoint Display) */}
-                  {selectedAcupoint && (
-                    <Card className="border-2 border-purple-300 bg-purple-50 shadow-md">
-                      <CardHeader className="flex flex-row items-center justify-between p-4 pb-2">
-                        <CardTitle className="text-xl font-bold text-purple-800 flex items-center gap-2">
-                          {selectedAcupoint.name}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
-                            onClick={() => { handleOpenNotionPage(selectedAcupoint.id, selectedAcupoint.name); }} // Use centralized handler
-                          >
-                            <Info className="h-4 w-4" />
-                          </Button>
-                        </CardTitle>
-                        <div className="flex gap-2">
-                          {selectedAcupoint.channel && (
-                            <Badge variant="secondary" className="bg-purple-200 text-purple-800">
-                              {selectedAcupoint.channel}
-                            </Badge>
-                          )}
-                          {selectedAcupoint.akMuscles.length > 0 && (
-                            <Badge variant="secondary" className="bg-purple-200 text-purple-800">
-                              {selectedAcupoint.akMuscles.join(', ')}
-                            </Badge>
-                          )}
-                        </div>
-                      </CardHeader>
-                      <CardContent className="pt-2 space-y-3 text-gray-800">
-                        {selectedAcupoint.for && (
-                          <div>
-                            <p className="font-semibold text-purple-700">For:</p>
-                            <p className="text-sm">{selectedAcupoint.for}</p>
-                          </div>
-                        )}
-                        {selectedAcupoint.kinesiology && (
-                          <div>
-                            <p className="font-semibold text-purple-700">Kinesiology:</p>
-                            <p className="text-sm">{selectedAcupoint.kinesiology}</p>
-                          </div>
-                        )}
-                        {selectedAcupoint.psychology && (
-                          <div>
-                            <p className="font-semibold text-purple-700">Psychology:</p>
-                            <p className="text-sm">{selectedAcupoint.psychology}</p>
-                          </div>
-                        )}
-                        <div className="flex flex-wrap gap-2 mt-3">
-                          {selectedAcupoint.typeOfPoint.length > 0 && (
-                            <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-300">
-                              Type: {selectedAcupoint.typeOfPoint.join(', ')}
-                            </Badge>
-                          )}
-                          {selectedAcupoint.time.length > 0 && (
-                            <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-300">
-                              Time: {selectedAcupoint.time.join(', ')}
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="flex gap-2 mt-4">
-                          <Button
-                            className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white"
-                            onClick={handleAddAcupointToSession}
-                            disabled={loggingSessionEvent}
-                          >
-                            {loggingSessionEvent ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <PlusCircle className="w-4 h-4 mr-2" />}
-                            {loggingSessionEvent ? 'Adding...' : 'Add Acupoint to Session Log'}
-                          </Button>
-                          <Button variant="outline" onClick={handleClearSelectedAcupoint} disabled={loggingSessionEvent}>
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Clear
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-                </CardContent>
-              </Card>
+              <AcupointSelector
+                appointmentId={appointmentId || ''}
+                onLogSuccess={handleLogAcupointSuccess}
+                onClearSelection={handleClearAcupointSelection}
+                onOpenNotionPage={handleOpenNotionPage}
+              />
             </TabsContent>
 
             {/* Session Log Tab */}
