@@ -54,32 +54,6 @@ export interface Muscle {
   testPosition: string;
 }
 
-export interface Channel {
-  id: string;
-  name: string;
-  elements: string[];
-  pathways: string;
-  functions: string;
-  emotions: string[];
-  frontMu: string; // New
-  heSea: string; // New
-  jingRiver: string; // New
-  jingWell: string; // New
-  akMuscles: { id: string; name: string }[]; // Changed from string[]
-  tcmMuscles: { id: string; name: string }[]; // Changed from string[]
-  yuanPoints: string; // New
-  sedate1: string; // New
-  sedate2: string; // New
-  tonify1: string; // New
-  tonify2: string; // New
-  appropriateSound: string; // New
-  tags: string[]; // New
-  brainAspects: string; // New: Brain Aspects
-  activateSinew: string; // New: Activate Sinew
-  time: string; // New: Time
-  sound: string; // New: Sound (Select column)
-}
-
 export interface Chakra {
   id: string;
   name: string;
@@ -91,28 +65,60 @@ export interface Chakra {
   affirmations: string;
 }
 
-export interface SessionMuscleLog {
+export interface Channel {
   id: string;
-  created_at: string;
-  user_id: string;
-  appointment_id: string;
-  muscle_id: string;
-  muscle_name: string;
-  is_strong: boolean;
-  notes: string | null;
-  // Add a discriminator for union types
-  log_type_discriminator: 'session_muscle_log';
+  name: string;
+  elements: string[];
+  pathways: string;
+  functions: string;
+  emotions: string[];
+  frontMu: string;
+  heSea: string;
+  jingRiver: string;
+  jingWell: string;
+  akMuscles: { id: string; name: string }[];
+  tcmMuscles: { id: string; name: string }[];
+  yuanPoints: string;
+  sedate1: string;
+  sedate2: string;
+  tonify1: string;
+  tonify2: string;
+  appropriateSound: string;
+  tags: string[];
+  brainAspects: string;
+  activateSinew: string;
+  time: string;
+  sound: string;
 }
 
-export interface SessionLog {
+export interface NotionRichText {
+  type: 'text';
+  text: {
+    content: string;
+    link: { url: string } | null;
+  };
+  annotations: {
+    bold: boolean;
+    italic: boolean;
+    strikethrough: boolean;
+    underline: boolean;
+    code: boolean;
+    color: string;
+  };
+  plain_text: string;
+  href: string | null;
+}
+
+export interface NotionBlock {
   id: string;
-  created_at: string;
-  user_id: string;
-  appointment_id: string;
-  log_type: string;
-  details: Record<string, any> | null; // JSONB type for flexible details
-  // Add a discriminator for union types
-  log_type_discriminator: 'session_log';
+  type: string;
+  text?: NotionRichText[];
+  caption?: NotionRichText[]; // For images
+  url?: string; // For images
+  checked?: boolean; // For to_do
+  color?: string; // For callout
+  icon?: { type: string; emoji?: string; file?: { url: string } }; // For callout
+  children?: NotionBlock[]; // For nested blocks like toggle
 }
 
 export interface NotionSecrets {
@@ -122,8 +128,8 @@ export interface NotionSecrets {
   crm_database_id: string | null;
   modes_database_id: string | null;
   acupoints_database_id: string | null;
-  muscles_database_id: string | null;
-  channels_database_id: string | null;
+  muscles_database_id: string | null; // New: Muscles Database ID
+  channels_database_id: string | null; // New: Channels Database ID
   chakras_database_id: string | null; // New: Chakras Database ID
 }
 
@@ -152,7 +158,7 @@ export interface GetAllAppointmentsResponse {
 
 export interface UpdateNotionAppointmentPayload {
   appointmentId: string;
-  updates: Partial<Appointment> & { acupointId?: string };
+  updates: Partial<Appointment>;
 }
 
 export interface UpdateNotionAppointmentResponse {
@@ -190,131 +196,22 @@ export interface GetMusclesResponse {
   muscles: Muscle[];
 }
 
-export interface GetChannelsPayload {
-  searchTerm?: string;
-  searchType?: 'name' | 'element' | 'emotion';
-}
-
-export interface GetChannelsResponse {
-  channels: Channel[];
-}
-
 export interface GetChakrasPayload {
-  searchTerm?: string;
-  searchType?: 'name' | 'element' | 'emotion' | 'organ';
+  searchTerm: string;
+  searchType: 'name' | 'element' | 'emotion' | 'organ';
 }
 
 export interface GetChakrasResponse {
   chakras: Chakra[];
 }
 
-export interface SetNotionSecretsPayload {
-  notionToken: string;
-  appointmentsDbId: string;
-  crmDbId: string | null;
-  modesDbId: string | null;
-  acupointsDbId: string | null;
-  musclesDbId: string | null;
-  channelsDbId: string | null;
-  chakrasDbId: string | null; // New: Chakras Database ID
+export interface GetChannelsPayload {
+  searchTerm: string; // Can be used for future search, currently fetches all
+  searchType: 'name' | 'element'; // Example search types
 }
 
-export interface SetNotionSecretsResponse {
-  success: boolean;
-  message: string;
-}
-
-export interface LogMuscleStrengthPayload {
-  appointmentId: string;
-  muscleId: string;
-  muscleName: string;
-  isStrong: boolean;
-  notes?: string;
-}
-
-export interface LogMuscleStrengthResponse {
-  success: boolean;
-  logId: string;
-}
-
-export interface LogSessionEventPayload {
-  appointmentId: string;
-  logType: string;
-  details?: Record<string, any>;
-}
-
-export interface LogSessionEventResponse {
-  success: boolean;
-  logId: string;
-}
-
-// New types for fetching session logs
-export interface GetSessionLogsPayload {
-  appointmentId: string;
-}
-
-export interface GetSessionLogsResponse {
-  sessionLogs: SessionLog[];
-  sessionMuscleLogs: SessionMuscleLog[];
-}
-
-// New types for deleting session logs
-export interface DeleteSessionLogPayload {
-  logId: string;
-  logType: 'session_log' | 'session_muscle_log';
-}
-
-export interface DeleteSessionLogResponse {
-  success: boolean;
-  deletedLogId: string;
-}
-
-// New types for Notion page content
-export type NotionBlockType =
-  | 'paragraph'
-  | 'heading_1'
-  | 'heading_2'
-  | 'heading_3'
-  | 'bulleted_list_item'
-  | 'numbered_list_item'
-  | 'to_do'
-  | 'toggle'
-  | 'code'
-  | 'child_page'
-  | 'image'
-  | 'callout'
-  | 'quote'
-  | 'divider'
-  | 'unsupported';
-
-export interface NotionRichText {
-  type: 'text';
-  text: {
-    content: string;
-    link: { url: string } | null;
-  };
-  annotations: {
-    bold: boolean;
-    italic: boolean;
-    strikethrough: boolean;
-    underline: boolean;
-    code: boolean;
-    color: string;
-  };
-  plain_text: string;
-  href: string | null;
-}
-
-export interface NotionBlock {
-  id: string;
-  type: NotionBlockType;
-  text?: NotionRichText[]; // For text-based blocks
-  url?: string; // For image blocks
-  caption?: NotionRichText[]; // For image blocks
-  checked?: boolean; // For to_do blocks
-  color?: string; // For callout blocks
-  icon?: { type: string; emoji?: string; file?: { url: string } }; // For callout blocks
-  children?: NotionBlock[]; // For nested blocks like lists, toggles
+export interface GetChannelsResponse {
+  channels: Channel[];
 }
 
 export interface GetNotionPageContentPayload {
@@ -324,4 +221,31 @@ export interface GetNotionPageContentPayload {
 export interface GetNotionPageContentResponse {
   title: string;
   blocks: NotionBlock[];
+}
+
+export interface LogSessionEventPayload {
+  appointmentId: string;
+  logType: string;
+  details: any;
+}
+
+export interface LogSessionEventResponse {
+  success: boolean;
+  logId: string;
+}
+
+export interface SetNotionSecretsPayload {
+  notionToken: string;
+  appointmentsDbId: string;
+  crmDbId: string | null;
+  modesDbId: string | null;
+  acupointsDbId: string | null;
+  musclesDbId: string | null; // New: Muscles Database ID
+  channelsDbId: string | null; // New: Channels Database ID
+  chakrasDbId: string | null; // New: Chakras Database ID
+}
+
+export interface SetNotionSecretsResponse {
+  success: boolean;
+  message: string;
 }

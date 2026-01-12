@@ -10,36 +10,37 @@ import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from '
 import { Badge } from '@/components/ui/badge';
 import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
 import { cn } from '@/lib/utils';
-import { Search, Check, ChevronsUpDown, Hand, Info, Image, Settings, Loader2, Trash2, ExternalLink } from 'lucide-react';
+import { Search, Check, ChevronsUpDown, Hand, Info, Image, Settings, Loader2, Trash2, ExternalLink, XCircle } from 'lucide-react'; // Added XCircle
 import { useNavigate } from 'react-router-dom';
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
-import { Muscle, GetMusclesPayload, GetMusclesResponse, LogMuscleStrengthPayload, LogMuscleStrengthResponse } from '@/types/api';
+import { Muscle, GetMusclesPayload, GetMusclesResponse } from '@/types/api';
 
 interface MuscleSelectorProps {
   onMuscleSelected: (muscle: Muscle) => void;
-  onClearSelection: () => void; // New prop for clearing selection
+  onMuscleStrengthLogged: (muscle: Muscle, isStrong: boolean) => void;
   appointmentId: string;
-  selectedMuscle: Muscle | null; // New prop to receive selected muscle from parent
-  onLogSuccess: () => void; // New prop: callback to notify parent of successful log
 }
 
-const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onClearSelection, appointmentId, selectedMuscle, onLogSuccess }) => {
-  const [muscles, setMuscles] = useState<Muscle[]>([]); // This will now hold the *filtered* results from the API
+const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMuscleStrengthLogged, appointmentId }) => {
+  const [allMuscles, setAllMuscles] = useState<Muscle[]>([]);
+  const [filteredMuscles, setFilteredMuscles] = useState<Muscle[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchType, setSearchType] = useState<'muscle' | 'meridian' | 'organ' | 'emotion'>('muscle');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [selectedMuscle, setSelectedMuscle] = useState<Muscle | null>(null);
   const [showWeaknessChecklist, setShowWeaknessChecklist] = useState(false);
 
   const navigate = useNavigate();
 
-  // Memoized callbacks for fetchMuscles
   const onMusclesSuccess = useCallback((data: GetMusclesResponse) => {
-    setMuscles(data.muscles); // Now 'muscles' state will be the result of the filtered API call
+    setAllMuscles(data.muscles);
+    setFilteredMuscles(data.muscles);
   }, []);
 
   const onMusclesError = useCallback((msg: string) => {
     showError(`Failed to load muscles: ${msg}`);
-    setMuscles([]);
+    setAllMuscles([]);
+    setFilteredMuscles([]);
   }, []);
 
   const {
@@ -57,70 +58,49 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onCle
     }
   );
 
-  // New hook for logging muscle strength
-  const {
-    loading: loggingStrength,
-    execute: logMuscleStrength,
-  } = useSupabaseEdgeFunction<LogMuscleStrengthPayload, LogMuscleStrengthResponse>(
-    'log-muscle-strength',
-    {
-      requiresAuth: true,
-      onSuccess: (data) => {
-        showSuccess('Strength status saved to session logs.');
-        console.log('Muscle strength log ID:', data.logId);
-        onLogSuccess(); // Call the parent's log success callback
-      },
-      onError: (msg) => {
-        showError(`Logging Failed: ${msg}`);
-      }
-    }
-  );
-
   useEffect(() => {
-    // Trigger fetch whenever searchTerm or searchType changes
-    // This makes the filtering server-side by calling the edge function
-    console.log(`[MuscleSelector] Fetching muscles with searchTerm: "${searchTerm}", searchType: "${searchType}"`);
+    // Fetch all muscles initially, or filter based on current search term/type
     fetchMuscles({ searchTerm, searchType });
   }, [searchTerm, searchType, fetchMuscles]);
 
   const handleSelectMuscle = (muscle: Muscle) => {
-    onMuscleSelected(muscle); // Notify parent of selection
+    setSelectedMuscle(muscle);
+    onMuscleSelected(muscle);
     setIsSearchOpen(false);
     setSearchTerm(muscle.name); // Pre-fill search with selected muscle name
     setShowWeaknessChecklist(false); // Reset checklist visibility
   };
 
-  const handleLogStrength = async (isStrong: boolean) => {
-    if (selectedMuscle && appointmentId) {
-      await logMuscleStrength({
-        appointmentId: appointmentId,
-        muscleId: selectedMuscle.id,
-        muscleName: selectedMuscle.name,
-        isStrong: isStrong,
-      });
-
+  const handleLogStrength = (isStrong: boolean) => {
+    if (selectedMuscle) {
+      onMuscleStrengthLogged(selectedMuscle, isStrong);
       if (!isStrong) {
         setShowWeaknessChecklist(true);
       } else {
         setShowWeaknessChecklist(false);
       }
-    } else {
-      showError('Please select a muscle and ensure an active appointment to log strength.');
+      showSuccess(`Muscle strength for ${selectedMuscle.name} logged as ${isStrong ? 'Strong' : 'Weak'}.`);
     }
   };
 
   const handleSearchTypeChange = (type: 'muscle' | 'meridian' | 'organ' | 'emotion') => {
     setSearchType(type);
-    setSearchTerm(''); // Clear search term when type changes, which will trigger a new fetch via useEffect
+    setSearchTerm(''); // Clear search term when type changes
+    setFilteredMuscles(allMuscles); // Reset filtered muscles
     setIsSearchOpen(true); // Open popover for new search
   };
 
-  const handleClearAll = () => {
-    onClearSelection(); // Clear selected muscle in parent
-    setSearchTerm(''); // Clear local search term
-    setMuscles([]); // Clear local muscles list (will re-fetch all on next search term change)
-    setShowWeaknessChecklist(false); // Hide checklist
-    fetchMuscles({ searchTerm: '', searchType: 'muscle' }); // Re-fetch all muscles
+  const handleClearSearch = () => {
+    setSearchTerm('');
+    setFilteredMuscles(allMuscles);
+    setIsSearchOpen(false);
+  };
+
+  const handleClearSelection = () => {
+    setSelectedMuscle(null);
+    setSearchTerm('');
+    setFilteredMuscles(allMuscles);
+    setShowWeaknessChecklist(false);
   };
 
   if (needsConfig) {
@@ -167,7 +147,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onCle
               variant={searchType === 'muscle' ? 'default' : 'outline'}
               onClick={() => handleSearchTypeChange('muscle')}
               className={cn(searchType === 'muscle' ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'text-indigo-600 border-indigo-300 hover:bg-indigo-50')}
-              disabled={loadingMuscles || loggingStrength}
+              disabled={loadingMuscles}
             >
               Muscle Name
             </Button>
@@ -175,7 +155,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onCle
               variant={searchType === 'organ' ? 'default' : 'outline'}
               onClick={() => handleSearchTypeChange('organ')}
               className={cn(searchType === 'organ' ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'text-indigo-600 border-indigo-300 hover:bg-indigo-50')}
-              disabled={loadingMuscles || loggingStrength}
+              disabled={loadingMuscles}
             >
               Organ System
             </Button>
@@ -183,23 +163,36 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onCle
               variant={searchType === 'emotion' ? 'default' : 'outline'}
               onClick={() => handleSearchTypeChange('emotion')}
               className={cn(searchType === 'emotion' ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'text-indigo-600 border-indigo-300 hover:bg-indigo-50')}
-              disabled={loadingMuscles || loggingStrength}
+              disabled={loadingMuscles}
             >
               Emotion
             </Button>
           </div>
           <Popover open={isSearchOpen} onOpenChange={setIsSearchOpen}>
             <PopoverTrigger asChild>
-              <Input
-                id="muscle-search"
-                type="text"
-                placeholder={`Search by ${searchType}...`}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                onFocus={() => setIsSearchOpen(true)}
-                className="w-full"
-                disabled={loadingMuscles || loggingStrength}
-              />
+              <div className="relative">
+                <Input
+                  id="muscle-search"
+                  type="text"
+                  placeholder={`Search by ${searchType}...`}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onFocus={() => setIsSearchOpen(true)}
+                  className="w-full pr-10"
+                  disabled={loadingMuscles}
+                />
+                {searchTerm && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0 text-gray-500 hover:text-gray-700"
+                    onClick={handleClearSearch}
+                    disabled={loadingMuscles}
+                  >
+                    <XCircle className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
             </PopoverTrigger>
             <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
               <Command>
@@ -207,7 +200,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onCle
                 {!loadingMuscles && <CommandInput value={searchTerm} onValueChange={setSearchTerm} placeholder={`Search ${searchType}...`} />}
                 <CommandEmpty>No muscles found.</CommandEmpty>
                 <CommandGroup>
-                  {muscles.map((muscle) => ( // Render 'muscles' state, which is already filtered by the API
+                  {filteredMuscles.map((muscle) => (
                     <CommandItem
                       key={muscle.id}
                       value={muscle.name}
@@ -302,20 +295,20 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onCle
                 <Button
                   className="flex-1 bg-green-500 hover:bg-green-600 text-white"
                   onClick={() => handleLogStrength(true)}
-                  disabled={loggingStrength}
+                  disabled={loadingMuscles}
                 >
-                  {loggingStrength ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  {loadingMuscles ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                   Body Yes (Strong)
                 </Button>
                 <Button
                   className="flex-1 bg-red-500 hover:bg-red-600 text-white"
                   onClick={() => handleLogStrength(false)}
-                  disabled={loggingStrength}
+                  disabled={loadingMuscles}
                 >
-                  {loggingStrength ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  {loadingMuscles ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                   Body No (Weak)
                 </Button>
-                <Button variant="outline" onClick={handleClearAll} disabled={loggingStrength}>
+                <Button variant="outline" onClick={handleClearSelection} disabled={loadingMuscles}>
                   <Trash2 className="h-4 w-4 mr-2" />
                   Clear
                 </Button>

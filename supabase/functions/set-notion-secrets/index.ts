@@ -42,24 +42,23 @@ serve(async (req) => {
 
     console.log("[set-notion-secrets] User authenticated:", user.id)
 
-    const { notionToken, appointmentsDbId, crmDbId, modesDbId, acupointsDbId, musclesDbId, channelsDbId, chakrasDbId } = await req.json()
+    const { notionToken, appointmentsDbId, crmDbId, modesDbId, acupointsDbId, musclesDbId, channelsDbId, chakrasDbId } = await req.json() // Destructure new channelsDbId and chakrasDbId
 
     // Upsert into notion_secrets table using service role
     const { error: insertError } = await supabase
       .from('notion_secrets')
       .upsert({
-        id: user.id, // 'id' is now the user's ID and the primary key
+        user_id: user.id,
         notion_integration_token: notionToken,
         appointments_database_id: appointmentsDbId,
         crm_database_id: crmDbId || null,
         modes_database_id: modesDbId || null,
         acupoints_database_id: acupointsDbId || null,
         muscles_database_id: musclesDbId || null,
-        channels_database_id: channelsDbId || null,
-        chakras_database_id: chakrasDbId || null,
-        updated_at: new Date().toISOString(), // Explicitly update timestamp
+        channels_database_id: channelsDbId || null, // Store new channelsDbId
+        chakras_database_id: chakrasDbId || null,  // Store new chakrasDbId
       }, {
-        onConflict: 'id' // Conflict target is now the primary key 'id'
+        onConflict: 'user_id'
       })
 
     if (insertError) {

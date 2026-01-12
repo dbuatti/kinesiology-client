@@ -98,13 +98,23 @@ export const useSupabaseEdgeFunction = <TRequest, TResponse>(
         const secretsResult: GetNotionSecretsResponse = await secretsResponse.json();
         const secrets = secretsResult.secrets;
 
-        if (!secrets || !secrets.notion_integration_token) {
-          console.log(`[useSupabaseEdgeFunction] Notion config missing (after edge function call) for ${functionName}.`);
+        // Check if all required Notion database IDs are present
+        const requiredDbIds = [
+          secrets.notion_integration_token,
+          secrets.appointments_database_id,
+          secrets.modes_database_id,
+          secrets.acupoints_database_id,
+          secrets.muscles_database_id, // Check for muscles_database_id
+        ];
+
+        if (requiredDbIds.some(id => !id)) {
+          console.log(`[useSupabaseEdgeFunction] One or more Notion database IDs are missing for ${functionName}.`);
           setNeedsConfig(true);
           onNotionConfigNeeded?.();
           setLoading(false);
           return; // Stop execution here
         }
+
         // If config is found, ensure needsConfig is false
         if (needsConfig) setNeedsConfig(false); // Reset if it was true from a previous state
         console.log(`[useSupabaseEdgeFunction] Notion config found for ${functionName}.`);

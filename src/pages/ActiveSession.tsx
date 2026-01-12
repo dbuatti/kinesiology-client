@@ -11,29 +11,61 @@
     import { Label } from '@/components/ui/label';
     import { Badge } from '@/components/ui/badge';
     import { Input } from '@/components/ui/input';
-    import { Calendar, User, Star, Target, Clock, Settings, AlertCircle, Check, ChevronsUpDown, Lightbulb, Hand, XCircle, PlusCircle, Search, Sparkles, ListChecks, Trash2, Loader2, ExternalLink, Waves, ArrowLeft } from 'lucide-react';
+    import { Calendar, User, Star, Target, Clock, Settings, AlertCircle, Check, ChevronsUpDown, Lightbulb, Hand, XCircle, PlusCircle, Search } from 'lucide-react';
     import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
     import { cn } from '@/lib/utils';
     import { format } from 'date-fns';
     import MuscleSelector from '@/components/MuscleSelector';
-    import ChakraSelector from '@/components/ChakraSelector';
-    import ChannelDashboard from '@/components/ChannelDashboard'; // Import the new ChannelDashboard
-    import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
-    import {
-      Appointment, Mode, Acupoint, Muscle, Chakra, SessionLog, SessionMuscleLog,
-      GetSingleAppointmentPayload, GetSingleAppointmentResponse,
-      GetNotionModesResponse,
-      GetAcupointsPayload, GetAcupointsResponse,
-      UpdateNotionAppointmentPayload, UpdateNotionAppointmentResponse,
-      LogSessionEventPayload, LogSessionEventResponse,
-      GetSessionLogsPayload, GetSessionLogsResponse,
-      DeleteSessionLogPayload, DeleteSessionLogResponse // Import new types
-    } from '@/types/api';
+    import { supabase } from '@/integrations/supabase/client'; // Added missing import for supabase
+
+    interface Appointment {
+      id: string; // Notion page ID
+      clientName: string;
+      starSign: string;
+      sessionNorthStar: string; // Changed from 'focus' to 'sessionNorthStar'
+      goal: string;
+      sessionAnchor: string; // Today we are really working with...
+      status: string; // Added status to the interface
+    }
+
+    interface Mode {
+      id: string;
+      name: string;
+      actionNote: string;
+    }
+
+    interface Acupoint {
+      id: string;
+      name: string;
+      for: string;
+      kinesiology: string;
+      psychology: string;
+      akMuscles: string[];
+      channel: string;
+      typeOfPoint: string[];
+      time: string[];
+    }
+
+    interface Muscle {
+      id: string;
+      name: string;
+      meridian: string;
+      organSystem: string;
+      nlPoints: string;
+      nvPoints: string;
+      emotionalTheme: string[];
+      nutritionSupport: string[];
+      testPosition: string;
+    }
 
     const ActiveSession = () => {
       const { appointmentId } = useParams<{ appointmentId: string }>();
       const [appointment, setAppointment] = useState<Appointment | null>(null);
-      const [sessionNorthStarText, setSessionNorthStarText] = useState(''); // This will now handle the combined "Session North Star"
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState<string | null>(null);
+      const [needsConfig, setNeedsConfig] = useState(false);
+      const [sessionAnchorText, setSessionAnchorText] = useState('');
+      const [sessionNorthStarText, setSessionNorthStarText] = useState('');
       const [modes, setModes] = useState<Mode[]>([]);
       const [selectedMode, setSelectedMode] = useState<Mode | null>(null);
       const [isModeSelectOpen, setIsModeSelectOpen] = useState(false);
@@ -45,213 +77,224 @@
       const [selectedAcupoint, setSelectedAcupoint] = useState<Acupoint | null>(null);
       const [isAcupointSearchOpen, setIsAcupointSearchOpen] = useState(false);
       const [isSymptomSearchOpen, setIsSymptomSearchOpen] = useState(false);
+      const [isAcupointSearching, setIsAcupointSearching] = useState(false);
 
       // Muscle States
       const [selectedMuscle, setSelectedMuscle] = useState<Muscle | null>(null);
 
-      // Chakra States
-      const [selectedChakra, setSelectedChakra] = useState<Chakra | null>(null);
-
-      // Session Logs State
-      const [sessionLogs, setSessionLogs] = useState<(SessionLog | SessionMuscleLog)[]>([]);
-
 
       const navigate = useNavigate();
 
-      // Memoized callbacks for fetchSingleAppointment
-      const onSingleAppointmentSuccess = useCallback((data: GetSingleAppointmentResponse) => {
-        setAppointment(data.appointment);
-        // Initialize the single editable field from Notion's "Session North Star"
-        setSessionNorthStarText(data.appointment.sessionNorthStar || '');
-      }, []);
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://hcriagmovotwuqbppcfm.supabase.co';
 
-      const onSingleAppointmentError = useCallback((msg: string) => {
-        showError(msg);
-      }, []);
-
-      // Fetch Single Appointment
-      const {
-        data: fetchedAppointmentData,
-        loading: loadingAppointment,
-        error: appointmentError,
-        needsConfig: needsAppointmentConfig,
-        execute: fetchSingleAppointment,
-      } = useSupabaseEdgeFunction<GetSingleAppointmentPayload, GetSingleAppointmentResponse>(
-        'get-single-appointment',
-        {
-          requiresAuth: true,
-          requiresNotionConfig: true,
-          onSuccess: onSingleAppointmentSuccess,
-          onError: onSingleAppointmentError,
+      const fetchSingleAppointment = useCallback(async () => {
+        if (!appointmentId) {
+          setError('No appointment ID provided.');
+          setLoading(false);
+          return;
         }
-      );
 
-      // Memoized callbacks for fetchModes
-      const onModesSuccess = useCallback((data: GetNotionModesResponse) => {
-        setModes(data.modes);
-      }, []);
+        try {
+          setLoading(true);
+          setError(null);
+          setNeedsConfig(false);
 
-      const onModesError = useCallback((msg: string) => {
-        showError(`Failed to load modes: ${msg}`);
-      }, []);
+          const { data: { session } } = await supabase.auth.getSession();
 
-      // Fetch Modes
-      const {
-        data: fetchedModesData,
-        loading: loadingModes,
-        error: modesError,
-        execute: fetchModes,
-      } = useSupabaseEdgeFunction<void, GetNotionModesResponse>(
-        'get-notion-modes',
-        {
-          requiresAuth: true,
-          requiresNotionConfig: true,
-          onSuccess: onModesSuccess,
-          onError: onModesError,
-        }
-      );
-
-      // Memoized callbacks for fetchAcupoints
-      const onAcupointsSuccess = useCallback((data: GetAcupointsResponse) => {
-        setFoundAcupoints(data.acupoints);
-      }, []);
-
-      const onAcupointsError = useCallback((msg: string) => {
-        showError(`Failed to search: ${msg}`);
-        setFoundAcupoints([]);
-      }, []);
-
-      // Fetch Acupoints
-      const {
-        data: fetchedAcupointsData,
-        loading: loadingAcupoints,
-        error: acupointsError,
-        needsConfig: needsAcupointsConfig, // Capture needsConfig specifically for acupoints
-        execute: fetchAcupoints,
-      } = useSupabaseEdgeFunction<GetAcupointsPayload, GetAcupointsResponse>(
-        'get-acupoints',
-        {
-          requiresAuth: true,
-          requiresNotionConfig: true,
-          onSuccess: onAcupointsSuccess,
-          onError: onAcupointsError,
-        }
-      );
-
-      // Memoized callbacks for updateNotionAppointment
-      const onUpdateAppointmentSuccess = useCallback(() => {
-        showSuccess('Appointment updated in Notion.');
-      }, []);
-
-      const onUpdateAppointmentError = useCallback((msg: string) => {
-        showError(`Update Failed: ${msg}`);
-      }, []);
-
-      // Update Notion Appointment
-      const {
-        loading: updatingAppointment,
-        execute: updateNotionAppointment,
-      } = useSupabaseEdgeFunction<UpdateNotionAppointmentPayload, UpdateNotionAppointmentResponse>(
-        'update-notion-appointment',
-        {
-          requiresAuth: true,
-          onSuccess: onUpdateAppointmentSuccess,
-          onError: onUpdateAppointmentError,
-        }
-      );
-
-      // New hook for logging general session events
-      const {
-        loading: loggingSessionEvent,
-        execute: logSessionEvent,
-      } = useSupabaseEdgeFunction<LogSessionEventPayload, LogSessionEventResponse>(
-        'log-session-event',
-        {
-          requiresAuth: true,
-          onSuccess: (data) => {
-            console.log('Session event logged to Supabase:', data.logId);
-            if (appointmentId) fetchSessionLogs({ appointmentId }); // Refresh logs
-          },
-          onError: (msg) => {
-            console.error('Failed to log session event to Supabase:', msg);
+          if (!session) {
+            setError('Please log in to view appointments');
+            navigate('/login');
+            return;
           }
+
+          const { data: secrets, error: secretsError } = await supabase
+            .from('notion_secrets')
+            .select('id')
+            .eq('user_id', session.user.id) // Corrected from 'user.id' to 'user_id'
+            .single();
+
+          if (secretsError && secretsError.code !== 'PGRST116') {
+            throw secretsError;
+          }
+          if (!secrets) {
+            setNeedsConfig(true);
+            setLoading(false);
+            return;
+          }
+
+          const response = await fetch(
+            `${supabaseUrl}/functions/v1/get-single-appointment`,
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${session.access_token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ appointmentId })
+            }
+          );
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to fetch appointment');
+          }
+
+          const data = await response.json();
+          const fetchedAppointment = data.appointment;
+          setAppointment(fetchedAppointment);
+          setSessionAnchorText(fetchedAppointment.sessionAnchor || '');
+          setSessionNorthStarText(fetchedAppointment.sessionNorthStar || '');
+        } catch (err: any) {
+          console.error('Error fetching single appointment:', err);
+          showError(err.message);
+        } finally {
+          setLoading(false);
         }
-      );
+      }, [appointmentId, navigate, supabaseUrl]);
 
-      // New hook for fetching session logs
-      const onSessionLogsSuccess = useCallback((data: GetSessionLogsResponse) => {
-        // Add discriminator to each log type for easier identification in the UI
-        const generalLogsWithDiscriminator = data.sessionLogs.map(log => ({ ...log, log_type_discriminator: 'session_log' as const }));
-        const muscleLogsWithDiscriminator = data.sessionMuscleLogs.map(log => ({ ...log, log_type_discriminator: 'session_muscle_log' as const }));
+      const fetchModes = useCallback(async () => {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) return;
 
-        const combinedLogs = [...generalLogsWithDiscriminator, ...muscleLogsWithDiscriminator];
-        // Sort by created_at to display chronologically
-        combinedLogs.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-        setSessionLogs(combinedLogs);
-      }, []);
+          const response = await fetch(
+            `${supabaseUrl}/functions/v1/get-notion-modes`,
+            {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${session.access_token}`,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
 
-      const onSessionLogsError = useCallback((msg: string) => {
-        showError(`Failed to load session history: ${msg}`);
-        setSessionLogs([]);
-      }, []);
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to fetch modes');
+          }
 
-      const {
-        loading: loadingSessionLogs,
-        execute: fetchSessionLogs,
-      } = useSupabaseEdgeFunction<GetSessionLogsPayload, GetSessionLogsResponse>(
-        'get-session-logs',
-        {
-          requiresAuth: true,
-          onSuccess: onSessionLogsSuccess,
-          onError: onSessionLogsError,
+          const data = await response.json();
+          setModes(data.modes);
+        } catch (err: any) {
+          console.error('Error fetching modes:', err);
+          showError(`Failed to load modes: ${err.message}`);
         }
-      );
+      }, [supabaseUrl]);
 
-      // New hook for deleting session logs
-      const onDeleteSessionLogSuccess = useCallback(() => {
-        showSuccess('Session log entry removed.');
-        if (appointmentId) fetchSessionLogs({ appointmentId }); // Refresh logs after deletion
-      }, [appointmentId, fetchSessionLogs]);
-
-      const onDeleteSessionLogError = useCallback((msg: string) => {
-        showError(`Deletion Failed: ${msg}`);
-      }, []);
-
-      const {
-        loading: deletingSessionLog,
-        execute: deleteSessionLog,
-      } = useSupabaseEdgeFunction<DeleteSessionLogPayload, DeleteSessionLogResponse>(
-        'delete-session-log',
-        {
-          requiresAuth: true,
-          onSuccess: onDeleteSessionLogSuccess,
-          onError: onDeleteSessionLogError,
+      const fetchAcupoints = useCallback(async (term: string, type: 'point' | 'symptom') => {
+        if (!term.trim()) {
+          setFoundAcupoints([]);
+          return;
         }
-      );
+        setIsAcupointSearching(true);
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) {
+            showError('Not authenticated: Please log in first');
+            navigate('/login');
+            return;
+          }
 
-      // Callback for ChannelDashboard to trigger log refresh
-      const handleChannelLogSuccess = useCallback(() => {
-        if (appointmentId) {
-          fetchSessionLogs({ appointmentId });
+          const response = await fetch(
+            `${supabaseUrl}/functions/v1/get-acupoints`,
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${session.access_token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ searchTerm: term, searchType: type })
+            }
+          );
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `Failed to search for ${type === 'point' ? 'acupoints' : 'symptoms'}`);
+          }
+
+          const data = await response.json();
+          setFoundAcupoints(data.acupoints);
+        } catch (err: any) {
+          console.error(`Error fetching acupoints by ${type}:`, err);
+          showError(`Failed to search: ${err.message}`);
+          setFoundAcupoints([]);
+        } finally {
+          setIsAcupointSearching(false);
         }
-      }, [appointmentId, fetchSessionLogs]);
-
-      // Callback for MuscleSelector to trigger log refresh
-      const handleMuscleLogSuccess = useCallback(() => {
-        if (appointmentId) {
-          fetchSessionLogs({ appointmentId });
-        }
-      }, [appointmentId, fetchSessionLogs]);
-
+      }, [navigate, supabaseUrl]);
 
       useEffect(() => {
-        if (appointmentId) {
-          fetchSingleAppointment({ appointmentId });
-          fetchModes();
-          fetchAcupoints({ searchTerm: '', searchType: 'point' });
-          fetchSessionLogs({ appointmentId }); // Fetch session logs on initial load
+        fetchSingleAppointment();
+        fetchModes();
+      }, [fetchSingleAppointment, fetchModes]);
+
+      const updateNotionAppointment = useCallback(async (updates: any) => {
+        if (!appointment?.id) {
+          showError('No active appointment to update.');
+          return;
         }
-      }, [appointmentId, fetchSingleAppointment, fetchModes, fetchAcupoints, fetchSessionLogs]);
+
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) {
+            showError('Not authenticated: Please log in first');
+            navigate('/login');
+            return;
+          }
+
+          const payload = {
+            appointmentId: appointment.id,
+            updates: updates
+          };
+          console.log('[ActiveSession] Sending payload to edge function:', JSON.stringify(payload, null, 2));
+
+          const response = await fetch(
+            `${supabaseUrl}/functions/v1/update-notion-appointment`,
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${session.access_token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(payload)
+            }
+          );
+
+          if (!response.ok) {
+            console.error('[ActiveSession] Raw response not OK:', response);
+            let errorDetails = 'No details provided by server.';
+            try {
+              const errorData = await response.json();
+              errorDetails = errorData.error || errorData.details || errorDetails;
+            } catch (jsonError) {
+              console.error('[ActiveSession] Failed to parse error JSON:', jsonError);
+              errorDetails = `Server responded with status ${response.status} but no valid JSON error body.`;
+            }
+            throw new Error(errorDetails);
+          }
+
+          showSuccess('Appointment updated in Notion.');
+          
+          setAppointment(prev => prev ? { ...prev, ...updates } : null);
+          if (updates.sessionAnchor !== undefined) setSessionAnchorText(updates.sessionAnchor);
+          if (updates.sessionNorthStar !== undefined) setSessionNorthStarText(updates.sessionNorthStar);
+
+        } catch (err: any) {
+          console.error('Error updating Notion appointment:', err);
+          showError(`Update Failed: ${err.message}`);
+        }
+      }, [appointment, navigate, supabaseUrl]);
+
+      const handleSessionAnchorChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const newText = e.target.value;
+        setSessionAnchorText(newText);
+      };
+
+      const handleSessionAnchorBlur = () => {
+        if (appointment && sessionAnchorText !== appointment.sessionAnchor) {
+          updateNotionAppointment({ sessionAnchor: sessionAnchorText });
+        }
+      };
 
       const handleSessionNorthStarChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         const newText = e.target.value;
@@ -260,18 +303,15 @@
 
       const handleSessionNorthStarBlur = () => {
         if (appointment && sessionNorthStarText !== appointment.sessionNorthStar) {
-          // Now, `sessionAnchor` in the payload will update Notion's "Session North Star"
-          updateNotionAppointment({ appointmentId: appointment.id, updates: { sessionNorthStar: sessionNorthStarText } });
+          updateNotionAppointment({ sessionNorthStar: sessionNorthStarText });
         }
       };
 
       const handleCompleteSession = async () => {
         if (appointment) {
-          await updateNotionAppointment({ appointmentId: appointment.id, updates: { status: 'CH' } }); // Set status to Charged/Complete
-          if (!updatingAppointment) { // Only navigate if update was successful and not still loading
-            showSuccess(`${appointment.clientName}'s session marked as complete.`);
-            navigate('/'); // Return to Waiting Room
-          }
+          await updateNotionAppointment({ status: 'CH' }); // Set status to Charged/Complete
+          showSuccess(`${appointment.clientName}'s session marked as complete.`);
+          navigate('/'); // Return to Waiting Room
         }
       };
 
@@ -282,25 +322,25 @@
       const handleAcupointSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const term = e.target.value;
         setAcupointSearchTerm(term);
-        fetchAcupoints({ searchTerm: term, searchType: 'point' });
+        fetchAcupoints(term, 'point');
       };
 
       const handleClearAcupointSearch = () => {
         setAcupointSearchTerm('');
         setFoundAcupoints([]);
-        fetchAcupoints({ searchTerm: '', searchType: 'point' }); // Re-fetch all for next search
+        // Optionally re-fetch all acupoints or clear the search results display
       };
 
       const handleSymptomSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const term = e.target.value;
         setSymptomSearchTerm(term);
-        fetchAcupoints({ searchTerm: term, searchType: 'symptom' });
+        fetchAcupoints(term, 'symptom');
       };
 
       const handleClearSymptomSearch = () => {
         setSymptomSearchTerm('');
         setFoundAcupoints([]);
-        fetchAcupoints({ searchTerm: '', searchType: 'symptom' }); // Re-fetch all for next search
+        // Optionally re-fetch all acupoints or clear the search results display
       };
 
       const handleSelectAcupoint = (acupoint: Acupoint) => {
@@ -312,36 +352,13 @@
         setFoundAcupoints([]); // Clear search results
       };
 
-      const handleClearAcupointSelection = () => {
-        setSelectedAcupoint(null);
-        setAcupointSearchTerm('');
-        setSymptomSearchTerm('');
-        setFoundAcupoints([]);
-        fetchAcupoints({ searchTerm: '', searchType: 'point' }); // Re-fetch all for next search
-      };
-
       const handleAddAcupointToSession = async () => {
         if (selectedAcupoint && appointmentId) {
-          // 1. Update Notion (if property exists)
-          const notionUpdatePayload = { appointmentId: appointmentId, updates: { acupointId: selectedAcupoint.id } };
-          console.log("[ActiveSession] Sending payload to update-notion-appointment:", notionUpdatePayload);
-          await updateNotionAppointment(notionUpdatePayload);
-
-          // 2. Log to Supabase
-          await logSessionEvent({
-            appointmentId: appointmentId,
-            logType: 'acupoint_added',
-            details: {
-              acupointId: selectedAcupoint.id,
-              acupointName: selectedAcupoint.name,
-              channel: selectedAcupoint.channel,
-            }
-          });
-
-          if (!updatingAppointment && !loggingSessionEvent) { // Only show toast if both operations are not loading
-            showSuccess(`${selectedAcupoint.name} added to the current session.`);
-            handleClearAcupointSelection(); // Clear selected acupoint after adding
-          }
+          await updateNotionAppointment({ acupointId: selectedAcupoint.id });
+          showSuccess(`${selectedAcupoint.name} added to the current session.`);
+          // Optionally clear selected acupoint after adding
+          setSelectedAcupoint(null);
+          setAcupointSearchTerm('');
         } else {
           showError('No acupoint selected to add to session.');
         }
@@ -349,59 +366,18 @@
 
       const handleMuscleSelected = (muscle: Muscle) => {
         setSelectedMuscle(muscle);
+        // You might want to log this selection or update other UI elements
         console.log('Muscle selected:', muscle.name);
       };
 
-      const handleClearMuscleSelection = () => {
-        setSelectedMuscle(null);
+      const handleMuscleStrengthLogged = (muscle: Muscle, isStrong: boolean) => {
+        // Here you would typically log this to your database or Notion
+        console.log(`Muscle ${muscle.name} logged as ${isStrong ? 'Strong' : 'Weak'}`);
+        // For now, the MuscleSelector component handles its own toast and state for the checklist
       };
 
-      const handleChakraSelected = (chakra: Chakra) => {
-        setSelectedChakra(chakra);
-        console.log('Chakra selected:', chakra.name);
-      };
 
-      const handleClearChakraSelection = () => {
-        setSelectedChakra(null);
-      };
-
-      const handleSelectMode = (mode: Mode) => {
-        setSelectedMode(mode);
-        setIsModeSelectOpen(false);
-      };
-
-      const handleAddModeToSession = async () => {
-        if (selectedMode && appointmentId) {
-          await logSessionEvent({
-            appointmentId: appointmentId,
-            logType: 'mode_selected',
-            details: {
-              modeId: selectedMode.id,
-              modeName: selectedMode.name,
-              actionNote: selectedMode.actionNote,
-            }
-          });
-
-          if (!loggingSessionEvent) {
-            showSuccess(`${selectedMode.name} logged to the current session.`);
-            handleClearModeSelection(); // Clear selected mode after logging
-          }
-        } else {
-          showError('Please select a mode to add to the session.');
-        }
-      };
-
-      const handleClearModeSelection = () => {
-        setSelectedMode(null);
-      };
-
-      const handleDeleteLogEntry = async (logId: string, logTypeDiscriminator: 'session_log' | 'session_muscle_log') => {
-        if (window.confirm('Are you sure you want to delete this log entry?')) {
-          await deleteSessionLog({ logId, logType: logTypeDiscriminator });
-        }
-      };
-
-      if (loadingAppointment || loadingModes || loadingAcupoints || loadingSessionLogs) {
+      if (loading) {
         return (
           <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6">
             <div className="max-w-2xl mx-auto space-y-6">
@@ -413,7 +389,7 @@
         );
       }
 
-      if (needsAppointmentConfig) {
+      if (needsConfig) {
         return (
           <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center p-6">
             <Card className="max-w-md w-full shadow-xl">
@@ -439,7 +415,7 @@
         );
       }
 
-      if (appointmentError && !appointment) {
+      if (error && !appointment) {
         return (
           <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center p-6">
             <Card className="max-w-md w-full shadow-lg">
@@ -447,10 +423,13 @@
                 <div className="text-red-500 mb-4">
                   <AlertCircle className="w-12 h-12 mx-auto" />
                 </div>
-                <h2 className="xl font-bold mb-2">Error Loading Appointment</h2>
-                <p className="text-gray-600 mb-4">{appointmentError}</p>
+                <h2 className="text-xl font-bold mb-2">Error Loading Appointment</h2>
+                <p className="text-gray-600 mb-4">{error}</p>
                 <div className="space-y-2">
-                  <Button onClick={() => appointmentId && fetchSingleAppointment({ appointmentId })}>Try Again</Button>
+                  <Button onClick={fetchSingleAppointment}>Try Again</Button>
+                  <Button variant="outline" onClick={() => navigate('/notion-config')}>
+                    Check Configuration
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -461,22 +440,11 @@
       return (
         <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6">
           <div className="max-w-2xl mx-auto">
-            <div className="flex items-center justify-between mb-8">
-              <Button
-                variant="ghost"
-                onClick={() => navigate('/')}
-                className="text-indigo-700 hover:text-indigo-900"
-              >
-                <ArrowLeft className="w-5 h-5 mr-2" />
-                Back to Waiting Room
-              </Button>
-              <div className="text-center flex-grow">
-                <h1 className="text-3xl font-bold text-indigo-900 mb-2">Active Session</h1>
-                <p className="text-gray-600">
-                  {format(new Date(), 'EEEE, MMMM d, yyyy')}
-                </p>
-              </div>
-              <div className="w-40"></div> {/* Spacer to balance the layout */}
+            <div className="text-center mb-8">
+              <h1 className="text-3xl font-bold text-indigo-900 mb-2">Active Session</h1>
+              <p className="text-gray-600">
+                {format(new Date(), 'EEEE, MMMM d, yyyy')}
+              </p>
             </div>
 
             {appointment ? (
@@ -503,22 +471,22 @@
                   </CardHeader>
 
                   <CardContent className="pt-6 space-y-4">
-                    {/* Consolidated Session North Star input */}
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                        <Target className="w-4 h-4 text-indigo-600" />
-                        <span>Session North Star</span>
+                    {appointment.sessionNorthStar && (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                          <Target className="w-4 h-4 text-indigo-600" />
+                          <span>Session North Star (Client Focus)</span>
+                        </div>
+                        <Textarea
+                          id="session-north-star"
+                          placeholder="e.g., 'Releasing tension in the shoulders related to stress.'"
+                          value={sessionNorthStarText}
+                          onChange={handleSessionNorthStarChange}
+                          onBlur={handleSessionNorthStarBlur}
+                          className="min-h-[80px]"
+                        />
                       </div>
-                      <Textarea
-                        id="session-north-star"
-                        placeholder="e.g., 'Releasing tension in the shoulders related to stress.'"
-                        value={sessionNorthStarText}
-                        onChange={handleSessionNorthStarChange}
-                        onBlur={handleSessionNorthStarBlur}
-                        className="min-h-[80px]"
-                        disabled={updatingAppointment}
-                      />
-                    </div>
+                    )}
 
                     {appointment.goal && (
                       <div className="space-y-2">
@@ -534,12 +502,6 @@
                   </CardContent>
                 </Card>
 
-                {/* Channel Dashboard Component - Moved to top */}
-                <ChannelDashboard
-                  appointmentId={appointmentId || ''}
-                  onLogSuccess={handleChannelLogSuccess} // Pass the new callback
-                />
-
                 {/* Live Session Controls */}
                 <Card className="shadow-xl">
                   <CardHeader className="bg-indigo-50 border-b border-indigo-200 rounded-t-lg p-4">
@@ -549,6 +511,22 @@
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="pt-6 space-y-6">
+                    {/* Session Anchor */}
+                    <div className="space-y-2">
+                      <Label htmlFor="session-anchor" className="flex items-center gap-2 font-semibold text-gray-700">
+                        <Hand className="w-4 h-4 text-indigo-600" />
+                        Today we are really working with...
+                      </Label>
+                      <Textarea
+                        id="session-anchor"
+                        placeholder="e.g., 'Releasing tension in the shoulders related to stress.'"
+                        value={sessionAnchorText}
+                        onChange={handleSessionAnchorChange}
+                        onBlur={handleSessionAnchorBlur}
+                        className="min-h-[80px]"
+                      />
+                    </div>
+
                     {/* Mode Selection */}
                     <div className="space-y-2">
                       <Label htmlFor="mode-select" className="flex items-center gap-2 font-semibold text-gray-700">
@@ -562,7 +540,6 @@
                             role="combobox"
                             aria-expanded={isModeSelectOpen}
                             className="w-full justify-between"
-                            disabled={loadingModes || updatingAppointment || loggingSessionEvent}
                           >
                             {selectedMode ? selectedMode.name : "Select mode..."}
                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -570,15 +547,17 @@
                         </PopoverTrigger>
                         <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                           <Command>
-                            {loadingModes && <CommandInput value={selectedMode?.name || ""} onValueChange={() => {}} placeholder="Loading modes..." disabled />}
-                            {!loadingModes && <CommandInput value={selectedMode?.name || ""} onValueChange={(val) => setSelectedMode(modes.find(mode => mode.name === val) || null)} placeholder="Search mode..." />}
+                            <CommandInput placeholder="Search mode..." />
                             <CommandEmpty>No mode found.</CommandEmpty>
                             <CommandGroup>
                               {modes.map((mode) => (
                                 <CommandItem
                                   key={mode.id}
                                   value={mode.name}
-                                  onSelect={() => handleSelectMode(mode)}
+                                  onSelect={() => {
+                                    setSelectedMode(mode);
+                                    setIsModeSelectOpen(false);
+                                  }}
                                 >
                                   <Check
                                     className={cn(
@@ -593,44 +572,10 @@
                           </Command>
                         </PopoverContent>
                       </Popover>
-                      {selectedMode && (
-                        <Card className="border-2 border-purple-300 bg-purple-50 shadow-md mt-4">
-                          <CardHeader className="flex flex-row items-center justify-between p-4 pb-2">
-                            <CardTitle className="text-xl font-bold text-purple-800 flex items-center gap-2">
-                              {selectedMode.name}
-                              <a
-                                href={`https://www.notion.so/${selectedMode.id}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="ml-2 text-purple-600 hover:text-purple-800"
-                              >
-                                <ExternalLink className="w-4 h-4" />
-                              </a>
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent className="pt-2 space-y-3 text-gray-800">
-                            {selectedMode.actionNote && (
-                              <div>
-                                <p className="font-semibold text-purple-700">Action Note:</p>
-                                <p className="text-sm">{selectedMode.actionNote}</p>
-                              </div>
-                            )}
-                            <div className="flex gap-2 mt-4">
-                              <Button
-                                className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white"
-                                onClick={handleAddModeToSession}
-                                disabled={loggingSessionEvent}
-                              >
-                                {loggingSessionEvent ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <PlusCircle className="w-4 h-4 mr-2" />}
-                                {loggingSessionEvent ? 'Adding...' : 'Add to Session Log'}
-                              </Button>
-                              <Button variant="outline" onClick={handleClearModeSelection} disabled={loggingSessionEvent}>
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Clear
-                              </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
+                      {selectedMode?.actionNote && (
+                        <p className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg border border-blue-200 mt-2">
+                          <strong>Action Note:</strong> {selectedMode.actionNote}
+                        </p>
                       )}
                     </div>
                   </CardContent>
@@ -645,311 +590,186 @@
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="pt-6 space-y-6">
-                    {needsAcupointsConfig ? ( // Conditional rendering for acupoints config
-                      <div className="text-center py-8">
-                        <Settings className="w-10 h-10 mx-auto mb-4 text-indigo-600" />
-                        <h3 className="text-xl font-bold text-indigo-900 mb-2">Acupoints Database Not Configured</h3>
-                        <p className="text-gray-600 mb-4">
-                          Please configure your Notion Acupoints Database ID in the Notion Configuration page to use this feature.
-                        </p>
-                        <Button
-                          className="w-full h-12 text-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
-                          onClick={handleConfigureNotion}
-                        >
-                          Configure Notion
-                        </Button>
-                      </div>
-                    ) : (
-                      <>
-                        {/* Point Search */}
-                        <div className="space-y-2">
-                          <Label htmlFor="point-search" className="flex items-center gap-2 font-semibold text-gray-700">
-                            <Search className="w-4 h-4 text-indigo-600" />
-                            Point Search (e.g., SP-06, Pc-6)
-                          </Label>
-                          <Popover open={isAcupointSearchOpen} onOpenChange={setIsAcupointSearchOpen}>
-                            <PopoverTrigger asChild>
-                              <div className="relative">
-                                <Input
-                                  id="point-search"
-                                  type="text"
-                                  placeholder="Search for an acupoint..."
-                                  value={acupointSearchTerm}
-                                  onChange={handleAcupointSearchChange}
-                                  onFocus={() => setIsAcupointSearchOpen(true)}
-                                  className="w-full pr-10" // Add padding-right for the clear button
-                                  disabled={loadingAcupoints || updatingAppointment || loggingSessionEvent}
-                                />
-                                {acupointSearchTerm && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0 text-gray-500 hover:text-gray-700"
-                                    onClick={handleClearAcupointSearch}
-                                    disabled={loadingAcupoints || updatingAppointment || loggingSessionEvent}
-                                  >
-                                    <XCircle className="h-4 w-4" />
-                                  </Button>
-                                )}
-                              </div>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                              <Command>
-                                {loadingAcupoints && <CommandInput value={acupointSearchTerm} onValueChange={setAcupointSearchTerm} placeholder="Searching..." disabled />}
-                                {!loadingAcupoints && <CommandInput value={acupointSearchTerm} onValueChange={setAcupointSearchTerm} placeholder="Search acupoint..." />}
-                                <CommandEmpty>No acupoint found.</CommandEmpty>
-                                <CommandGroup>
-                                  {foundAcupoints.map((point) => (
-                                    <CommandItem
-                                      key={point.id}
-                                      value={point.name}
-                                      onSelect={() => handleSelectAcupoint(point)}
-                                    >
-                                      {point.name}
-                                    </CommandItem>
-                                  ))}
-                                </CommandGroup>
-                              </Command>
-                            </PopoverContent>
-                          </Popover>
-                        </div>
-
-                        {/* Symptom Suggester */}
-                        <div className="space-y-2">
-                          <Label htmlFor="symptom-search" className="flex items-center gap-2 font-semibold text-gray-700">
-                            <Lightbulb className="w-4 h-4 text-indigo-600" />
-                            Symptom Suggester (e.g., Anxiety, Headache)
-                          </Label>
-                          <Popover open={isSymptomSearchOpen} onOpenChange={setIsSymptomSearchOpen}>
-                            <PopoverTrigger asChild>
-                              <div className="relative">
-                                <Input
-                                  id="symptom-search"
-                                  type="text"
-                                  placeholder="Search symptoms for point suggestions..."
-                                  value={symptomSearchTerm}
-                                  onChange={handleSymptomSearchChange}
-                                  onFocus={() => setIsSymptomSearchOpen(true)}
-                                  className="w-full pr-10" // Add padding-right for the clear button
-                                  disabled={loadingAcupoints || updatingAppointment || loggingSessionEvent}
-                                />
-                                {symptomSearchTerm && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0 text-gray-500 hover:text-gray-700"
-                                    onClick={handleClearSymptomSearch}
-                                    disabled={loadingAcupoints || updatingAppointment || loggingSessionEvent}
-                                  >
-                                    <XCircle className="h-4 w-4" />
-                                  </Button>
-                                )}
-                              </div>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                              <Command>
-                                {loadingAcupoints && <CommandInput value={symptomSearchTerm} onValueChange={setSymptomSearchTerm} placeholder="Searching..." disabled />}
-                                {!loadingAcupoints && <CommandInput value={symptomSearchTerm} onValueChange={setSymptomSearchTerm} placeholder="Search symptom..." />}
-                                <CommandEmpty>No suggestions found.</CommandEmpty>
-                                <CommandGroup>
-                                  {foundAcupoints.map((point) => (
-                                    <CommandItem
-                                      key={point.id}
-                                      value={point.name}
-                                      onSelect={() => handleSelectAcupoint(point)}
-                                    >
-                                      {point.name}
-                                    </CommandItem>
-                                  ))}
-                                </CommandGroup>
-                              </Command>
-                            </PopoverContent>
-                          </Popover>
-                        </div>
-
-                        {/* Insight Deck (Selected Acupoint Display) */}
-                        {selectedAcupoint && (
-                          <Card className="border-2 border-purple-300 bg-purple-50 shadow-md">
-                            <CardHeader className="flex flex-row items-center justify-between p-4 pb-2">
-                              <CardTitle className="text-xl font-bold text-purple-800 flex items-center gap-2">
-                                {selectedAcupoint.name}
-                                <a
-                                  href={`https://www.notion.so/${selectedAcupoint.id}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="ml-2 text-purple-600 hover:text-purple-800"
+                    {/* Point Search */}
+                    <div className="space-y-2">
+                      <Label htmlFor="point-search" className="flex items-center gap-2 font-semibold text-gray-700">
+                        <Search className="w-4 h-4 text-indigo-600" />
+                        Point Search (e.g., SP-06, Pc-6)
+                      </Label>
+                      <Popover open={isAcupointSearchOpen} onOpenChange={setIsAcupointSearchOpen}>
+                        <PopoverTrigger asChild>
+                          <div className="relative">
+                            <Input
+                              id="point-search"
+                              type="text"
+                              placeholder="Search for an acupoint..."
+                              value={acupointSearchTerm}
+                              onChange={handleAcupointSearchChange}
+                              onFocus={() => setIsAcupointSearchOpen(true)}
+                              className="w-full pr-10"
+                            />
+                            {acupointSearchTerm && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0 text-gray-500 hover:text-gray-700"
+                                onClick={handleClearAcupointSearch}
+                              >
+                                <XCircle className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                          <Command>
+                            {isAcupointSearching && <CommandInput value={acupointSearchTerm} onValueChange={setAcupointSearchTerm} placeholder="Searching..." />}
+                            {!isAcupointSearching && <CommandInput value={acupointSearchTerm} onValueChange={setAcupointSearchTerm} placeholder="Search acupoint..." />}
+                            <CommandEmpty>No acupoint found.</CommandEmpty>
+                            <CommandGroup>
+                              {foundAcupoints.map((point) => (
+                                <CommandItem
+                                  key={point.id}
+                                  value={point.name}
+                                  onSelect={() => handleSelectAcupoint(point)}
                                 >
-                                  <ExternalLink className="w-4 h-4" />
-                                </a>
-                              </CardTitle>
-                              <div className="flex gap-2">
-                                {selectedAcupoint.channel && (
-                                  <Badge variant="secondary" className="bg-purple-200 text-purple-800">
-                                    {selectedAcupoint.channel}
-                                  </Badge>
-                                )}
-                                {selectedAcupoint.akMuscles.length > 0 && (
-                                  <Badge variant="secondary" className="bg-purple-200 text-purple-800">
-                                    {selectedAcupoint.akMuscles.join(', ')}
-                                  </Badge>
-                                )}
-                              </div>
-                            </CardHeader>
-                            <CardContent className="pt-2 space-y-3 text-gray-800">
-                              {selectedAcupoint.for && (
-                                <div>
-                                  <p className="font-semibold text-purple-700">For:</p>
-                                  <p className="text-sm">{selectedAcupoint.for}</p>
-                                </div>
-                              )}
-                              {selectedAcupoint.kinesiology && (
-                                <div>
-                                  <p className="font-semibold text-purple-700">Kinesiology:</p>
-                                  <p className="text-sm">{selectedAcupoint.kinesiology}</p>
-                                </div>
-                              )}
-                              {selectedAcupoint.psychology && (
-                                <div>
-                                  <p className="font-semibold text-purple-700">Psychology:</p>
-                                  <p className="text-sm">{selectedAcupoint.psychology}</p>
-                                </div>
-                              )}
-                              <div className="flex flex-wrap gap-2 mt-3">
-                                {selectedAcupoint.typeOfPoint.length > 0 && (
-                                  <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-300">
-                                    Type: {selectedAcupoint.typeOfPoint.join(', ')}
-                                  </Badge>
-                                )}
-                                {selectedAcupoint.time.length > 0 && (
-                                  <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-300">
-                                    Time: {selectedAcupoint.time.join(', ')}
-                                  </Badge>
-                                )}
-                              </div>
-                              <div className="flex gap-2 mt-4">
-                                <Button
-                                  className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white"
-                                  onClick={handleAddAcupointToSession}
-                                  disabled={updatingAppointment || loggingSessionEvent}
+                                  {point.name}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+
+                    {/* Symptom Suggester */}
+                    <div className="space-y-2">
+                      <Label htmlFor="symptom-search" className="flex items-center gap-2 font-semibold text-gray-700">
+                        <Lightbulb className="w-4 h-4 text-indigo-600" />
+                        Symptom Suggester (e.g., Anxiety, Headache)
+                      </Label>
+                      <Popover open={isSymptomSearchOpen} onOpenChange={setIsSymptomSearchOpen}>
+                        <PopoverTrigger asChild>
+                          <div className="relative">
+                            <Input
+                              id="symptom-search"
+                              type="text"
+                              placeholder="Search symptoms for point suggestions..."
+                              value={symptomSearchTerm}
+                              onChange={handleSymptomSearchChange}
+                              onFocus={() => setIsSymptomSearchOpen(true)}
+                              className="w-full pr-10"
+                            />
+                            {symptomSearchTerm && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0 text-gray-500 hover:text-gray-700"
+                                onClick={handleClearSymptomSearch}
+                              >
+                                <XCircle className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                          <Command>
+                            {isAcupointSearching && <CommandInput value={symptomSearchTerm} onValueChange={setSymptomSearchTerm} placeholder="Searching..." />}
+                            {!isAcupointSearching && <CommandInput value={symptomSearchTerm} onValueChange={setSymptomSearchTerm} placeholder="Search symptom..." />}
+                            <CommandEmpty>No suggestions found.</CommandEmpty>
+                            <CommandGroup>
+                              {foundAcupoints.map((point) => (
+                                <CommandItem
+                                  key={point.id}
+                                  value={point.name}
+                                  onSelect={() => handleSelectAcupoint(point)}
                                 >
-                                  {updatingAppointment || loggingSessionEvent ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <PlusCircle className="w-4 h-4 mr-2" />}
-                                  {updatingAppointment || loggingSessionEvent ? 'Adding...' : 'Add to Session'}
-                                </Button>
-                                <Button variant="outline" onClick={handleClearAcupointSelection} disabled={updatingAppointment || loggingSessionEvent}>
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Clear
-                                </Button>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        )}
-                      </>
+                                  {point.name}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+
+                    {/* Insight Deck (Selected Acupoint Display) */}
+                    {selectedAcupoint && (
+                      <Card className="border-2 border-purple-300 bg-purple-50 shadow-md">
+                        <CardHeader className="flex flex-row items-center justify-between p-4 pb-2">
+                          <CardTitle className="text-xl font-bold text-purple-800">
+                            {selectedAcupoint.name}
+                          </CardTitle>
+                          <div className="flex gap-2">
+                            {selectedAcupoint.channel && (
+                              <Badge variant="secondary" className="bg-purple-200 text-purple-800">
+                                {selectedAcupoint.channel}
+                              </Badge>
+                            )}
+                            {selectedAcupoint.akMuscles.length > 0 && (
+                              <Badge variant="secondary" className="bg-purple-200 text-purple-800">
+                                {selectedAcupoint.akMuscles.join(', ')}
+                              </Badge>
+                            )}
+                          </div>
+                        </CardHeader>
+                        <CardContent className="pt-2 space-y-3 text-gray-800">
+                          {selectedAcupoint.for && (
+                            <div>
+                              <p className="font-semibold text-purple-700">For:</p>
+                              <p className="text-sm">{selectedAcupoint.for}</p>
+                            </div>
+                          )}
+                          {selectedAcupoint.kinesiology && (
+                            <div>
+                              <p className="font-semibold text-purple-700">Kinesiology:</p>
+                              <p className="text-sm">{selectedAcupoint.kinesiology}</p>
+                            </div>
+                          )}
+                          {selectedAcupoint.psychology && (
+                            <div>
+                              <p className="font-semibold text-purple-700">Psychology:</p>
+                              <p className="text-sm">{selectedAcupoint.psychology}</p>
+                            </div>
+                          )}
+                          <div className="flex flex-wrap gap-2 mt-3">
+                            {selectedAcupoint.typeOfPoint.length > 0 && (
+                              <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-300">
+                                Type: {selectedAcupoint.typeOfPoint.join(', ')}
+                              </Badge>
+                            )}
+                            {selectedAcupoint.time.length > 0 && (
+                              <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-300">
+                                Time: {selectedAcupoint.time.join(', ')}
+                              </Badge>
+                            )}
+                          </div>
+                          <Button
+                            className="w-full mt-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white"
+                            onClick={handleAddAcupointToSession}
+                          >
+                            <PlusCircle className="w-4 h-4 mr-2" />
+                            Add to Session
+                          </Button>
+                        </CardContent>
+                      </Card>
                     )}
                   </CardContent>
                 </Card>
 
                 {/* Muscle Selector Component */}
                 <MuscleSelector
-                  appointmentId={appointmentId || ''}
                   onMuscleSelected={handleMuscleSelected}
-                  onClearSelection={handleClearMuscleSelection}
-                  selectedMuscle={selectedMuscle} // Pass selected muscle to MuscleSelector
-                  onLogSuccess={handleMuscleLogSuccess} // Pass the new callback
+                  onMuscleStrengthLogged={handleMuscleStrengthLogged}
+                  appointmentId={appointmentId || ''} // Pass appointmentId if needed for logging
                 />
-
-                {/* Chakra Selector Component */}
-                <ChakraSelector
-                  appointmentId={appointmentId || ''}
-                  onChakraSelected={handleChakraSelected}
-                  onClearSelection={handleClearChakraSelection}
-                  selectedChakra={selectedChakra} // Pass selected chakra to ChakraSelector
-                />
-
-                {/* Session Log */}
-                <Card className="shadow-xl">
-                  <CardHeader className="bg-indigo-50 border-b border-indigo-200 rounded-t-lg p-4">
-                    <CardTitle className="text-xl font-bold text-indigo-800 flex items-center gap-2">
-                      <ListChecks className="w-5 h-5" />
-                      Session Log
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-6 space-y-4">
-                    {loadingSessionLogs ? (
-                      <div className="flex justify-center items-center h-20">
-                        <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
-                      </div>
-                    ) : sessionLogs.length === 0 ? (
-                      <p className="text-gray-600 text-center">No events logged for this session yet.</p>
-                    ) : (
-                      <div className="space-y-3">
-                        {sessionLogs.map((log, index) => (
-                          <div key={index} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                            <span className="text-sm text-gray-500 flex-shrink-0">
-                              {format(new Date(log.created_at), 'HH:mm')}
-                            </span>
-                            <div className="flex-grow">
-                              {log.log_type_discriminator === 'session_log' ? ( // Check if it's a general session log
-                                <>
-                                  {log.log_type === 'mode_selected' && (
-                                    <div className="text-sm text-gray-800">
-                                      <Badge variant="secondary" className="bg-blue-100 text-blue-800 mr-2">Mode</Badge>
-                                      Selected Mode: <span className="font-semibold">{(log as SessionLog).details?.modeName}</span>
-                                      {(log as SessionLog).details?.actionNote && <span className="text-gray-600 ml-1">({(log as SessionLog).details.actionNote})</span>}
-                                    </div>
-                                  )}
-                                  {log.log_type === 'acupoint_added' && (
-                                    <div className="text-sm text-gray-800">
-                                      <Badge variant="secondary" className="bg-green-100 text-green-800 mr-2">Acupoint</Badge>
-                                      Added Acupoint: <span className="font-semibold">{(log as SessionLog).details?.acupointName}</span>
-                                      {(log as SessionLog).details?.channel && <span className="text-gray-600 ml-1">({(log as SessionLog).details.channel})</span>}
-                                    </div>
-                                  )}
-                                  {log.log_type === 'chakra_selected' && (
-                                    <div className="text-sm text-gray-800">
-                                      <Badge variant="secondary" className="bg-purple-100 text-purple-800 mr-2">Chakra</Badge>
-                                      Selected Chakra: <span className="font-semibold">{(log as SessionLog).details?.chakraName}</span>
-                                      {(log as SessionLog).details?.emotionalThemes && (log as SessionLog).details.emotionalThemes.length > 0 && <span className="text-gray-600 ml-1">({(log as SessionLog).details.emotionalThemes.join(', ')})</span>}
-                                    </div>
-                                  )}
-                                  {/* New log types for channel details */}
-                                  {log.log_type.startsWith('channel_') && (
-                                    <div className="text-sm text-gray-800">
-                                      <Badge variant="secondary" className="bg-indigo-100 text-indigo-800 mr-2">Channel Detail</Badge>
-                                      Logged <span className="font-semibold">{log.details?.itemType?.replace('channel_', '').replace(/_/g, ' ')}:</span> <span className="font-semibold">{log.details?.itemValue}</span> from <span className="font-semibold">{log.details?.channelName}</span>.
-                                    </div>
-                                  )}
-                                </>
-                              ) : ( // It's a muscle strength log
-                                <div className="text-sm text-gray-800">
-                                  <Badge variant="secondary" className={(log as SessionMuscleLog).is_strong ? "bg-green-100 text-green-800 mr-2" : "bg-red-100 text-red-800 mr-2"}>Muscle Test</Badge>
-                                  Muscle <span className="font-semibold">{(log as SessionMuscleLog).muscle_name}</span> tested <span className={(log as SessionMuscleLog).is_strong ? "text-green-700 font-semibold" : "text-red-700 font-semibold"}>{(log as SessionMuscleLog).is_strong ? 'Strong' : 'Weak'}</span>.
-                                </div>
-                              )}
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteLogEntry(log.id, log.log_type_discriminator)}
-                              disabled={deletingSessionLog}
-                              className="flex-shrink-0"
-                            >
-                              {deletingSessionLog ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4 text-gray-500 hover:text-red-500" />}
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
 
                 {/* Complete Session Button */}
                 <Button
                   className="w-full h-12 text-lg bg-red-500 hover:bg-red-600 text-white"
                   onClick={handleCompleteSession}
-                  disabled={updatingAppointment}
                 >
-                  {updatingAppointment ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <XCircle className="w-5 h-5 mr-2" />}
-                  {updatingAppointment ? 'Completing...' : 'Complete Session'}
+                  <XCircle className="w-5 h-5 mr-2" />
+                  Complete Session
                 </Button>
               </div>
             ) : (
@@ -967,6 +787,24 @@
                 </CardContent>
               </Card>
             )}
+
+            <div className="mt-6 flex gap-2 justify-center">
+              <Button
+                variant="outline"
+                onClick={() => navigate('/')}
+                className="text-indigo-600 hover:text-indigo-800"
+              >
+                ← Back to Waiting Room
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => navigate('/notion-config')}
+                className="text-indigo-600 hover:text-indigo-800"
+              >
+                <Settings className="w-4 h-4 mr-2" />
+                Configure Notion
+              </Button>
+            </div>
           </div>
         </div>
       );

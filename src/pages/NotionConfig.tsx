@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { supabase } from '@/integrations/supabase/client';
 import { Settings, Key, Database, Shield, Loader2 } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
@@ -37,8 +36,8 @@ const notionConfigFormSchema = z.object({
   modesDbId: z.string().nullable(),
   acupointsDbId: z.string().nullable(),
   musclesDbId: z.string().nullable(),
-  channelsDbId: z.string().nullable(),
-  chakrasDbId: z.string().nullable(),
+  channelsDbId: z.string().nullable(), // Added new field
+  chakrasDbId: z.string().nullable(),  // Added new field
 });
 
 type NotionConfigFormValues = z.infer<typeof notionConfigFormSchema>;
@@ -55,8 +54,8 @@ const NotionConfig = () => {
       modesDbId: '',
       acupointsDbId: '',
       musclesDbId: '',
-      channelsDbId: '',
-      chakrasDbId: '',
+      channelsDbId: '', // Default value for new field
+      chakrasDbId: '',  // Default value for new field
     },
   });
 
@@ -70,8 +69,8 @@ const NotionConfig = () => {
       modesDbId: secrets.modes_database_id || '',
       acupointsDbId: secrets.acupoints_database_id || '',
       musclesDbId: secrets.muscles_database_id || '',
-      channelsDbId: secrets.channels_database_id || '',
-      chakrasDbId: secrets.chakras_database_id || '',
+      channelsDbId: secrets.channels_database_id || '', // Set new field
+      chakrasDbId: secrets.chakras_database_id || '',  // Set new field
     });
   }, [form]);
 
@@ -129,8 +128,8 @@ const NotionConfig = () => {
       modesDbId: values.modesDbId?.trim() || null,
       acupointsDbId: values.acupointsDbId?.trim() || null,
       musclesDbId: values.musclesDbId?.trim() || null,
-      channelsDbId: values.channelsDbId?.trim() || null,
-      chakrasDbId: values.chakrasDbId?.trim() || null,
+      channelsDbId: values.channelsDbId?.trim() || null, // Pass new field
+      chakrasDbId: values.chakrasDbId?.trim() || null,  // Pass new field
     });
   };
 
@@ -241,7 +240,7 @@ const NotionConfig = () => {
                           </FormControl>
                           <FormMessage />
                           <p className="text-xs text-gray-500">
-                            Used for client management and fetching client details like **Star Sign**. Can be added later.
+                            Used for client management. Can be added later.
                           </p>
                         </FormItem>
                       )}
@@ -301,7 +300,7 @@ const NotionConfig = () => {
                       )}
                     />
 
-                    {/* Muscles Database ID */}
+                    {/* Muscles Database ID (New Field) */}
                     <FormField
                       control={form.control}
                       name="musclesDbId"
@@ -328,7 +327,7 @@ const NotionConfig = () => {
                       )}
                     />
 
-                    {/* Channels Database ID */}
+                    {/* Channels Database ID (New Field) */}
                     <FormField
                       control={form.control}
                       name="channelsDbId"
