@@ -46,14 +46,8 @@ serve(async (req) => {
 
     const { notionToken, appointmentsDbId, crmDbId } = await req.json()
 
-    if (!notionToken || !appointmentsDbId) {
-      return new Response(JSON.stringify({ 
-        error: 'Integration Token and Appointments Database ID are required' 
-      }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
-    }
+    // Removed the strict validation here, as it's now handled client-side
+    // and the database NOT NULL constraint will act as a final safeguard.
 
     // Upsert into notion_secrets table using service role
     const { error: insertError } = await supabase

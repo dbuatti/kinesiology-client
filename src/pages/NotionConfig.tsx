@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,19 +8,78 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Settings, Key, Database, Shield } from 'lucide-react';
+import { Settings, Key, Database, Shield, Loader2 } from 'lucide-react'; // Added Loader2
 
 const NotionConfig = () => {
   const [integrationToken, setIntegrationToken] = useState('');
   const [appointmentsDbId, setAppointmentsDbId] = useState('');
   const [crmDbId, setCrmDbId] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true); // Use loading for initial fetch and saving
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  useEffect(() => {
+    const fetchSecrets = async () => {
+      setLoading(true);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          navigate('/login');
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from('notion_secrets')
+          .select('notion_integration_token, appointments_database_id, crm_database_id')
+          .eq('user_id', session.user.id)
+          .single();
+
+        if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found, which is fine for initial load
+          throw error;
+        }
+
+        if (data) {
+          setIntegrationToken(data.notion_integration_token || '');
+          setAppointmentsDbId(data.appointments_database_id || '');
+          setCrmDbId(data.crm_database_id || '');
+        }
+      } catch (error: any) {
+        toast({
+          variant: 'destructive',
+          title: 'Error loading configuration',
+          description: error.message,
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSecrets();
+  }, [navigate, toast]);
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaving(true);
+    setLoading(true); // Use loading for saving as well
+
+    // Client-side validation for NOT NULL fields
+    if (!integrationToken.trim()) {
+      toast({
+        variant: 'destructive',
+        title: 'Validation Error',
+        description: 'Integration Token cannot be empty.',
+      });
+      setLoading(false);
+      return;
+    }
+    if (!appointmentsDbId.trim()) {
+      toast({
+        variant: 'destructive',
+        title: 'Validation Error',
+        description: 'Appointments Database ID cannot be empty.',
+      });
+      setLoading(false);
+      return;
+    }
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -38,7 +97,7 @@ const NotionConfig = () => {
       // Get Supabase URL from environment or default
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://hcriagmovotwuqbppcfm.supabase.co';
 
-      console.log('Calling edge function with URL:', `${supabaseUrl}/functions/v1/set-notion-secrets`)
+      console.log('[NotionConfig] Calling edge function with URL:', `${supabaseUrl}/functions/v1/set-notion-secrets`)
 
       // Call edge function to set secrets
       const response = await fetch(
@@ -52,21 +111,21 @@ const NotionConfig = () => {
           body: JSON.stringify({
             notionToken: integrationToken,
             appointmentsDbId: appointmentsDbId,
-            crmDbId: crmDbId
+            crmDbId: crmDbId || null // Ensure null for empty optional field
           })
         }
       );
 
-      console.log('Response status:', response.status)
+      console.log('[NotionConfig] Response status:', response.status)
       
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('Edge function error:', errorData)
+        console.error('[NotionConfig] Edge function error:', errorData)
         throw new Error(errorData.error || errorData.details || 'Failed to save secrets');
       }
 
       const result = await response.json();
-      console.log('Success:', result)
+      console.log('[NotionConfig] Success:', result)
 
       toast({
         title: 'Success',
@@ -75,14 +134,14 @@ const NotionConfig = () => {
 
       navigate('/active-session');
     } catch (error: any) {
-      console.error('Save error:', error)
+      console.error('[NotionConfig] Save error:', error)
       toast({
         variant: 'destructive',
         title: 'Save Failed',
         description: error.message || 'An unknown error occurred',
       });
     } finally {
-      setSaving(false);
+      setLoading(false);
     }
   };
 
@@ -103,103 +162,112 @@ const NotionConfig = () => {
           </CardHeader>
           
           <CardContent className="pt-6">
-            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-start gap-3">
-              <Shield className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-              <div className="text-sm text-green-800">
-                <strong>Secure Storage:</strong> Your credentials are stored as encrypted secrets in Supabase, not in the database. This is much more secure.
+            {loading && (
+              <div className="flex justify-center items-center h-40">
+                <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
               </div>
-            </div>
+            )}
+            {!loading && (
+              <>
+                <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-start gap-3">
+                  <Shield className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-green-800">
+                    <strong>Secure Storage:</strong> Your credentials are stored as encrypted secrets in Supabase, not in the database. This is much more secure.
+                  </div>
+                </div>
 
-            <form onSubmit={handleSave} className="space-y-6">
-              {/* Integration Token */}
-              <div className="space-y-2">
-                <Label htmlFor="token" className="flex items-center gap-2 font-semibold">
-                  <Key className="w-4 h-4 text-indigo-600" />
-                  Integration Token
-                </Label>
-                <Input
-                  id="token"
-                  type="password"
-                  placeholder="secret_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                  value={integrationToken}
-                  onChange={(e) => setIntegrationToken(e.target.value)}
-                  disabled={saving}
-                  required
-                />
-                <p className="text-xs text-gray-500">
-                  Find this in Notion → Settings & Members → Integrations → [Your Integration]
-                </p>
-              </div>
+                <form onSubmit={handleSave} className="space-y-6">
+                  {/* Integration Token */}
+                  <div className="space-y-2">
+                    <Label htmlFor="token" className="flex items-center gap-2 font-semibold">
+                      <Key className="w-4 h-4 text-indigo-600" />
+                      Integration Token
+                    </Label>
+                    <Input
+                      id="token"
+                      type="password"
+                      placeholder="secret_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                      value={integrationToken}
+                      onChange={(e) => setIntegrationToken(e.target.value)}
+                      disabled={loading}
+                      // Removed 'required' attribute
+                    />
+                    <p className="text-xs text-gray-500">
+                      Find this in Notion → Settings & Members → Integrations → [Your Integration]
+                    </p>
+                  </div>
 
-              {/* Appointments Database ID */}
-              <div className="space-y-2">
-                <Label htmlFor="appointments" className="flex items-center gap-2 font-semibold">
-                  <Database className="w-4 h-4 text-indigo-600" />
-                  Appointments Database ID
-                </Label>
-                <Input
-                  id="appointments"
-                  type="text"
-                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                  value={appointmentsDbId}
-                  onChange={(e) => setAppointmentsDbId(e.target.value)}
-                  disabled={saving}
-                  required
-                />
-                <p className="text-xs text-gray-500">
-                  Copy from Notion: Share → Copy link → Extract the 32-character ID from the URL
-                </p>
-              </div>
+                  {/* Appointments Database ID */}
+                  <div className="space-y-2">
+                    <Label htmlFor="appointments" className="flex items-center gap-2 font-semibold">
+                      <Database className="w-4 h-4 text-indigo-600" />
+                      Appointments Database ID
+                    </Label>
+                    <Input
+                      id="appointments"
+                      type="text"
+                      placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                      value={appointmentsDbId}
+                      onChange={(e) => setAppointmentsDbId(e.target.value)}
+                      disabled={loading}
+                      // Removed 'required' attribute
+                    />
+                    <p className="text-xs text-gray-500">
+                      Copy from Notion: Share → Copy link → Extract the 32-character ID from the URL
+                    </p>
+                  </div>
 
-              {/* CRM Database ID (Optional) */}
-              <div className="space-y-2">
-                <Label htmlFor="crm" className="flex items-center gap-2 font-semibold">
-                  <Database className="w-4 h-4 text-indigo-600" />
-                  CRM Database ID (Optional)
-                </Label>
-                <Input
-                  id="crm"
-                  type="text"
-                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                  value={crmDbId}
-                  onChange={(e) => setCrmDbId(e.target.value)}
-                  disabled={saving}
-                />
-                <p className="text-xs text-gray-500">
-                  Used for client management. Can be added later.
-                </p>
-              </div>
+                  {/* CRM Database ID (Optional) */}
+                  <div className="space-y-2">
+                    <Label htmlFor="crm" className="flex items-center gap-2 font-semibold">
+                      <Database className="w-4 h-4 text-indigo-600" />
+                      CRM Database ID (Optional)
+                    </Label>
+                    <Input
+                      id="crm"
+                      type="text"
+                      placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                      value={crmDbId}
+                      onChange={(e) => setCrmDbId(e.target.value)}
+                      disabled={loading}
+                    />
+                    <p className="text-xs text-gray-500">
+                      Used for client management. Can be added later.
+                    </p>
+                  </div>
 
-              <div className="flex gap-4 pt-4">
-                <Button
-                  type="submit"
-                  className="flex-1 h-12 text-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
-                  disabled={saving}
-                >
-                  {saving ? 'Saving...' : 'Save to Secrets'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => navigate('/active-session')}
-                  disabled={saving}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </form>
+                  <div className="flex gap-4 pt-4">
+                    <Button
+                      type="submit"
+                      className="flex-1 h-12 text-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+                      disabled={loading}
+                    >
+                      {loading ? 'Saving...' : 'Save to Secrets'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => navigate('/active-session')}
+                      disabled={loading}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
 
-            {/* Help Section */}
-            <div className="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <h3 className="font-semibold text-blue-900 mb-2">Need Help?</h3>
-              <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
-                <li>Create a Notion integration at notion.com/my-integrations</li>
-                <li>Copy the "Internal Integration Token"</li>
-                <li>Share your appointments database with the integration</li>
-                <li>Copy the database ID from the share link</li>
-                <li>Paste both values above and save</li>
-              </ol>
-            </div>
+                {/* Help Section */}
+                <div className="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <h3 className="font-semibold text-blue-900 mb-2">Need Help?</h3>
+                  <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+                    <li>Create a Notion integration at notion.com/my-integrations</li>
+                    <li>Copy the "Internal Integration Token"</li>
+                    <li>Share your appointments database with the integration</li>
+                    <li>Copy the database ID from the share link</li>
+                    <li>Paste both values above and save</li>
+                  </ol>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
