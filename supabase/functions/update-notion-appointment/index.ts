@@ -85,7 +85,8 @@ serve(async (req) => {
       notionProperties["BODY NO"] = { checkbox: updates.bodyNo };
     }
     if (updates.status !== undefined) {
-      notionProperties["Status"] = { select: { name: updates.status } };
+      // Corrected: Use 'status' key for Notion status property
+      notionProperties["Status"] = { status: { name: updates.status } };
     }
     if (updates.goal !== undefined) {
       notionProperties["Goal"] = {
