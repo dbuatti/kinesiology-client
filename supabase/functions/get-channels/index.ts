@@ -61,11 +61,10 @@ serve(async (req) => {
 
     console.log("[get-channels] Channels database ID loaded:", secrets.channels_database_id)
 
-    // Removed search functionality as per user request
     const requestBody: any = {
       sorts: [
         {
-          property: "Meridian", // Changed from "Channel" to "Meridian"
+          property: "Meridian",
           direction: "ascending"
         }
       ]
@@ -95,16 +94,18 @@ serve(async (req) => {
 
     const channels = notionChannelsData.results.map((page: any) => {
       const properties = page.properties
-      // DIAGNOSTIC LOG: Log the elements property for each channel
-      console.log(`[get-channels] Channel: ${properties.Meridian?.title?.[0]?.plain_text || page.id}, Elements:`, properties.Elements?.multi_select?.map((s: any) => s.name) || []);
+      
+      // Correctly read the 'Element' select property
+      const element = properties.Element?.select?.name;
+      const elementsArray = element ? [element] : [];
 
       return {
         id: page.id,
-        name: properties.Meridian?.title?.[0]?.plain_text || "Unknown Channel", // Changed from "Channel" to "Meridian"
-        elements: properties.Elements?.multi_select?.map((s: any) => s.name) || [],
+        name: properties.Meridian?.title?.[0]?.plain_text || "Unknown Channel",
+        elements: elementsArray, // Use the correctly parsed elements array
         pathways: properties.Pathways?.rich_text?.[0]?.plain_text || "",
         functions: properties.Functions?.rich_text?.[0]?.plain_text || "",
-        emotions: properties.Emotion?.multi_select?.map((s: any) => s.name) || [], // Corrected from 'Emotions' to 'Emotion'
+        emotions: properties.Emotion?.multi_select?.map((s: any) => s.name) || [],
         frontMu: properties["Front Mu"]?.rich_text?.[0]?.plain_text || "",
         heSea: properties["He Sea"]?.rich_text?.[0]?.plain_text || "",
         jingRiver: properties["Jing River"]?.rich_text?.[0]?.plain_text || "",
@@ -118,10 +119,10 @@ serve(async (req) => {
         tonify2: properties["Tonify 2"]?.rich_text?.[0]?.plain_text || "",
         appropriateSound: properties["Appropriate Sound"]?.rich_text?.[0]?.plain_text || "",
         tags: properties.Tags?.multi_select?.map((s: any) => s.name) || [],
-        brainAspects: properties["Brain Aspects"]?.rich_text?.[0]?.plain_text || "", // New
-        activateSinew: properties["Activate Sinew"]?.rich_text?.[0]?.plain_text || "", // New
-        time: properties["Time"]?.rich_text?.[0]?.plain_text || "", // New
-        sound: properties["Sound"]?.select?.name || "", // New: Sound (Select column)
+        brainAspects: properties["Brain Aspects"]?.rich_text?.[0]?.plain_text || "",
+        activateSinew: properties["Activate Sinew"]?.rich_text?.[0]?.plain_text || "",
+        time: properties["Time"]?.rich_text?.[0]?.plain_text || "",
+        sound: properties["Sound"]?.select?.name || "",
       }
     })
 
