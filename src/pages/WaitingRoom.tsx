@@ -55,6 +55,14 @@ const WaitingRoom = () => {
     fetchTodaysAppointments();
   }, [fetchTodaysAppointments]);
 
+  const handleUpdateSuccess = useCallback(() => {
+    showSuccess('Navigating to live session dashboard.');
+  }, []);
+
+  const handleUpdateError = useCallback((msg: string) => {
+    showError(msg);
+  }, []);
+
   const {
     loading: updatingAppointment,
     execute: updateNotionAppointment,
@@ -62,29 +70,25 @@ const WaitingRoom = () => {
     'update-notion-appointment',
     {
       requiresAuth: true,
-      onSuccess: () => {
-        showSuccess('Navigating to live session dashboard.');
-      },
-      onError: (msg) => {
-        showError(msg);
-      }
+      onSuccess: handleUpdateSuccess,
+      onError: handleUpdateError,
     }
   );
 
-  const handleStartSession = async (appointmentId: string) => {
+  const handleStartSession = useCallback(async (appointmentId: string) => {
     console.log('[WaitingRoom] Starting session for appointmentId:', appointmentId);
     await updateNotionAppointment({
       appointmentId: appointmentId,
       updates: { status: 'OPEN' }
     });
-    if (!updatingAppointment) {
+    if (!updatingAppointment) { // Only navigate if update was successful and not still loading
       navigate(`/active-session/${appointmentId}`);
     }
-  };
+  }, [updateNotionAppointment, updatingAppointment, navigate]); // Added dependencies
 
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
     fetchTodaysAppointments();
-  };
+  }, [fetchTodaysAppointments]);
 
   console.log('[WaitingRoom] Rendering with appointments:', appointments);
 

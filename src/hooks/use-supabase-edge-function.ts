@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react'; // Import useRef
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
+import { showSuccess, showError } from '@/utils/toast';
 import { NotionSecrets } from '@/types/api';
 
 interface UseSupabaseEdgeFunctionOptions {
@@ -38,18 +38,22 @@ export const useSupabaseEdgeFunction = <TRequest, TResponse>(
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://hcriagmovotwuqbppcfm.supabase.co';
 
-  const execute = useCallback(async (payload?: TRequest) => {
-    // Prevent re-execution if already in a 'needs config' state and not explicitly trying to save config
-    if (needsConfig && functionName !== 'set-notion-secrets') {
-      console.log(`[useSupabaseEdgeFunction] Skipping execution for ${functionName} because Notion config is needed.`);
-      setLoading(false); // Ensure loading is false
-      return;
-    }
+  // Use refs for callbacks to keep them stable across renders
+  const onSuccessRef = useRef(onSuccess);
+  const onErrorRef = useRef(onError);
+  const onNotionConfigNeededRef = useRef(onNotionConfigNeeded);
 
+  // Update refs whenever callbacks change
+  // This ensures the `execute` function always calls the latest version of the callbacks
+  // without `execute` itself needing to be re-created.
+  onSuccessRef.current = onSuccess;
+  onErrorRef.current = onError;
+  onNotionConfigNeededRef.current = onNotionConfigNeeded;
+
+  const execute = useCallback(async (payload?: TRequest) => {
     console.log(`[useSupabaseEdgeFunction] Executing ${functionName} with payload:`, payload);
     setLoading(true);
     setError(null);
-    // setNeedsConfig(false); // Only reset if we are actually going to try fetching config again
     setData(null);
 
     try {
@@ -87,7 +91,7 @@ export const useSupabaseEdgeFunction = <TRequest, TResponse>(
           if (errorData.errorCode === 'NOTION_CONFIG_NOT_FOUND') {
             console.log(`[useSupabaseEdgeFunction] Notion config missing for ${functionName}.`);
             setNeedsConfig(true);
-            onNotionConfigNeeded?.();
+            onNotionConfigNeededRef.current?.(); // Call the latest ref version
             setLoading(false);
             return; // Stop execution here
           } else {
@@ -104,21 +108,30 @@ export const useSupabaseEdgeFunction = <TRequest, TResponse>(
           secrets.appointments_database_id,
           secrets.modes_database_id,
           secrets.acupoints_database_id,
-          secrets.muscles_database_id, // Check for muscles_database_id
+          secrets.muscles_database_id,
+          secrets.channels_database_id,
+          secrets.chakras_database_id,
         ];
 
         if (requiredDbIds.some(id => !id)) {
           console.log(`[useSupabaseEdgeFunction] One or more Notion database IDs are missing for ${functionName}.`);
           setNeedsConfig(true);
-          onNotionConfigNeeded?.();
+          onNotionConfigNeededRef.current?.(); // Call the latest ref version
           setLoading(false);
           return; // Stop execution here
         }
 
         // If config is found, ensure needsConfig is false
-        if (needsConfig) setNeedsConfig(false); // Reset if it was true from a previous state
+        setNeedsConfig(false); // Always set to false if config is found and valid
         console.log(`[useSupabaseEdgeFunction] Notion config found for ${functionName}.`);
+      } else if (requiresNotionConfig && !session) {
+        // If requiresNotionConfig is true but no session, it will be handled by requiresAuth check
+        // No need to set needsConfig here, as it's a pre-auth check.
+      } else {
+        // If requiresNotionConfig is false, ensure needsConfig is false
+        setNeedsConfig(false);
       }
+
 
       console.log(`[useSupabaseEdgeFunction] Initiating fetch for ${functionName} at ${supabaseUrl}/functions/v1/${functionName}`);
       const response = await fetch(
@@ -141,14 +154,14 @@ export const useSupabaseEdgeFunction = <TRequest, TResponse>(
         const errorCode = errorData.errorCode;
 
         setError(errorMessage);
-        onError?.(errorMessage, errorCode);
+        onErrorRef.current?.(errorMessage, errorCode); // Call the latest ref version
 
         if (errorCode === 'PROFILE_NOT_FOUND' || errorCode === 'PRACTITIONER_NAME_MISSING') {
           showError(`Profile Required: ${errorMessage}`);
           navigate('/profile-setup');
         } else if (errorData.error?.includes('Notion configuration not found')) {
           setNeedsConfig(true);
-          onNotionConfigNeeded?.();
+          onNotionConfigNeededRef.current?.(); // Call the latest ref version
         } else {
           showError(`Error: ${errorMessage}`);
         }
@@ -158,20 +171,20 @@ export const useSupabaseEdgeFunction = <TRequest, TResponse>(
 
       const result = await response.json();
       setData(result);
-      onSuccess?.(result);
+      onSuccessRef.current?.(result); // Call the latest ref version
       console.log(`[useSupabaseEdgeFunction] Successfully fetched data for ${functionName}.`);
 
     } catch (err: any) {
       console.error(`[useSupabaseEdgeFunction] Caught error in ${functionName}:`, err);
       const errorMessage = err.message || 'An unexpected error occurred.';
       setError(errorMessage);
-      onError?.(errorMessage);
+      onErrorRef.current?.(errorMessage); // Call the latest ref version
       showError(`Error: ${errorMessage}`);
     } finally {
       console.log(`[useSupabaseEdgeFunction] Finally block reached for ${functionName}. Setting loading to false.`);
       setLoading(false);
     }
-  }, [functionName, requiresAuth, requiresNotionConfig, onSuccess, onError, onNotionConfigNeeded, navigate, supabaseUrl, needsConfig]);
+  }, [functionName, requiresAuth, requiresNotionConfig, navigate, supabaseUrl]);
 
   return { data, loading, error, needsConfig, execute };
 };

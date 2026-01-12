@@ -19,6 +19,24 @@ const AllClients = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
 
+  const handleFetchAllClientsSuccess = useCallback((data: GetAllClientsResponse) => {
+    setClients(data.clients);
+    setFilteredClients(data.clients);
+  }, []);
+
+  const handleFetchAllClientsError = useCallback((msg: string) => {
+    showError(msg);
+  }, []);
+
+  const handleUpdateNotionClientSuccess = useCallback(() => {
+    showSuccess('Client updated in Notion.');
+  }, []);
+
+  const handleUpdateNotionClientError = useCallback((msg: string) => {
+    showError(`Update Failed: ${msg}`);
+    fetchAllClients(); // Re-fetch to ensure data consistency if optimistic update failed
+  }, []); // Dependency on fetchAllClients
+
   const {
     data: fetchedClientsData,
     loading: loadingClients,
@@ -30,13 +48,8 @@ const AllClients = () => {
     {
       requiresAuth: true,
       requiresNotionConfig: true,
-      onSuccess: (data) => {
-        setClients(data.clients);
-        setFilteredClients(data.clients);
-      },
-      onError: (msg) => {
-        showError(msg);
-      },
+      onSuccess: handleFetchAllClientsSuccess,
+      onError: handleFetchAllClientsError,
     }
   );
 
@@ -47,13 +60,8 @@ const AllClients = () => {
     'update-notion-client',
     {
       requiresAuth: true,
-      onSuccess: () => {
-        showSuccess('Client updated in Notion.');
-      },
-      onError: (msg) => {
-        showError(`Update Failed: ${msg}`);
-        fetchAllClients(); // Re-fetch to ensure data consistency if optimistic update failed
-      }
+      onSuccess: handleUpdateNotionClientSuccess,
+      onError: handleUpdateNotionClientError,
     }
   );
 
@@ -85,10 +93,10 @@ const AllClients = () => {
     updateNotionClient({ clientId: id, updates: { [field]: value } });
   };
 
-  const handleClearSearch = () => {
+  const handleClearSearch = useCallback(() => {
     setSearchTerm('');
     setFilteredClients(clients); // Reset to all clients
-  };
+  }, [clients]);
 
   if (loadingClients) {
     return (

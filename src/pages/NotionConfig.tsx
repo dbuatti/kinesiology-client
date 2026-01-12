@@ -84,6 +84,15 @@ const NotionConfig = () => {
     }
   }, []);
 
+  const handleSetSecretsSuccess = useCallback(() => {
+    showSuccess('Notion configuration saved securely!');
+    navigate('/');
+  }, [navigate]);
+
+  const handleSetSecretsError = useCallback((msg: string) => {
+    showError(`Save Failed: ${msg}`);
+  }, []);
+
   // Hook for saving Notion secrets
   const {
     loading: savingConfig,
@@ -92,13 +101,8 @@ const NotionConfig = () => {
     'set-notion-secrets',
     {
       requiresAuth: true,
-      onSuccess: () => {
-        showSuccess('Notion configuration saved securely!');
-        navigate('/');
-      },
-      onError: (msg) => {
-        showError(`Save Failed: ${msg}`);
-      }
+      onSuccess: handleSetSecretsSuccess,
+      onError: handleSetSecretsError,
     }
   );
 

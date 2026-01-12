@@ -71,6 +71,90 @@ const ActiveSession = () => {
   const [sessionLogs, setSessionLogs] = useState<GetSessionLogsResponse['sessionLogs']>([]);
   const [sessionMuscleLogs, setSessionMuscleLogs] = useState<GetSessionLogsResponse['sessionMuscleLogs']>([]);
 
+  // --- Memoized Callbacks for useSupabaseEdgeFunction ---
+
+  const handleAppointmentSuccess = useCallback((data: GetSingleAppointmentResponse) => {
+    setAppointment(data.appointment);
+    setSessionAnchorText(data.appointment.sessionAnchor || '');
+    setSessionNorthStarText(data.appointment.sessionNorthStar || '');
+  }, []);
+
+  const handleAppointmentError = useCallback((msg: string, errorCode?: string) => {
+    showError(msg);
+    if (errorCode === 'PROFILE_NOT_FOUND' || errorCode === 'PRACTITIONER_NAME_MISSING') {
+      navigate('/profile-setup');
+    } else if (errorCode === 'NOTION_CONFIG_NOT_FOUND') {
+      // Handled by needsConfig state
+    }
+  }, [navigate]);
+
+  const handleUpdateAppointmentSuccess = useCallback(() => {
+    showSuccess('Appointment updated in Notion.');
+    // Re-fetch appointment to ensure UI is in sync with Notion after update
+    if (appointmentId) {
+      fetchSingleAppointment({ appointmentId });
+    }
+  }, [appointmentId]); // Dependency on appointmentId and fetchSingleAppointment
+
+  const handleUpdateAppointmentError = useCallback((msg: string) => {
+    showError(`Update Failed: ${msg}`);
+  }, []);
+
+  const handleModesSuccess = useCallback((data: GetNotionModesResponse) => setModes(data.modes), []);
+  const handleModesError = useCallback((msg: string) => showError(`Failed to load modes: ${msg}`), []);
+
+  const handleAcupointsSuccess = useCallback((data: GetAcupointsResponse) => setFoundAcupoints(data.acupoints), []);
+  const handleAcupointsError = useCallback((msg: string) => {
+    showError(`Failed to search: ${msg}`);
+    setFoundAcupoints([]);
+  }, []);
+
+  const handleLogSessionEventSuccess = useCallback((data: LogSessionEventResponse) => {
+    console.log('Session event logged to Supabase:', data.logId);
+    showSuccess('Event logged to session.');
+    if (appointmentId) {
+      fetchSessionLogs({ appointmentId }); // Refresh logs after successful log
+    }
+  }, [appointmentId]); // Dependency on appointmentId and fetchSessionLogs
+
+  const handleLogSessionEventError = useCallback((msg: string) => {
+    console.error('Failed to log session event to Supabase:', msg);
+    showError(`Logging Failed: ${msg}`);
+  }, []);
+
+  const handleLogMuscleStrengthSuccess = useCallback((data: any) => {
+    console.log('Muscle strength logged to Supabase:', data.logId);
+    showSuccess('Muscle strength logged.');
+    if (appointmentId) {
+      fetchSessionLogs({ appointmentId }); // Refresh logs after successful log
+    }
+  }, [appointmentId]); // Dependency on appointmentId and fetchSessionLogs
+
+  const handleLogMuscleStrengthError = useCallback((msg: string) => {
+    console.error('Failed to log muscle strength to Supabase:', msg);
+    showError(`Logging Failed: ${msg}`);
+  }, []);
+
+  const handleSessionLogsSuccess = useCallback((data: GetSessionLogsResponse) => {
+    setSessionLogs(data.sessionLogs);
+    setSessionMuscleLogs(data.sessionMuscleLogs);
+  }, []);
+
+  const handleSessionLogsError = useCallback((msg: string) => {
+    showError(`Failed to load session logs: ${msg}`);
+  }, []);
+
+  const handleDeleteSessionLogSuccess = useCallback((data: DeleteSessionLogResponse) => {
+    showSuccess('Log entry deleted.');
+    if (appointmentId) {
+      fetchSessionLogs({ appointmentId }); // Refresh logs after deletion
+    }
+  }, [appointmentId]); // Dependency on appointmentId and fetchSessionLogs
+
+  const handleDeleteSessionLogError = useCallback((msg: string) => {
+    showError(`Failed to delete log: ${msg}`);
+  }, []);
+
   // --- Supabase Edge Function Hooks ---
 
   // Fetch single appointment
@@ -85,19 +169,8 @@ const ActiveSession = () => {
     {
       requiresAuth: true,
       requiresNotionConfig: true,
-      onSuccess: (data) => {
-        setAppointment(data.appointment);
-        setSessionAnchorText(data.appointment.sessionAnchor || '');
-        setSessionNorthStarText(data.appointment.sessionNorthStar || '');
-      },
-      onError: (msg, errorCode) => {
-        showError(msg);
-        if (errorCode === 'PROFILE_NOT_FOUND' || errorCode === 'PRACTITIONER_NAME_MISSING') {
-          navigate('/profile-setup');
-        } else if (errorCode === 'NOTION_CONFIG_NOT_FOUND') {
-          // Handled by needsConfig state
-        }
-      },
+      onSuccess: handleAppointmentSuccess,
+      onError: handleAppointmentError,
     }
   );
 
@@ -109,14 +182,8 @@ const ActiveSession = () => {
     'update-notion-appointment',
     {
       requiresAuth: true,
-      onSuccess: () => {
-        showSuccess('Appointment updated in Notion.');
-        // Re-fetch appointment to ensure UI is in sync with Notion after update
-        fetchSingleAppointment({ appointmentId: appointmentId! });
-      },
-      onError: (msg) => {
-        showError(`Update Failed: ${msg}`);
-      }
+      onSuccess: handleUpdateAppointmentSuccess,
+      onError: handleUpdateAppointmentError,
     }
   );
 
@@ -132,8 +199,8 @@ const ActiveSession = () => {
     {
       requiresAuth: true,
       requiresNotionConfig: true,
-      onSuccess: (data) => setModes(data.modes),
-      onError: (msg) => showError(`Failed to load modes: ${msg}`),
+      onSuccess: handleModesSuccess,
+      onError: handleModesError,
     }
   );
 
@@ -149,11 +216,8 @@ const ActiveSession = () => {
     {
       requiresAuth: true,
       requiresNotionConfig: true,
-      onSuccess: (data) => setFoundAcupoints(data.acupoints),
-      onError: (msg) => {
-        showError(`Failed to search: ${msg}`);
-        setFoundAcupoints([]);
-      },
+      onSuccess: handleAcupointsSuccess,
+      onError: handleAcupointsError,
     }
   );
 
@@ -165,15 +229,8 @@ const ActiveSession = () => {
     'log-session-event',
     {
       requiresAuth: true,
-      onSuccess: (data) => {
-        console.log('Session event logged to Supabase:', data.logId);
-        showSuccess('Event logged to session.');
-        fetchSessionLogs({ appointmentId: appointmentId! }); // Refresh logs after successful log
-      },
-      onError: (msg) => {
-        console.error('Failed to log session event to Supabase:', msg);
-        showError(`Logging Failed: ${msg}`);
-      }
+      onSuccess: handleLogSessionEventSuccess,
+      onError: handleLogSessionEventError,
     }
   );
 
@@ -185,15 +242,8 @@ const ActiveSession = () => {
     'log-muscle-strength',
     {
       requiresAuth: true,
-      onSuccess: (data) => {
-        console.log('Muscle strength logged to Supabase:', data.logId);
-        showSuccess('Muscle strength logged.');
-        fetchSessionLogs({ appointmentId: appointmentId! }); // Refresh logs after successful log
-      },
-      onError: (msg) => {
-        console.error('Failed to log muscle strength to Supabase:', msg);
-        showError(`Logging Failed: ${msg}`);
-      }
+      onSuccess: handleLogMuscleStrengthSuccess,
+      onError: handleLogMuscleStrengthError,
     }
   );
 
@@ -207,13 +257,8 @@ const ActiveSession = () => {
     'get-session-logs',
     {
       requiresAuth: true,
-      onSuccess: (data) => {
-        setSessionLogs(data.sessionLogs);
-        setSessionMuscleLogs(data.sessionMuscleLogs);
-      },
-      onError: (msg) => {
-        showError(`Failed to load session logs: ${msg}`);
-      }
+      onSuccess: handleSessionLogsSuccess,
+      onError: handleSessionLogsError,
     }
   );
 
@@ -225,13 +270,8 @@ const ActiveSession = () => {
     'delete-session-log',
     {
       requiresAuth: true,
-      onSuccess: (data) => {
-        showSuccess('Log entry deleted.');
-        fetchSessionLogs({ appointmentId: appointmentId! }); // Refresh logs after deletion
-      },
-      onError: (msg) => {
-        showError(`Failed to delete log: ${msg}`);
-      }
+      onSuccess: handleDeleteSessionLogSuccess,
+      onError: handleDeleteSessionLogError,
     }
   );
 
@@ -286,9 +326,9 @@ const ActiveSession = () => {
     }
   };
 
-  const handleConfigureNotion = () => {
+  const handleConfigureNotion = useCallback(() => {
     navigate('/notion-config');
-  };
+  }, [navigate]);
 
   const handleAcupointSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const term = e.target.value;
@@ -296,10 +336,10 @@ const ActiveSession = () => {
     fetchAcupoints({ searchTerm: term, searchType: 'point' });
   };
 
-  const handleClearAcupointSearch = () => {
+  const handleClearAcupointSearch = useCallback(() => {
     setAcupointSearchTerm('');
     setFoundAcupoints([]);
-  };
+  }, []);
 
   const handleSymptomSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const term = e.target.value;
@@ -307,21 +347,21 @@ const ActiveSession = () => {
     fetchAcupoints({ searchTerm: term, searchType: 'symptom' });
   };
 
-  const handleClearSymptomSearch = () => {
+  const handleClearSymptomSearch = useCallback(() => {
     setSymptomSearchTerm('');
     setFoundAcupoints([]);
-  };
+  }, []);
 
-  const handleSelectAcupoint = (acupoint: Acupoint) => {
+  const handleSelectAcupoint = useCallback((acupoint: Acupoint) => {
     setSelectedAcupoint(acupoint);
     setIsAcupointSearchOpen(false);
     setIsSymptomSearchOpen(false);
     setAcupointSearchTerm(acupoint.name);
     setSymptomSearchTerm('');
     setFoundAcupoints([]);
-  };
+  }, []);
 
-  const handleAddAcupointToSession = async () => {
+  const handleAddAcupointToSession = useCallback(async () => {
     if (selectedAcupoint && appointmentId) {
       await updateNotionAppointment({ appointmentId, updates: { acupointId: selectedAcupoint.id } });
       if (!updatingAppointment) {
@@ -332,14 +372,14 @@ const ActiveSession = () => {
     } else {
       showError('No acupoint selected to add to session.');
     }
-  };
+  }, [selectedAcupoint, appointmentId, updateNotionAppointment, updatingAppointment]);
 
-  const handleMuscleSelected = (muscle: Muscle) => {
+  const handleMuscleSelected = useCallback((muscle: Muscle) => {
     setSelectedMuscle(muscle);
     console.log('Muscle selected:', muscle.name);
-  };
+  }, []);
 
-  const handleMuscleStrengthLogged = async (muscle: Muscle, isStrong: boolean) => {
+  const handleMuscleStrengthLogged = useCallback(async (muscle: Muscle, isStrong: boolean) => {
     if (appointmentId) {
       await logMuscleStrength({
         appointmentId: appointmentId,
@@ -349,26 +389,28 @@ const ActiveSession = () => {
         notes: '', // Optional notes
       });
     }
-  };
+  }, [appointmentId, logMuscleStrength]);
 
-  const handleChakraSelected = (chakra: Chakra) => {
+  const handleChakraSelected = useCallback((chakra: Chakra) => {
     setSelectedChakra(chakra);
-  };
+  }, []);
 
-  const handleClearChakraSelection = () => {
+  const handleClearChakraSelection = useCallback(() => {
     setSelectedChakra(null);
-  };
+  }, []);
 
-  const handleLogChannelItemSuccess = () => {
-    fetchSessionLogs({ appointmentId: appointmentId! }); // Refresh logs after any channel item is logged
-  };
+  const handleLogChannelItemSuccess = useCallback(() => {
+    if (appointmentId) {
+      fetchSessionLogs({ appointmentId }); // Refresh logs after any channel item is logged
+    }
+  }, [appointmentId, fetchSessionLogs]);
 
   // --- Render Logic ---
 
   if (overallLoading && !appointment) { // Only show full loading skeleton if no appointment data yet
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6">
-        <div className="max-w-2xl mx-auto space-y-6">
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6 flex items-center justify-center">
+        <div className="max-w-2xl mx-auto space-y-6 w-full">
           <Skeleton className="h-32 w-full" />
           <Skeleton className="h-64 w-full" />
           <Skeleton className="h-40 w-full" />
@@ -818,7 +860,7 @@ const ActiveSession = () => {
           </Button>
           <Button
             variant="outline"
-            onClick={() => navigate('/notion-config')}
+            onClick={handleConfigureNotion}
             className="text-indigo-600 hover:text-indigo-800"
           >
             <Settings className="w-4 h-4 mr-2" />

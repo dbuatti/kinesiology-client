@@ -26,6 +26,24 @@ const AllAppointments = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
 
+  const handleFetchAllAppointmentsSuccess = useCallback((data: GetAllAppointmentsResponse) => {
+    setAppointments(data.appointments);
+    setFilteredAppointments(data.appointments);
+  }, []);
+
+  const handleFetchAllAppointmentsError = useCallback((msg: string) => {
+    showError(msg);
+  }, []);
+
+  const handleUpdateNotionAppointmentSuccess = useCallback(() => {
+    showSuccess('Appointment updated in Notion.');
+  }, []);
+
+  const handleUpdateNotionAppointmentError = useCallback((msg: string) => {
+    showError(`Update Failed: ${msg}`);
+    fetchAllAppointments(); // Re-fetch to ensure data consistency if optimistic update failed
+  }, []); // Dependency on fetchAllAppointments
+
   const {
     data: fetchedAppointmentsData,
     loading: loadingAppointments,
@@ -37,13 +55,8 @@ const AllAppointments = () => {
     {
       requiresAuth: true,
       requiresNotionConfig: true,
-      onSuccess: (data) => {
-        setAppointments(data.appointments);
-        setFilteredAppointments(data.appointments);
-      },
-      onError: (msg) => {
-        showError(msg);
-      },
+      onSuccess: handleFetchAllAppointmentsSuccess,
+      onError: handleFetchAllAppointmentsError,
     }
   );
 
@@ -54,13 +67,8 @@ const AllAppointments = () => {
     'update-notion-appointment',
     {
       requiresAuth: true,
-      onSuccess: () => {
-        showSuccess('Appointment updated in Notion.');
-      },
-      onError: (msg) => {
-        showError(`Update Failed: ${msg}`);
-        fetchAllAppointments(); // Re-fetch to ensure data consistency if optimistic update failed
-      }
+      onSuccess: handleUpdateNotionAppointmentSuccess,
+      onError: handleUpdateNotionAppointmentError,
     }
   );
 
@@ -99,10 +107,10 @@ const AllAppointments = () => {
     updateNotionAppointment({ appointmentId: id, updates: { [field]: value } });
   };
 
-  const handleClearSearch = () => {
+  const handleClearSearch = useCallback(() => {
     setSearchTerm('');
     setFilteredAppointments(appointments); // Reset to all appointments
-  };
+  }, [appointments]);
 
   if (loadingAppointments) {
     return (
