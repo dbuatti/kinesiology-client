@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
+import { retryFetch } from '../_shared/notionUtils.ts'; // Import the shared utility
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -101,7 +102,7 @@ serve(async (req) => {
     const notionProperties: { [key: string]: any } = {};
 
     // Fetch the current Notion page to check for existing properties
-    const currentAppointmentResponse = await fetch('https://api.notion.com/v1/pages/' + appointmentId, {
+    const currentAppointmentResponse = await retryFetch('https://api.notion.com/v1/pages/' + appointmentId, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${secrets.notion_integration_token}`,
@@ -160,7 +161,7 @@ serve(async (req) => {
 
     console.log("[update-notion-appointment] Updating Notion page:", appointmentId, "with properties:", notionProperties)
 
-    const notionUpdateResponse = await fetch('https://api.notion.com/v1/pages/' + appointmentId, {
+    const notionUpdateResponse = await retryFetch('https://api.notion.com/v1/pages/' + appointmentId, {
       method: 'PATCH',
       headers: {
         'Authorization': `Bearer ${secrets.notion_integration_token}`,

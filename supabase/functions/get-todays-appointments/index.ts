@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 import { calculateStarSign } from '../_shared/starSignCalculator.ts'; // Import the new utility
+import { retryFetch } from '../_shared/notionUtils.ts'; // Import the shared utility
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -160,7 +161,7 @@ serve(async (req) => {
 
 
     // Query Notion API for today's appointments
-    const notionAppointmentsResponse = await fetch('https://api.notion.com/v1/databases/' + secrets.appointments_database_id + '/query', {
+    const notionAppointmentsResponse = await retryFetch('https://api.notion.com/v1/databases/' + secrets.appointments_database_id + '/query', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${secrets.notion_integration_token}`,
@@ -194,7 +195,7 @@ serve(async (req) => {
       const clientCrmRelation = properties["Client"]?.relation?.[0]?.id
       if (clientCrmRelation && secrets.crm_database_id) {
         console.log(`[get-todays-appointments] Fetching CRM details for client ID: ${clientCrmRelation}`)
-        const notionClientResponse = await fetch('https://api.notion.com/v1/pages/' + clientCrmRelation, {
+        const notionClientResponse = await retryFetch('https://api.notion.com/v1/pages/' + clientCrmRelation, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${secrets.notion_integration_token}`,
@@ -219,19 +220,15 @@ serve(async (req) => {
         console.log("[get-todays-appointments] No Client CRM relation or CRM database ID available.")
       }
 
-      // Extract Goal and Session North Star from appointment properties
-      const goal = properties.Goal?.rich_text?.[0]?.plain_text || ""
-      const sessionAnchor = properties["Today we are really working with..."]?.rich_text?.[0]?.plain_text || ""
-      const sessionNorthStar = properties["Session North Star"]?.rich_text?.[0]?.plain_text || ""; // New: Fetch Session North Star from appointment
       const notionPageId = page.id;
 
       return {
         id: notionPageId,
         clientName,
         starSign,
-        sessionNorthStar, // Use the new field
-        goal,
-        sessionAnchor,
+        sessionNorthStar: properties["Session North Star"]?.rich_text?.[0]?.plain_text || "", // Use the new field
+        goal: properties.Goal?.rich_text?.[0]?.plain_text || "",
+        sessionAnchor: properties["Today we are really working with..."]?.rich_text?.[0]?.plain_text || "",
         status: properties.Status?.status?.name || "UNKNOWN" // Include status for display in Waiting Room
       }
     }))

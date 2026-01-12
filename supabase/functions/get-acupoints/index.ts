@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
+import { retryFetch } from '../_shared/notionUtils.ts'; // Import the shared utility
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -124,7 +125,7 @@ serve(async (req) => {
       requestBody.filter = filter;
     }
 
-    const notionAcupointsResponse = await fetch('https://api.notion.com/v1/databases/' + secrets.acupoints_database_id + '/query', {
+    const notionAcupointsResponse = await retryFetch('https://api.notion.com/v1/databases/' + secrets.acupoints_database_id + '/query', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${secrets.notion_integration_token}`,
@@ -155,7 +156,7 @@ serve(async (req) => {
       if (channelRelation && secrets.channels_database_id) {
         console.log(`[get-acupoints] Fetching channel name for ID: ${channelRelation}`);
         try {
-          const channelPageResponse = await fetch('https://api.notion.com/v1/pages/' + channelRelation, {
+          const channelPageResponse = await retryFetch('https://api.notion.com/v1/pages/' + channelRelation, {
             method: 'GET',
             headers: {
               'Authorization': `Bearer ${secrets.notion_integration_token}`,

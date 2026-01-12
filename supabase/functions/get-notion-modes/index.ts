@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
     import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
+    import { retryFetch } from '../_shared/notionUtils.ts'; // Import the shared utility
 
     const corsHeaders = {
       'Access-Control-Allow-Origin': '*',
@@ -61,7 +62,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 
         console.log("[get-notion-modes] Modes database ID loaded:", secrets.modes_database_id)
 
-        const notionModesResponse = await fetch('https://api.notion.com/v1/databases/' + secrets.modes_database_id + '/query', {
+        const notionModesResponse = await retryFetch('https://api.notion.com/v1/databases/' + secrets.modes_database_id + '/query', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${secrets.notion_integration_token}`,

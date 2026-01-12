@@ -1,23 +1,10 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
+import { retryFetch } from '../_shared/notionUtils.ts'; // Import the shared utility
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-
-// Helper function for exponential backoff retry
-async function retryFetch(url: string, options: RequestInit, retries = 5, delay = 2000): Promise<Response> {
-  for (let i = 0; i < retries; i++) {
-    const response = await fetch(url, options);
-    if (response.status !== 429) {
-      return response;
-    }
-    console.warn(`[get-notion-page-content] Rate limit hit (429) for ${url}. Retrying in ${delay / 1000}s...`);
-    await new Promise(resolve => setTimeout(resolve, delay));
-    delay *= 2; // Exponential backoff
-  }
-  throw new Error(`Failed to fetch ${url} after ${retries} retries due to rate limiting.`);
 }
 
 serve(async (req) => {

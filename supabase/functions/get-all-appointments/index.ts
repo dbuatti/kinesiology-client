@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 import { calculateStarSign } from '../_shared/starSignCalculator.ts'; // Import the new utility
+import { retryFetch } from '../_shared/notionUtils.ts'; // Import the shared utility
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -64,7 +65,7 @@ serve(async (req) => {
     console.log("[get-all-appointments] Secrets loaded successfully for user:", user.id)
 
     // Query Notion API for all appointments
-    const notionAppointmentsResponse = await fetch('https://api.notion.com/v1/databases/' + secrets.appointments_database_id + '/query', {
+    const notionAppointmentsResponse = await retryFetch('https://api.notion.com/v1/databases/' + secrets.appointments_database_id + '/query', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${secrets.notion_integration_token}`,
@@ -107,7 +108,7 @@ serve(async (req) => {
       const clientCrmRelation = properties["Client"]?.relation?.[0]?.id
       if (clientCrmRelation && secrets.crm_database_id) {
         console.log(`[get-all-appointments] Fetching CRM details for client ID: ${clientCrmRelation}`)
-        const notionClientResponse = await fetch('https://api.notion.com/v1/pages/' + clientCrmRelation, {
+        const notionClientResponse = await retryFetch('https://api.notion.com/v1/pages/' + clientCrmRelation, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${secrets.notion_integration_token}`,

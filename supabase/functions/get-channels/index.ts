@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
+import { retryFetch } from '../_shared/notionUtils.ts'; // Import the shared utility
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -74,7 +75,7 @@ serve(async (req) => {
       ]
     };
 
-    const notionChannelsResponse = await fetch('https://api.notion.com/v1/databases/' + secrets.channels_database_id + '/query', {
+    const notionChannelsResponse = await retryFetch('https://api.notion.com/v1/databases/' + secrets.channels_database_id + '/query', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${secrets.notion_integration_token}`,
@@ -112,7 +113,7 @@ serve(async (req) => {
         const musclesData: { id: string; name: string }[] = [];
         for (const muscleId of muscleIds) {
           try {
-            const musclePageResponse = await fetch('https://api.notion.com/v1/pages/' + muscleId, {
+            const musclePageResponse = await retryFetch('https://api.notion.com/v1/pages/' + muscleId, {
               method: 'GET',
               headers: {
                 'Authorization': `Bearer ${secrets.notion_integration_token}`,
