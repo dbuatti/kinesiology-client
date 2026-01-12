@@ -45,41 +45,58 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://hcriagmovotwuqbppcfm.supabase.co';
 
   const fetchMuscles = useCallback(async (term: string = '', type: 'muscle' | 'meridian' | 'organ' | 'emotion' = 'muscle') => {
+    console.log('[MuscleSelector][fetchMuscles] Function called with term:', term, 'and type:', type);
     setLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) {
+        console.error('[MuscleSelector][fetchMuscles] Supabase session error:', sessionError.message);
+        throw sessionError;
+      }
       if (!session) {
+        console.warn('[MuscleSelector][fetchMuscles] No active session, showing toast.');
         toast({ variant: 'destructive', title: 'Not authenticated', description: 'Please log in first' });
         return;
       }
+      console.log('[MuscleSelector][fetchMuscles] User session found:', session.user?.id);
+
+      const edgeFunctionUrl = `${supabaseUrl}/functions/v1/get-muscles`;
+      const requestBody = JSON.stringify({ searchTerm: term, searchType: type });
+      console.log('[MuscleSelector][fetchMuscles] Calling edge function:', edgeFunctionUrl);
+      console.log('[MuscleSelector][fetchMuscles] Request body:', requestBody);
 
       const response = await fetch(
-        `${supabaseUrl}/functions/v1/get-muscles`,
+        edgeFunctionUrl,
         {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${session.access_token}`,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ searchTerm: term, searchType: type })
+          body: requestBody
         }
       );
 
+      console.log('[MuscleSelector][fetchMuscles] Edge function response status:', response.status);
+
       if (!response.ok) {
         const errorData = await response.json();
+        console.error('[MuscleSelector][fetchMuscles] Edge function error response:', errorData);
         throw new Error(errorData.error || 'Failed to fetch muscles');
       }
 
       const data = await response.json();
+      console.log('[MuscleSelector][fetchMuscles] Edge function success data:', data);
       setAllMuscles(data.muscles);
       setFilteredMuscles(data.muscles);
     } catch (err: any) {
-      console.error('Error fetching muscles:', err);
+      console.error('[MuscleSelector][fetchMuscles] Error fetching muscles:', err);
       toast({ variant: 'destructive', title: 'Error', description: `Failed to load muscles: ${err.message}` });
       setAllMuscles([]);
       setFilteredMuscles([]);
     } finally {
       setLoading(false);
+      console.log('[MuscleSelector][fetchMuscles] Function execution finished.');
     }
   }, [toast, supabaseUrl]);
 

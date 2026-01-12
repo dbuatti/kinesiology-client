@@ -191,14 +191,21 @@
       }, [toast, supabaseUrl]);
 
       const fetchAcupoints = useCallback(async (term: string, type: 'point' | 'symptom') => {
+        console.log('[ActiveSession][fetchAcupoints] Function called with term:', term, 'and type:', type);
         if (!term.trim()) {
+          console.log('[ActiveSession][fetchAcupoints] Search term is empty, clearing results.');
           setFoundAcupoints([]);
           return;
         }
         setIsAcupointSearching(true);
         try {
-          const { data: { session } } = await supabase.auth.getSession();
+          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+          if (sessionError) {
+            console.error('[ActiveSession][fetchAcupoints] Supabase session error:', sessionError.message);
+            throw sessionError;
+          }
           if (!session) {
+            console.warn('[ActiveSession][fetchAcupoints] No active session, redirecting to login.');
             toast({
               variant: 'destructive',
               title: 'Not authenticated',
@@ -207,28 +214,38 @@
             navigate('/login');
             return;
           }
+          console.log('[ActiveSession][fetchAcupoints] User session found:', session.user?.id);
+
+          const edgeFunctionUrl = `${supabaseUrl}/functions/v1/get-acupoints`;
+          const requestBody = JSON.stringify({ searchTerm: term, searchType: type });
+          console.log('[ActiveSession][fetchAcupoints] Calling edge function:', edgeFunctionUrl);
+          console.log('[ActiveSession][fetchAcupoints] Request body:', requestBody);
 
           const response = await fetch(
-            `${supabaseUrl}/functions/v1/get-acupoints`,
+            edgeFunctionUrl,
             {
               method: 'POST',
               headers: {
                 'Authorization': `Bearer ${session.access_token}`,
                 'Content-Type': 'application/json'
               },
-              body: JSON.stringify({ searchTerm: term, searchType: type })
+              body: requestBody
             }
           );
 
+          console.log('[ActiveSession][fetchAcupoints] Edge function response status:', response.status);
+
           if (!response.ok) {
             const errorData = await response.json();
+            console.error('[ActiveSession][fetchAcupoints] Edge function error response:', errorData);
             throw new Error(errorData.error || `Failed to search for ${type === 'point' ? 'acupoints' : 'symptoms'}`);
           }
 
           const data = await response.json();
+          console.log('[ActiveSession][fetchAcupoints] Edge function success data:', data);
           setFoundAcupoints(data.acupoints);
         } catch (err: any) {
-          console.error(`Error fetching acupoints by ${type}:`, err);
+          console.error(`[ActiveSession][fetchAcupoints] Error fetching acupoints by ${type}:`, err);
           toast({
             variant: 'destructive',
             title: 'Error',
@@ -237,6 +254,7 @@
           setFoundAcupoints([]);
         } finally {
           setIsAcupointSearching(false);
+          console.log('[ActiveSession][fetchAcupoints] Function execution finished.');
         }
       }, [navigate, toast, supabaseUrl]);
 
