@@ -115,6 +115,14 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onCle
     setIsSearchOpen(true); // Open popover for new search
   };
 
+  const handleClearAll = () => {
+    onClearSelection(); // Clear selected muscle in parent
+    setSearchTerm(''); // Clear local search term
+    setMuscles([]); // Clear local muscles list (will re-fetch all on next search term change)
+    setShowWeaknessChecklist(false); // Hide checklist
+    fetchMuscles({ searchTerm: '', searchType: 'muscle' }); // Re-fetch all muscles
+  };
+
   if (needsConfig) {
     return (
       <Card className="max-w-md w-full shadow-xl mx-auto">
@@ -305,7 +313,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onCle
                 >
                   Body No (Weak)
                 </Button>
-                <Button variant="outline" onClick={onClearSelection} disabled={loggingStrength}>
+                <Button variant="outline" onClick={handleClearAll} disabled={loggingStrength}>
                   <Trash2 className="h-4 w-4 mr-2" />
                   Clear
                 </Button>

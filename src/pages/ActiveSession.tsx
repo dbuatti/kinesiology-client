@@ -11,7 +11,7 @@
     import { Label } from '@/components/ui/label';
     import { Badge } from '@/components/ui/badge';
     import { Input } from '@/components/ui/input';
-    import { Calendar, User, Star, Target, Clock, Settings, AlertCircle, Check, ChevronsUpDown, Lightbulb, Hand, XCircle, PlusCircle, Search, Sparkles, ListChecks, Trash2, Loader2, ExternalLink, Waves } from 'lucide-react';
+    import { Calendar, User, Star, Target, Clock, Settings, AlertCircle, Check, ChevronsUpDown, Lightbulb, Hand, XCircle, PlusCircle, Search, Sparkles, ListChecks, Trash2, Loader2, ExternalLink, Waves, ArrowLeft } from 'lucide-react'; // Added ArrowLeft icon
     import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
     import { cn } from '@/lib/utils';
     import { format } from 'date-fns';
@@ -449,11 +449,22 @@
       return (
         <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6">
           <div className="max-w-2xl mx-auto">
-            <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-indigo-900 mb-2">Active Session</h1>
-              <p className="text-gray-600">
-                {format(new Date(), 'EEEE, MMMM d, yyyy')}
-              </p>
+            <div className="flex items-center justify-between mb-8">
+              <Button
+                variant="ghost"
+                onClick={() => navigate('/')}
+                className="text-indigo-700 hover:text-indigo-900"
+              >
+                <ArrowLeft className="w-5 h-5 mr-2" />
+                Back to Waiting Room
+              </Button>
+              <div className="text-center flex-grow">
+                <h1 className="text-3xl font-bold text-indigo-900 mb-2">Active Session</h1>
+                <p className="text-gray-600">
+                  {format(new Date(), 'EEEE, MMMM d, yyyy')}
+                </p>
+              </div>
+              <div className="w-40"></div> {/* Spacer to balance the layout */}
             </div>
 
             {appointment ? (

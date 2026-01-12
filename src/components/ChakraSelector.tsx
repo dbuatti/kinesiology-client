@@ -128,12 +128,18 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
 
       if (!loggingSessionEvent) {
         showSuccess(`${selectedChakra.name} logged to the current session.`);
-        onClearSelection(); // Clear selected chakra after logging
-        setSearchTerm('');
+        handleClearAll(); // Clear selected chakra after logging
       }
     } else {
       showError('Please select a chakra to add to the session.');
     }
+  };
+
+  const handleClearAll = () => {
+    onClearSelection(); // Clear selected chakra in parent
+    setSearchTerm(''); // Clear local search term
+    setFilteredChakras(allChakras); // Reset filtered chakras to all
+    setIsSearchOpen(false); // Close search popover
   };
 
   if (needsConfig) {
@@ -318,7 +324,7 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
                   <PlusCircle className="w-4 h-4 mr-2" />
                   {loggingSessionEvent ? 'Adding...' : 'Add to Session Log'}
                 </Button>
-                <Button variant="outline" onClick={onClearSelection} disabled={loggingSessionEvent}>
+                <Button variant="outline" onClick={handleClearAll} disabled={loggingSessionEvent}>
                   <Trash2 className="h-4 w-4 mr-2" />
                   Clear
                 </Button>
