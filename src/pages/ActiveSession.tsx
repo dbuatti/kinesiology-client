@@ -24,6 +24,7 @@ import SessionLogDisplay from '@/components/SessionLogDisplay';
 import AcupointSelector from '@/components/AcupointSelector'; // Import new AcupointSelector
 import ModeSelect from '@/components/ModeSelect'; // Import new ModeSelect component
 import SessionSummaryDisplay from '@/components/SessionSummaryDisplay'; // Import new SessionSummaryDisplay component
+import ModeDetailsPanel from '@/components/ModeDetailsPanel'; // Import new ModeDetailsPanel component
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'; // Import Tabs components
 
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
@@ -71,6 +72,7 @@ const ActiveSession = () => {
   const [activeTab, setActiveTab] = useState('overview'); // Default active tab
   const [selectedNotionPageId, setSelectedNotionPageId] = useState<string | null>(null); // Centralized Notion page ID
   const [selectedNotionPageTitle, setSelectedNotionPageTitle] = useState<string | null>(null); // Title for Notion Page Viewer
+  const [selectedModeForDetailsPanel, setSelectedModeForDetailsPanel] = useState<Mode | null>(null); // For custom mode details panel
 
   // --- Supabase Edge Function Hooks (Declared first to resolve TS2448) ---
 
@@ -220,6 +222,10 @@ const ActiveSession = () => {
       setSelectedNotionPageId(null);
       setSelectedNotionPageTitle(null);
     }
+    // Clear selected mode for details panel if not on that tab
+    if (activeTab !== 'mode-details') {
+      setSelectedModeForDetailsPanel(null);
+    }
   }, [activeTab]);
 
   // Combine all loading states
@@ -310,6 +316,12 @@ const ActiveSession = () => {
     setSelectedNotionPageId(pageId);
     setSelectedNotionPageTitle(pageTitle);
     setActiveTab('notion-page'); // Switch to the Notion Page tab
+  }, []);
+
+  // New handler for opening custom Mode Details Panel
+  const handleOpenModeDetailsPanel = useCallback((mode: Mode) => {
+    setSelectedModeForDetailsPanel(mode);
+    setActiveTab('mode-details'); // Switch to the new Mode Details tab
   }, []);
 
   const handleClearAllSessionLogs = useCallback(async () => {
@@ -406,7 +418,7 @@ const ActiveSession = () => {
             />
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-4 md:grid-cols-7 lg:grid-cols-7 h-auto flex-wrap">
+              <TabsList className="grid w-full grid-cols-4 md:grid-cols-7 lg:grid-cols-8 h-auto flex-wrap"> {/* Adjusted grid-cols */}
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="muscles">Muscles</TabsTrigger>
                 <TabsTrigger value="chakras">Chakras</TabsTrigger>
@@ -414,6 +426,7 @@ const ActiveSession = () => {
                 <TabsTrigger value="acupoints">Acupoints</TabsTrigger>
                 <TabsTrigger value="session-log">Session Log</TabsTrigger>
                 <TabsTrigger value="notion-page">Notion Page</TabsTrigger>
+                <TabsTrigger value="mode-details">Mode Details</TabsTrigger> {/* New Tab */}
               </TabsList>
 
               {/* Overview Tab */}
@@ -509,6 +522,7 @@ const ActiveSession = () => {
                         onModesChanged={handleModesChanged} // Pass the new handler
                         onOpenNotionPage={handleOpenNotionPage}
                         onLogSuccess={handleLogSuccess}
+                        onOpenModeDetailsPanel={handleOpenModeDetailsPanel} // Pass new handler
                       />
                     </div>
                   </CardContent>
@@ -585,6 +599,11 @@ const ActiveSession = () => {
                     <NotionPageViewer pageId={selectedNotionPageId} />
                   </CardContent>
                 </Card>
+              </TabsContent>
+
+              {/* Custom Mode Details Tab */}
+              <TabsContent value="mode-details" className="mt-6 space-y-6">
+                <ModeDetailsPanel selectedMode={selectedModeForDetailsPanel} />
               </TabsContent>
 
               {/* Complete Session Button (outside tabs, always visible) */}

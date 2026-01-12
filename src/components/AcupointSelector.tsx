@@ -262,7 +262,7 @@ const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLo
                   )}
                 </div>
                 <CommandEmpty>No acupoint found.</CommandEmpty>
-                <CommandGroup>
+                <CommandGroup className="max-h-[300px] overflow-y-auto"> {/* Added scrolling */}
                   {foundAcupoints.map((point) => (
                     <CommandItem
                       key={point.id}
@@ -337,7 +337,7 @@ const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLo
                   )}
                 </div>
                 <CommandEmpty>No suggestions found.</CommandEmpty>
-                <CommandGroup>
+                <CommandGroup className="max-h-[300px] overflow-y-auto"> {/* Added scrolling */}
                   {foundAcupoints.map((point) => (
                     <CommandItem
                       key={point.id}

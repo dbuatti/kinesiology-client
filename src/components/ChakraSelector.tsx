@@ -254,7 +254,7 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
                   disabled={loadingChakras}
                 />
                 <CommandEmpty>No chakras found.</CommandEmpty>
-                <CommandGroup>
+                <CommandGroup className="max-h-[300px] overflow-y-auto"> {/* Added scrolling */}
                   {filteredChakras.map((chakra) => (
                     <CommandItem
                       key={chakra.id}

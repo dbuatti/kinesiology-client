@@ -17,6 +17,7 @@ interface ModeSelectProps {
   onModesChanged: (modes: Mode[]) => void; // Prop to send selected modes to parent
   onOpenNotionPage: (pageId: string, pageTitle: string) => void;
   onLogSuccess: () => void;
+  onOpenModeDetailsPanel: (mode: Mode) => void; // New prop for opening custom details panel
 }
 
 const ModeSelect: React.FC<ModeSelectProps> = ({
@@ -24,6 +25,7 @@ const ModeSelect: React.FC<ModeSelectProps> = ({
   onModesChanged,
   onOpenNotionPage,
   onLogSuccess,
+  onOpenModeDetailsPanel, // Destructure new prop
 }) => {
   const [allModes, setAllModes] = useState<Mode[]>([]);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
@@ -121,6 +123,7 @@ const ModeSelect: React.FC<ModeSelectProps> = ({
     // In a real scenario, you might also want to log a "mode_removed" event or delete from DB if needed
   };
 
+  // This function is now for navigating to the *separate* ModeDetailsPage route
   const handleOpenModeDetailsPage = (modeId: string) => {
     navigate(`/mode-details/${modeId}`);
   };
@@ -165,7 +168,7 @@ const ModeSelect: React.FC<ModeSelectProps> = ({
               disabled={loadingModes}
             />
             <CommandEmpty>No mode found.</CommandEmpty>
-            <CommandGroup>
+            <CommandGroup className="max-h-[300px] overflow-y-auto"> {/* Added scrolling */}
               {allModes.map((mode) => (
                 <CommandItem
                   key={mode.id}
@@ -220,7 +223,7 @@ const ModeSelect: React.FC<ModeSelectProps> = ({
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7 text-gray-500 hover:bg-gray-100"
-                  onClick={() => handleOpenModeDetailsPage(mode.id)}
+                  onClick={() => onOpenModeDetailsPanel(mode)} // Use new prop for custom panel
                 >
                   <ChevronRight className="h-4 w-4" />
                 </Button>

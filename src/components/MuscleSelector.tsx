@@ -229,7 +229,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
                   }}
                 />
                 <CommandEmpty>No muscles found.</CommandEmpty>
-                <CommandGroup>
+                <CommandGroup className="max-h-[300px] overflow-y-auto"> {/* Added scrolling */}
                   {filteredMuscles.map((muscle) => (
                     <CommandItem
                       key={muscle.id}
