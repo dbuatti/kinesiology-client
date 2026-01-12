@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { User, Settings, Loader2, Search, AlertCircle } from 'lucide-react';
+import { User, Settings, Loader2, Search, AlertCircle, XCircle } from 'lucide-react'; // Added XCircle
 import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
 import { Client, GetAllClientsResponse, UpdateNotionClientPayload, UpdateNotionClientResponse } from '@/types/api';
@@ -85,6 +85,11 @@ const AllClients = () => {
     updateNotionClient({ clientId: id, updates: { [field]: value } });
   };
 
+  const handleClearSearch = () => {
+    setSearchTerm('');
+    setFilteredClients(clients); // Reset to all clients
+  };
+
   if (loadingClients) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6 flex items-center justify-center">
@@ -159,8 +164,19 @@ const AllClients = () => {
                   placeholder="Search clients by name, focus, email, or phone..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 border rounded-md w-full"
+                  className="pl-10 pr-10 py-2 border rounded-md w-full" // Added pr-10 for clear button
                 />
+                {searchTerm && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0 text-gray-500 hover:text-gray-700"
+                    onClick={handleClearSearch}
+                    disabled={loadingClients}
+                  >
+                    <XCircle className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
               <Button onClick={() => fetchAllClients()} variant="outline" disabled={loadingClients}>
                 {loadingClients ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}

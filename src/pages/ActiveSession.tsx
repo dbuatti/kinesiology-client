@@ -285,10 +285,22 @@
         fetchAcupoints({ searchTerm: term, searchType: 'point' });
       };
 
+      const handleClearAcupointSearch = () => {
+        setAcupointSearchTerm('');
+        setFoundAcupoints([]);
+        fetchAcupoints({ searchTerm: '', searchType: 'point' }); // Re-fetch all for next search
+      };
+
       const handleSymptomSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const term = e.target.value;
         setSymptomSearchTerm(term);
         fetchAcupoints({ searchTerm: term, searchType: 'symptom' });
+      };
+
+      const handleClearSymptomSearch = () => {
+        setSymptomSearchTerm('');
+        setFoundAcupoints([]);
+        fetchAcupoints({ searchTerm: '', searchType: 'symptom' }); // Re-fetch all for next search
       };
 
       const handleSelectAcupoint = (acupoint: Acupoint) => {
@@ -657,16 +669,29 @@
                           </Label>
                           <Popover open={isAcupointSearchOpen} onOpenChange={setIsAcupointSearchOpen}>
                             <PopoverTrigger asChild>
-                              <Input
-                                id="point-search"
-                                type="text"
-                                placeholder="Search for an acupoint..."
-                                value={acupointSearchTerm}
-                                onChange={handleAcupointSearchChange}
-                                onFocus={() => setIsAcupointSearchOpen(true)}
-                                className="w-full"
-                                disabled={loadingAcupoints || updatingAppointment || loggingSessionEvent}
-                              />
+                              <div className="relative">
+                                <Input
+                                  id="point-search"
+                                  type="text"
+                                  placeholder="Search for an acupoint..."
+                                  value={acupointSearchTerm}
+                                  onChange={handleAcupointSearchChange}
+                                  onFocus={() => setIsAcupointSearchOpen(true)}
+                                  className="w-full pr-10" // Add padding-right for the clear button
+                                  disabled={loadingAcupoints || updatingAppointment || loggingSessionEvent}
+                                />
+                                {acupointSearchTerm && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0 text-gray-500 hover:text-gray-700"
+                                    onClick={handleClearAcupointSearch}
+                                    disabled={loadingAcupoints || updatingAppointment || loggingSessionEvent}
+                                  >
+                                    <XCircle className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </div>
                             </PopoverTrigger>
                             <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                               <Command>
@@ -697,16 +722,29 @@
                           </Label>
                           <Popover open={isSymptomSearchOpen} onOpenChange={setIsSymptomSearchOpen}>
                             <PopoverTrigger asChild>
-                              <Input
-                                id="symptom-search"
-                                type="text"
-                                placeholder="Search symptoms for point suggestions..."
-                                value={symptomSearchTerm}
-                                onChange={handleSymptomSearchChange}
-                                onFocus={() => setIsSymptomSearchOpen(true)}
-                                className="w-full"
-                                disabled={loadingAcupoints || updatingAppointment || loggingSessionEvent}
-                              />
+                              <div className="relative">
+                                <Input
+                                  id="symptom-search"
+                                  type="text"
+                                  placeholder="Search symptoms for point suggestions..."
+                                  value={symptomSearchTerm}
+                                  onChange={handleSymptomSearchChange}
+                                  onFocus={() => setIsSymptomSearchOpen(true)}
+                                  className="w-full pr-10" // Add padding-right for the clear button
+                                  disabled={loadingAcupoints || updatingAppointment || loggingSessionEvent}
+                                />
+                                {symptomSearchTerm && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0 text-gray-500 hover:text-gray-700"
+                                    onClick={handleClearSymptomSearch}
+                                    disabled={loadingAcupoints || updatingAppointment || loggingSessionEvent}
+                                  >
+                                    <XCircle className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </div>
                             </PopoverTrigger>
                             <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                               <Command>
