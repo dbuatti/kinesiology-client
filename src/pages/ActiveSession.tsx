@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Calendar, User, Star, Target, Clock } from 'lucide-react';
+import { Calendar, User, Star, Target, Clock, Settings, AlertCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -20,6 +20,7 @@ const ActiveSession = () => {
   const [appointment, setAppointment] = useState<Appointment | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [needsConfig, setNeedsConfig] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -31,6 +32,7 @@ const ActiveSession = () => {
     try {
       setLoading(true);
       setError(null);
+      setNeedsConfig(false);
 
       // Get the session token from Supabase
       const { data: { session } } = await supabase.auth.getSession();
@@ -38,6 +40,19 @@ const ActiveSession = () => {
       if (!session) {
         setError('Please log in to view appointments');
         navigate('/login');
+        return;
+      }
+
+      // Check if user has Notion config first
+      const { data: config, error: configError } = await supabase
+        .from('notion_config')
+        .select('id')
+        .eq('user_id', session.user.id)
+        .single();
+
+      if (configError || !config) {
+        setNeedsConfig(true);
+        setLoading(false);
         return;
       }
 
@@ -94,6 +109,10 @@ const ActiveSession = () => {
     }
   };
 
+  const handleConfigureNotion = () => {
+    navigate('/notion-config');
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6">
@@ -105,17 +124,49 @@ const ActiveSession = () => {
     );
   }
 
+  // Show configuration prompt if Notion is not set up
+  if (needsConfig) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center p-6">
+        <Card className="max-w-md w-full shadow-xl">
+          <CardContent className="pt-8 text-center">
+            <div className="mx-auto mb-4 p-4 bg-indigo-100 rounded-full w-20 h-20 flex items-center justify-center">
+              <Settings className="w-10 h-10 text-indigo-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-indigo-900 mb-2">
+              Notion Integration Required
+            </h2>
+            <p className="text-gray-600 mb-6">
+              Connect your Notion account to view today's appointments and manage sessions.
+            </p>
+            <Button 
+              className="w-full h-12 text-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+              onClick={handleConfigureNotion}
+            >
+              Configure Notion
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (error && !appointment) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center p-6">
-        <Card className="max-w-md w-full">
+        <Card className="max-w-md w-full shadow-lg">
           <CardContent className="pt-6 text-center">
             <div className="text-red-500 mb-4">
-              <User className="w-12 h-12 mx-auto" />
+              <AlertCircle className="w-12 h-12 mx-auto" />
             </div>
             <h2 className="text-xl font-bold mb-2">Error Loading Appointment</h2>
             <p className="text-gray-600 mb-4">{error}</p>
-            <Button onClick={fetchTodaysAppointment}>Try Again</Button>
+            <div className="space-y-2">
+              <Button onClick={fetchTodaysAppointment}>Try Again</Button>
+              <Button variant="outline" onClick={() => navigate('/notion-config')}>
+                Check Configuration
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -191,13 +242,21 @@ const ActiveSession = () => {
         )}
 
         {/* Navigation */}
-        <div className="mt-6 text-center">
+        <div className="mt-6 flex gap-2 justify-center">
           <Button 
             variant="outline" 
             onClick={() => navigate('/')}
             className="text-indigo-600 hover:text-indigo-800"
           >
             ← Back to Home
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={() => navigate('/notion-config')}
+            className="text-indigo-600 hover:text-indigo-800"
+          >
+            <Settings className="w-4 h-4 mr-2" />
+            Configure Notion
           </Button>
         </div>
       </div>
