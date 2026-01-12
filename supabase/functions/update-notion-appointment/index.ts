@@ -101,10 +101,9 @@ serve(async (req) => {
         rich_text: [{ type: "text", text: { content: updates.sessionAnchor } }]
       };
     }
-    // Removed BODY YES and BODY NO update logic
     if (updates.status !== undefined) {
-      // Corrected: Use 'status' key for Notion status property
-      notionProperties["Status"] = { status: { name: updates.status } };
+      // Handle empty status string by setting to null, otherwise use the provided status name
+      notionProperties["Status"] = updates.status ? { status: { name: updates.status } } : { status: null };
     }
     if (updates.goal !== undefined) {
       notionProperties["Goal"] = {

@@ -176,6 +176,12 @@
             return;
           }
 
+          const payload = {
+            appointmentId: appointment.id,
+            updates: updates
+          };
+          console.log('[ActiveSession] Sending payload to edge function:', JSON.stringify(payload, null, 2));
+
           const response = await fetch(
             `${supabaseUrl}/functions/v1/update-notion-appointment`,
             {
@@ -184,16 +190,21 @@
                 'Authorization': `Bearer ${session.access_token}`,
                 'Content-Type': 'application/json'
               },
-              body: JSON.stringify({
-                appointmentId: appointment.id,
-                updates: updates
-              })
+              body: JSON.stringify(payload)
             }
           );
 
           if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Failed to update appointment in Notion');
+            console.error('[ActiveSession] Raw response not OK:', response);
+            let errorDetails = 'No details provided by server.';
+            try {
+              const errorData = await response.json();
+              errorDetails = errorData.error || errorData.details || errorDetails;
+            } catch (jsonError) {
+              console.error('[ActiveSession] Failed to parse error JSON:', jsonError);
+              errorDetails = `Server responded with status ${response.status} but no valid JSON error body.`;
+            }
+            throw new Error(errorDetails);
           }
 
           toast({
