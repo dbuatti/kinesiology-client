@@ -243,19 +243,7 @@
         console.log('Muscle selected:', muscle.name);
       };
 
-      const handleMuscleStrengthLogged = async (muscle: Muscle, isStrong: boolean) => {
-        if (appointmentId) {
-          await updateNotionAppointment({
-            appointmentId: appointmentId,
-            updates: {
-              bodyYes: isStrong,
-              bodyNo: !isStrong,
-            }
-          });
-          // The MuscleSelector component handles its own toast and state for the checklist
-        }
-      };
-
+      // Removed handleMuscleStrengthLogged as it's now handled internally by MuscleSelector
 
       if (loadingAppointment || loadingModes || loadingAcupoints) {
         return (
@@ -619,7 +607,6 @@
                 {/* Muscle Selector Component */}
                 <MuscleSelector
                   onMuscleSelected={handleMuscleSelected}
-                  onMuscleStrengthLogged={handleMuscleStrengthLogged}
                   appointmentId={appointmentId || ''}
                 />
 

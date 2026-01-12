@@ -13,15 +13,15 @@ import { cn } from '@/lib/utils';
 import { Search, Check, ChevronsUpDown, Hand, Info, Image, Settings, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
-import { Muscle, GetMusclesPayload, GetMusclesResponse } from '@/types/api';
+import { Muscle, GetMusclesPayload, GetMusclesResponse, LogMuscleStrengthPayload, LogMuscleStrengthResponse } from '@/types/api';
 
 interface MuscleSelectorProps {
   onMuscleSelected: (muscle: Muscle) => void;
-  onMuscleStrengthLogged: (muscle: Muscle, isStrong: boolean) => void;
+  // Removed onMuscleStrengthLogged prop as it will be handled internally
   appointmentId: string;
 }
 
-const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMuscleStrengthLogged, appointmentId }) => {
+const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, appointmentId }) => {
   const [allMuscles, setAllMuscles] = useState<Muscle[]>([]);
   const [filteredMuscles, setFilteredMuscles] = useState<Muscle[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -61,6 +61,24 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
     }
   );
 
+  // New hook for logging muscle strength
+  const {
+    loading: loggingStrength,
+    execute: logMuscleStrength,
+  } = useSupabaseEdgeFunction<LogMuscleStrengthPayload, LogMuscleStrengthResponse>(
+    'log-muscle-strength',
+    {
+      requiresAuth: true,
+      onSuccess: (data) => {
+        toast({ title: 'Muscle Strength Logged', description: 'Strength status saved to session logs.' });
+        console.log('Muscle strength log ID:', data.logId);
+      },
+      onError: (msg) => {
+        toast({ variant: 'destructive', title: 'Logging Failed', description: msg });
+      }
+    }
+  );
+
   useEffect(() => {
     fetchMuscles({ searchTerm: '', searchType: 'muscle' }); // Fetch all muscles initially
   }, [fetchMuscles]);
@@ -90,17 +108,26 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
     setShowWeaknessChecklist(false); // Reset checklist visibility
   };
 
-  const handleLogStrength = (isStrong: boolean) => {
-    if (selectedMuscle) {
-      onMuscleStrengthLogged(selectedMuscle, isStrong);
+  const handleLogStrength = async (isStrong: boolean) => {
+    if (selectedMuscle && appointmentId) {
+      await logMuscleStrength({
+        appointmentId: appointmentId,
+        muscleId: selectedMuscle.id,
+        muscleName: selectedMuscle.name,
+        isStrong: isStrong,
+        // notes: "Optional notes here" // Can add a field for notes if needed
+      });
+
       if (!isStrong) {
         setShowWeaknessChecklist(true);
       } else {
         setShowWeaknessChecklist(false);
       }
+    } else {
       toast({
-        title: 'Muscle Strength Logged',
-        description: `${selectedMuscle.name} marked as ${isStrong ? 'Strong' : 'Weak'}.`,
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Please select a muscle and ensure an active appointment to log strength.',
       });
     }
   };
@@ -156,7 +183,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
               variant={searchType === 'muscle' ? 'default' : 'outline'}
               onClick={() => handleSearchTypeChange('muscle')}
               className={cn(searchType === 'muscle' ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'text-indigo-600 border-indigo-300 hover:bg-indigo-50')}
-              disabled={loadingMuscles}
+              disabled={loadingMuscles || loggingStrength}
             >
               Muscle Name
             </Button>
@@ -164,7 +191,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
               variant={searchType === 'organ' ? 'default' : 'outline'}
               onClick={() => handleSearchTypeChange('organ')}
               className={cn(searchType === 'organ' ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'text-indigo-600 border-indigo-300 hover:bg-indigo-50')}
-              disabled={loadingMuscles}
+              disabled={loadingMuscles || loggingStrength}
             >
               Organ System
             </Button>
@@ -172,7 +199,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
               variant={searchType === 'emotion' ? 'default' : 'outline'}
               onClick={() => handleSearchTypeChange('emotion')}
               className={cn(searchType === 'emotion' ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'text-indigo-600 border-indigo-300 hover:bg-indigo-50')}
-              disabled={loadingMuscles}
+              disabled={loadingMuscles || loggingStrength}
             >
               Emotion
             </Button>
@@ -187,7 +214,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onFocus={() => setIsSearchOpen(true)}
                 className="w-full"
-                disabled={loadingMuscles}
+                disabled={loadingMuscles || loggingStrength}
               />
             </PopoverTrigger>
             <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
@@ -283,12 +310,14 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
                 <Button
                   className="flex-1 bg-green-500 hover:bg-green-600 text-white"
                   onClick={() => handleLogStrength(true)}
+                  disabled={loggingStrength}
                 >
                   Body Yes (Strong)
                 </Button>
                 <Button
                   className="flex-1 bg-red-500 hover:bg-red-600 text-white"
                   onClick={() => handleLogStrength(false)}
+                  disabled={loggingStrength}
                 >
                   Body No (Weak)
                 </Button>

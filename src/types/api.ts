@@ -13,8 +13,7 @@ export interface Appointment {
   status: string;
   notes: string;
   sessionAnchor: string;
-  bodyYes?: boolean;
-  bodyNo?: boolean;
+  // Removed bodyYes and bodyNo as muscle strength logging moves to Supabase
 }
 
 export interface Client {
@@ -54,6 +53,17 @@ export interface Muscle {
   emotionalTheme: string[];
   nutritionSupport: string[];
   testPosition: string;
+}
+
+export interface SessionMuscleLog {
+  id: string;
+  created_at: string;
+  user_id: string;
+  appointment_id: string;
+  muscle_id: string;
+  muscle_name: string;
+  is_strong: boolean;
+  notes: string | null;
 }
 
 export interface NotionSecrets {
@@ -140,4 +150,17 @@ export interface SetNotionSecretsPayload {
 export interface SetNotionSecretsResponse {
   success: boolean;
   message: string;
+}
+
+export interface LogMuscleStrengthPayload {
+  appointmentId: string;
+  muscleId: string;
+  muscleName: string;
+  isStrong: boolean;
+  notes?: string;
+}
+
+export interface LogMuscleStrengthResponse {
+  success: boolean;
+  logId: string;
 }
