@@ -81,7 +81,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
     fetchChannels({ searchTerm: '', searchType: 'name' }); // Fetch all channels initially
   }, [fetchChannels]);
 
-  const { meridian, nonMeridian } = useMemo(() => { // Changed variable names here
+  const { meridianChannels, nonMeridianChannels } = useMemo(() => {
     const meridian: Channel[] = [];
     const nonMeridian: Channel[] = [];
 
@@ -107,7 +107,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
     // Sort non-meridian channels by name
     nonMeridian.sort((a, b) => a.name.localeCompare(b.name));
 
-    return { meridian, nonMeridian }; // Changed return object keys here
+    return { meridianChannels, nonMeridianChannels };
   }, [allChannels]);
 
   const handleSelectChannel = (channel: Channel) => {
@@ -165,7 +165,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
           <>
             {/* Meridian Channels */}
             <div className="flex flex-wrap gap-2">
-              {meridian.map(channel => (
+              {meridianChannels.map(channel => (
                 <Button
                   key={channel.id}
                   variant="outline"
@@ -183,14 +183,14 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
             </div>
 
             {/* Non-Meridian Channels */}
-            {nonMeridian.length > 0 && (
+            {nonMeridianChannels.length > 0 && (
               <>
                 <Separator className="my-6" />
                 <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1">
                   <Sparkles className="w-4 h-4 text-gray-600" /> Other Channels
                 </h3>
                 <div className="flex flex-wrap gap-2">
-                  {nonMeridian.map(channel => (
+                  {nonMeridianChannels.map(channel => (
                     <Button
                       key={channel.id}
                       variant="outline"
@@ -224,7 +224,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
                 >
                   <ExternalLink className="w-4 h-4" />
                 </a>
-              </h3 >
+              </h3>
               <div className="flex gap-1">
                 {selectedChannelForDisplay.elements.map((element, i) => (
                   <Badge key={i} variant="secondary" className="bg-indigo-200 text-indigo-800 text-xs">
@@ -243,6 +243,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
                 <FlaskConical className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
                 <p><span className="font-semibold text-indigo-700">Functions:</span> {selectedChannelForDisplay.functions || 'N/A'}</p>
               </div>
+              {/* Emotional Themes - Always render, show N/A if empty */}
               <div className="flex items-start gap-2">
                 <Heart className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
                 <p><span className="font-semibold text-indigo-700">Emotional Themes:</span> {selectedChannelForDisplay.emotions.length > 0 ? selectedChannelForDisplay.emotions.join(', ') : 'N/A'}</p>
@@ -295,11 +296,12 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
                 <Mic className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
                 <p><span className="font-semibold text-indigo-700">Appropriate Sound:</span> {selectedChannelForDisplay.appropriateSound || 'N/A'}</p>
               </div>
+              {/* Tags - Always render, show N/A if empty */}
               <div className="flex items-start gap-2">
                 <Tag className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
                 <div className="flex flex-wrap gap-1">
                   <p><span className="font-semibold text-indigo-700">Tags:</span> {selectedChannelForDisplay.tags.length > 0 ? selectedChannelForDisplay.tags.map((tag, i) => (
-                    <Badge key={i} variant="outline" className="bg-gray-100 text-gray-700">
+                    <Badge key={i} variant="outline" className="bg-gray-100 text-gray-700 text-xs">
                       {tag}
                     </Badge>
                   )) : 'N/A'}</p>
@@ -311,7 +313,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
                 <p><span className="font-semibold text-indigo-700">Brain Aspects:</span> {selectedChannelForDisplay.brainAspects || 'N/A'}</p>
               </div>
               <div className="flex items-start gap-2">
-                <Hand className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" /> {/* Reusing Hand icon, consider a more specific one if available */}
+                <Hand className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
                 <p><span className="font-semibold text-indigo-700">Activate Sinew:</span> {selectedChannelForDisplay.activateSinew || 'N/A'}</p>
               </div>
               <div className="flex items-start gap-2">
