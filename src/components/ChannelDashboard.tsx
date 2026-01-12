@@ -14,12 +14,12 @@ import { Channel, GetChannelsPayload, GetChannelsResponse, LogSessionEventPayloa
 
 interface ChannelDashboardProps {
   appointmentId: string;
-  fetchSessionLogs: (payload: { appointmentId: string }) => void; // New prop for refreshing logs
+  onLogSuccess: () => void; // Callback to notify parent of successful log
 }
 
 const primaryElements = ['Wood', 'Fire', 'Earth', 'Metal', 'Water'];
 
-const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetchSessionLogs }) => {
+const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLogSuccess }) => {
   const [allChannels, setAllChannels] = useState<Channel[]>([]);
   const [selectedChannelForDisplay, setSelectedChannelForDisplay] = useState<Channel | null>(null);
   const [loggedItems, setLoggedItems] = useState<Set<string>>(new Set()); // Stores unique identifiers of logged items
@@ -89,7 +89,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
       requiresAuth: true,
       onSuccess: (data) => {
         console.log('Channel detail logged to Supabase:', data.logId);
-        fetchSessionLogs({ appointmentId }); // Refresh logs in parent
+        onLogSuccess(); // Notify parent of successful log
       },
       onError: (msg) => {
         console.error('Failed to log channel detail to Supabase:', msg);
@@ -308,7 +308,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2 text-sm text-gray-800">
               <div className="flex items-start gap-2">
                 <Footprints className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center"> {/* Changed <p> to <div> */}
+                <div className="flex items-center">
                   <span className="font-semibold text-indigo-700 mr-1">Pathways:</span>
                   {selectedChannelForDisplay.pathways ? (
                     <span
@@ -322,7 +322,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
               </div>
               <div className="flex items-start gap-2">
                 <FlaskConical className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center"> {/* Changed <p> to <div> */}
+                <div className="flex items-center">
                   <span className="font-semibold text-indigo-700 mr-1">Functions:</span>
                   {selectedChannelForDisplay.functions ? (
                     <span
@@ -336,7 +336,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
               </div>
               <div className="flex items-start gap-2">
                 <Heart className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center"> {/* Changed <p> to <div> */}
+                <div className="flex items-center">
                   <span className="font-semibold text-indigo-700 mr-1">Emotional Themes:</span>
                   {selectedChannelForDisplay.emotions.length > 0 ? (
                     <div className="flex flex-wrap gap-1">
@@ -359,7 +359,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
               </div>
               <div className="flex items-start gap-2">
                 <Hand className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center"> {/* Changed <p> to <div> */}
+                <div className="flex items-center">
                   <span className="font-semibold text-indigo-700 mr-1">Front Mu:</span>
                   {selectedChannelForDisplay.frontMu ? (
                     <span
@@ -373,7 +373,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
               </div>
               <div className="flex items-start gap-2">
                 <Waves className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center"> {/* Changed <p> to <div> */}
+                <div className="flex items-center">
                   <span className="font-semibold text-indigo-700 mr-1">He Sea:</span>
                   {selectedChannelForDisplay.heSea ? (
                     <span
@@ -387,7 +387,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
               </div>
               <div className="flex items-start gap-2">
                 <Droplet className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center"> {/* Changed <p> to <div> */}
+                <div className="flex items-center">
                   <span className="font-semibold text-indigo-700 mr-1">Jing River:</span>
                   {selectedChannelForDisplay.jingRiver ? (
                     <span
@@ -401,7 +401,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
               </div>
               <div className="flex items-start gap-2">
                 <Sparkles className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center"> {/* Changed <p> to <div> */}
+                <div className="flex items-center">
                   <span className="font-semibold text-indigo-700 mr-1">Jing Well:</span>
                   {selectedChannelForDisplay.jingWell ? (
                     <span
@@ -415,7 +415,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
               </div>
               <div className="flex items-start gap-2">
                 <Hand className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center"> {/* Changed <p> to <div> */}
+                <div className="flex items-center">
                   <span className="font-semibold text-indigo-700 mr-1">AK Muscles:</span>
                   {selectedChannelForDisplay.akMuscles.length > 0 ? (
                     <div className="flex flex-wrap gap-1">
@@ -438,7 +438,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
               </div>
               <div className="flex items-start gap-2">
                 <Bone className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center"> {/* Changed <p> to <div> */}
+                <div className="flex items-center">
                   <span className="font-semibold text-indigo-700 mr-1">TCM Muscles:</span>
                   {selectedChannelForDisplay.tcmMuscles.length > 0 ? (
                     <div className="flex flex-wrap gap-1">
@@ -461,7 +461,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
               </div>
               <div className="flex items-start gap-2">
                 <Sparkles className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center"> {/* Changed <p> to <div> */}
+                <div className="flex items-center">
                   <span className="font-semibold text-indigo-700 mr-1">Yuan Points:</span>
                   {selectedChannelForDisplay.yuanPoints ? (
                     <span
@@ -475,7 +475,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
               </div>
               <div className="flex items-start gap-2">
                 <XCircle className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center"> {/* Changed <p> to <div> */}
+                <div className="flex items-center">
                   <span className="font-semibold text-indigo-700 mr-1">Sedate 1:</span>
                   {selectedChannelForDisplay.sedate1 ? (
                     <span
@@ -489,7 +489,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
               </div>
               <div className="flex items-start gap-2">
                 <XCircle className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center"> {/* Changed <p> to <div> */}
+                <div className="flex items-center">
                   <span className="font-semibold text-indigo-700 mr-1">Sedate 2:</span>
                   {selectedChannelForDisplay.sedate2 ? (
                     <span
@@ -503,7 +503,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
               </div>
               <div className="flex items-start gap-2">
                 <PlusCircle className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center"> {/* Changed <p> to <div> */}
+                <div className="flex items-center">
                   <span className="font-semibold text-indigo-700 mr-1">Tonify 1:</span>
                   {selectedChannelForDisplay.tonify1 ? (
                     <span
@@ -517,7 +517,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
               </div>
               <div className="flex items-start gap-2">
                 <PlusCircle className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center"> {/* Changed <p> to <div> */}
+                <div className="flex items-center">
                   <span className="font-semibold text-indigo-700 mr-1">Tonify 2:</span>
                   {selectedChannelForDisplay.tonify2 ? (
                     <span
@@ -531,7 +531,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
               </div>
               <div className="flex items-start gap-2">
                 <Mic className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center"> {/* Changed <p> to <div> */}
+                <div className="flex items-center">
                   <span className="font-semibold text-indigo-700 mr-1">Appropriate Sound:</span>
                   {selectedChannelForDisplay.appropriateSound ? (
                     <span
@@ -545,7 +545,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
               </div>
               <div className="flex items-start gap-2">
                 <Tag className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center"> {/* Changed <p> to <div> */}
+                <div className="flex items-center">
                   <span className="font-semibold text-indigo-700 mr-1">Tags:</span>
                   {selectedChannelForDisplay.tags.length > 0 ? (
                     <div className="flex flex-wrap gap-1">
@@ -568,7 +568,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
               </div>
               <div className="flex items-start gap-2">
                 <Brain className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center"> {/* Changed <p> to <div> */}
+                <div className="flex items-center">
                   <span className="font-semibold text-indigo-700 mr-1">Brain Aspects:</span>
                   {selectedChannelForDisplay.brainAspects ? (
                     <span
@@ -582,7 +582,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
               </div>
               <div className="flex items-start gap-2">
                 <Hand className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center"> {/* Changed <p> to <div> */}
+                <div className="flex items-center">
                   <span className="font-semibold text-indigo-700 mr-1">Activate Sinew:</span>
                   {selectedChannelForDisplay.activateSinew ? (
                     <span
@@ -596,7 +596,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
               </div>
               <div className="flex items-start gap-2">
                 <Clock className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center"> {/* Changed <p> to <div> */}
+                <div className="flex items-center">
                   <span className="font-semibold text-indigo-700 mr-1">Time:</span>
                   {selectedChannelForDisplay.time ? (
                     <span
@@ -611,7 +611,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
               {/* New: Sound field */}
               <div className="flex items-start gap-2">
                 <Volume2 className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                <div className="flex items-center"> {/* Changed <p> to <div> */}
+                <div className="flex items-center">
                   <span className="font-semibold text-indigo-700 mr-1">Sound:</span>
                   {selectedChannelForDisplay.sound ? (
                     <span

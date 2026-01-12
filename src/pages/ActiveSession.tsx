@@ -229,6 +229,13 @@
         }
       );
 
+      // Callback for ChannelDashboard to trigger log refresh
+      const handleChannelLogSuccess = useCallback(() => {
+        if (appointmentId) {
+          fetchSessionLogs({ appointmentId });
+        }
+      }, [appointmentId, fetchSessionLogs]);
+
 
       useEffect(() => {
         if (appointmentId) {
@@ -500,7 +507,7 @@
                 {/* Channel Dashboard Component - Moved to top */}
                 <ChannelDashboard
                   appointmentId={appointmentId || ''}
-                  fetchSessionLogs={fetchSessionLogs} // Pass the fetchSessionLogs function
+                  onLogSuccess={handleChannelLogSuccess} // Pass the new callback
                 />
 
                 {/* Live Session Controls */}
