@@ -5,16 +5,15 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIU
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Extend window interface for backward compatibility
-declare global {
-  interface Window {
-    supabase: any;
-    supabaseUrl: string;
-  }
-}
+// Removed global window interface and assignments
+// declare global {
+//   interface Window {
+//     supabase: any;
+//     supabaseUrl: string;
+//   }
+// }
 
-// Attach to window for backward compatibility
-if (typeof window !== 'undefined') {
-  window.supabase = supabase;
-  window.supabaseUrl = supabaseUrl;
-}
+// if (typeof window !== 'undefined') {
+//   window.supabase = supabase;
+//   window.supabaseUrl = supabaseUrl;
+// }
