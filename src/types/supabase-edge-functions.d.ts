@@ -14,3 +14,8 @@ declare module "https://esm.sh/@supabase/supabase-js@2.45.0" {
   import { SupabaseClient } from '@supabase/supabase-js';
   export function createClient(supabaseUrl: string, supabaseKey: string): SupabaseClient;
 }
+
+declare module "https://esm.sh/@supabase/supabase-js@2.45.0" {
+  import { SupabaseClient } from '@supabase/supabase-js';
+  export function createClient(supabaseUrl: string, supabaseKey: string): SupabaseClient;
+}

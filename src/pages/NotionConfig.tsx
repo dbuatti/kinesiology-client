@@ -19,6 +19,7 @@ const NotionConfig = () => {
   const [modesDbId, setModesDbId] = useState('');
   const [acupointsDbId, setAcupointsDbId] = useState('');
   const [musclesDbId, setMusclesDbId] = useState('');
+  const [channelsDbId, setChannelsDbId] = useState(''); // New state for Channels DB ID
   const [loadingInitial, setLoadingInitial] = useState(true); // Separate loading for initial fetch
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -53,7 +54,7 @@ const NotionConfig = () => {
 
         const { data, error } = await supabase
           .from('notion_secrets')
-          .select('notion_integration_token, appointments_database_id, crm_database_id, modes_database_id, acupoints_database_id, muscles_database_id')
+          .select('notion_integration_token, appointments_database_id, crm_database_id, modes_database_id, acupoints_database_id, muscles_database_id, channels_database_id') // Include new channels_database_id
           .eq('user_id', user.id)
           .single();
 
@@ -69,6 +70,7 @@ const NotionConfig = () => {
           setModesDbId(secrets.modes_database_id || '');
           setAcupointsDbId(secrets.acupoints_database_id || '');
           setMusclesDbId(secrets.muscles_database_id || '');
+          setChannelsDbId(secrets.channels_database_id || ''); // Set new channelsDbId
         }
       } catch (error: any) {
         toast({
@@ -107,6 +109,10 @@ const NotionConfig = () => {
       toast({ variant: 'destructive', title: 'Validation Error', description: 'Muscles Database ID cannot be empty.' });
       return;
     }
+    if (!channelsDbId.trim()) { // New validation for Channels DB ID
+      toast({ variant: 'destructive', title: 'Validation Error', description: 'Channels Database ID cannot be empty.' });
+      return;
+    }
 
     await setNotionSecrets({
       notionToken: integrationToken,
@@ -115,6 +121,7 @@ const NotionConfig = () => {
       modesDbId: modesDbId || null,
       acupointsDbId: acupointsDbId || null,
       musclesDbId: musclesDbId || null,
+      channelsDbId: channelsDbId || null, // Include new channelsDbId
     });
   };
 
@@ -264,6 +271,25 @@ const NotionConfig = () => {
                     </p>
                   </div>
 
+                  {/* Channels Database ID (New Field) */}
+                  <div className="space-y-2">
+                    <Label htmlFor="channels" className="flex items-center gap-2 font-semibold">
+                      <Database className="w-4 h-4 text-indigo-600" />
+                      Channels Database ID
+                    </Label>
+                    <Input
+                      id="channels"
+                      type="text"
+                      placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                      value={channelsDbId}
+                      onChange={(e) => setChannelsDbId(e.target.value)}
+                      disabled={savingConfig}
+                    />
+                    <p className="text-xs text-gray-500">
+                      ID for your Channels reference database.
+                    </p>
+                  </div>
+
                   <div className="flex gap-4 pt-4">
                     <Button
                       type="submit"
@@ -289,7 +315,7 @@ const NotionConfig = () => {
                   <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
                     <li>Create a Notion integration at notion.com/my-integrations</li>
                     <li>Copy the "Internal Integration Token"</li>
-                    <li>Share your databases (Appointments, CRM, Modes, Acupoints, Muscles) with the integration</li>
+                    <li>Share your databases (Appointments, CRM, Modes, Acupoints, Muscles, Channels) with the integration</li>
                     <li>Copy each database ID from its share link</li>
                     <li>Paste all values above and save</li>
                   </ol>

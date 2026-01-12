@@ -55,6 +55,15 @@ export interface Muscle {
   testPosition: string;
 }
 
+export interface Channel {
+  id: string;
+  name: string;
+  elements: string[];
+  pathways: string;
+  functions: string;
+  emotions: string[];
+}
+
 export interface SessionMuscleLog {
   id: string;
   created_at: string;
@@ -73,6 +82,7 @@ export interface NotionSecrets {
   modes_database_id: string | null;
   acupoints_database_id: string | null;
   muscles_database_id: string | null;
+  channels_database_id: string | null; // New: Channels Database ID
 }
 
 // Edge Function Payloads and Responses
@@ -138,6 +148,15 @@ export interface GetMusclesResponse {
   muscles: Muscle[];
 }
 
+export interface GetChannelsPayload {
+  searchTerm?: string;
+  searchType?: 'name' | 'element' | 'emotion';
+}
+
+export interface GetChannelsResponse {
+  channels: Channel[];
+}
+
 export interface SetNotionSecretsPayload {
   notionToken: string;
   appointmentsDbId: string;
@@ -145,6 +164,7 @@ export interface SetNotionSecretsPayload {
   modesDbId: string | null;
   acupointsDbId: string | null;
   musclesDbId: string | null;
+  channelsDbId: string | null; // New: Channels Database ID
 }
 
 export interface SetNotionSecretsResponse {
