@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Settings, Key, Database, Shield, Loader2 } from 'lucide-react';
+import { Settings, Key, Database, Shield, Loader2, Info } from 'lucide-react'; // Added Info import
 import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
 import { SetNotionSecretsPayload, SetNotionSecretsResponse, NotionSecrets } from '@/types/api';
@@ -407,16 +407,19 @@ const NotionConfig = () => {
                 </Form>
 
                 {/* Help Section */}
-                <div className="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <h3 className="font-semibold text-blue-900 mb-2">Need Help?</h3>
-                  <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
-                    <li>Create a Notion integration at notion.com/my-integrations</li>
-                    <li>Copy the "Internal Integration Token"</li>
-                    <li>Share your databases (Appointments, CRM, Modes, Acupoints, Muscles, Channels, Chakras) with the integration</li>
-                    <li>**Important:** For individual Notion pages (like Muscle details, Chakra details, etc.) to be viewable via direct links in the app, you must also share those specific pages with your integration.</li>
-                    <li>Copy each database ID from its share link</li>
-                    <li>Paste all values above and save</li>
-                  </ol>
+                <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-3">
+                  <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-blue-800">
+                    <h3 className="font-semibold text-blue-900 mb-2">Need Help?</h3>
+                    <ol className="space-y-1 list-decimal list-inside">
+                      <li>Create a Notion integration at notion.com/my-integrations</li>
+                      <li>Copy the "Internal Integration Token"</li>
+                      <li>Share your databases (Appointments, CRM, Modes, Acupoints, Muscles, Channels, Chakras) with the integration</li>
+                      <li>**Important:** For individual Notion pages (like Muscle details, Chakra details, etc.) to be viewable via direct links in the app, you must also share those specific pages with your integration.</li>
+                      <li>Copy each database ID from its share link</li>
+                      <li>Paste all values above and save</li>
+                    </ol>
+                  </div>
                 </div>
               </>
             )}

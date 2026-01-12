@@ -55,7 +55,7 @@ const ActiveSession = () => {
   const [appointment, setAppointment] = useState<Appointment | null>(null);
   const [sessionAnchorText, setSessionAnchorText] = useState('');
   const [sessionNorthStarText, setSessionNorthStarText] = useState('');
-  const [selectedMode, setSelectedMode] = useState<Mode | null>(null);
+  const [sessionSelectedModes, setSessionSelectedModes] = useState<Mode[]>([]); // Changed to array
 
   // Selector States for Summary Display
   const [selectedMuscle, setSelectedMuscle] = useState<Muscle | null>(null);
@@ -267,8 +267,8 @@ const ActiveSession = () => {
     navigate('/notion-config');
   }, [navigate]);
 
-  const handleModeSelected = useCallback((mode: Mode | null) => {
-    setSelectedMode(mode);
+  const handleModesChanged = useCallback((modes: Mode[]) => {
+    setSessionSelectedModes(modes);
   }, []);
 
   const handleMuscleSelected = useCallback((muscle: Muscle | null) => {
@@ -396,7 +396,7 @@ const ActiveSession = () => {
             <SessionSummaryDisplay
               sessionLogs={sessionLogs}
               sessionMuscleLogs={sessionMuscleLogs}
-              selectedMode={selectedMode}
+              sessionSelectedModes={sessionSelectedModes} // Pass the array
               selectedMuscle={selectedMuscle}
               selectedChakra={selectedChakra}
               selectedChannel={selectedChannel}
@@ -506,16 +506,10 @@ const ActiveSession = () => {
                       </Label>
                       <ModeSelect
                         appointmentId={appointmentId!}
-                        selectedMode={selectedMode}
-                        onModeSelected={handleModeSelected}
+                        onModesChanged={handleModesChanged} // Pass the new handler
                         onOpenNotionPage={handleOpenNotionPage}
                         onLogSuccess={handleLogSuccess}
                       />
-                      {selectedMode?.actionNote && (
-                        <p className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg border border-blue-200 mt-2">
-                          <strong>Action Note:</strong> {selectedMode.actionNote}
-                        </p>
-                      )}
                     </div>
                   </CardContent>
                 </Card>

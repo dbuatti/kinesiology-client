@@ -12,6 +12,7 @@ import AllAppointments from "./pages/AllAppointments";
 import AllClients from "./pages/AllClients";
 import ProfileSetup from "./pages/ProfileSetup";
 import ProtectedRouteLayout from "./components/ProtectedRouteLayout"; // Import the new layout
+import ModeDetailsPage from "./pages/ModeDetailsPage"; // Import the new ModeDetailsPage
 
 const queryClient = new QueryClient();
 
@@ -34,6 +35,7 @@ const App = () => (
             <Route path="/all-appointments" element={<AllAppointments />} />
             <Route path="/all-clients" element={<AllClients />} />
             <Route path="/profile-setup" element={<ProfileSetup />} />
+            <Route path="/mode-details/:modeId" element={<ModeDetailsPage />} /> {/* New Mode Details Page */}
           </Route>
         </Routes>
       </BrowserRouter>

@@ -20,7 +20,7 @@ import {
 interface SessionSummaryDisplayProps {
   sessionLogs: SessionLog[];
   sessionMuscleLogs: SessionMuscleLog[];
-  selectedMode: Mode | null;
+  sessionSelectedModes: Mode[]; // Changed to array
   selectedMuscle: Muscle | null;
   selectedChakra: Chakra | null;
   selectedChannel: Channel | null;
@@ -44,7 +44,7 @@ const getElementColorClasses = (elements: string[]): { bg: string, text: string 
 const SessionSummaryDisplay: React.FC<SessionSummaryDisplayProps> = ({
   sessionLogs,
   sessionMuscleLogs,
-  selectedMode,
+  sessionSelectedModes, // Changed to array
   selectedMuscle,
   selectedChakra,
   selectedChannel,
@@ -61,8 +61,7 @@ const SessionSummaryDisplay: React.FC<SessionSummaryDisplayProps> = ({
   const latestLoggedItems = useMemo(() => {
     const items: { type: string; name: string; colorClass?: string; icon?: React.ReactNode }[] = [];
 
-    // Add selected items
-    if (selectedMode) items.push({ type: 'Mode', name: selectedMode.name, icon: <Lightbulb className="w-3 h-3" /> });
+    // Add currently selected items (if not already logged)
     if (selectedMuscle) items.push({ type: 'Muscle', name: selectedMuscle.name, icon: <Hand className="w-3 h-3" /> });
     if (selectedChakra) items.push({ type: 'Chakra', name: selectedChakra.name, icon: <Sparkles className="w-3 h-3" /> });
     if (selectedChannel) {
@@ -71,11 +70,17 @@ const SessionSummaryDisplay: React.FC<SessionSummaryDisplayProps> = ({
     }
     if (selectedAcupoint) items.push({ type: 'Acupoint', name: selectedAcupoint.name, icon: <Search className="w-3 h-3" /> });
 
+    // Add all selected modes
+    sessionSelectedModes.forEach(mode => {
+      items.push({ type: 'Mode', name: mode.name, icon: <Lightbulb className="w-3 h-3" /> });
+    });
+
     // Add latest logged events (up to a few, to keep it concise)
     const recentLogs = allLogs.slice(-3).reverse(); // Get last 3 logs, most recent first
     recentLogs.forEach(log => {
       if ('log_type' in log) { // General session log
-        if (log.log_type === 'mode_selected' && log.details?.modeName) {
+        // Only add if not already covered by selected modes
+        if (log.log_type === 'mode_selected' && log.details?.modeName && !sessionSelectedModes.some(m => m.name === log.details.modeName)) {
           items.push({ type: 'Logged Mode', name: log.details.modeName, icon: <Lightbulb className="w-3 h-3" /> });
         } else if (log.log_type === 'chakra_selected' && log.details?.chakraName) {
           items.push({ type: 'Logged Chakra', name: log.details.chakraName, icon: <Sparkles className="w-3 h-3" /> });
@@ -95,7 +100,7 @@ const SessionSummaryDisplay: React.FC<SessionSummaryDisplayProps> = ({
     });
 
     return items;
-  }, [selectedMode, selectedMuscle, selectedChakra, selectedChannel, selectedAcupoint, allLogs]);
+  }, [sessionSelectedModes, selectedMuscle, selectedChakra, selectedChannel, selectedAcupoint, allLogs]);
 
   const hasContent = sessionNorthStar || sessionAnchor || latestLoggedItems.length > 0;
 
