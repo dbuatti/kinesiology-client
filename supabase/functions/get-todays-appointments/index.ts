@@ -133,16 +133,11 @@ serve(async (req) => {
             },
             {
               property: "Status",
-              status: { // Changed from 'select' to 'status'
+              status: {
                 equals: "OPEN" // Filter for OPEN status
               }
-            },
-            {
-              property: "Practitioner", // Filter by Practitioner
-              select: { // Assuming Practitioner is a Select property
-                equals: practitionerName
-              }
             }
+            // Removed the Practitioner filter as it caused an error
           ]
         }
       })
