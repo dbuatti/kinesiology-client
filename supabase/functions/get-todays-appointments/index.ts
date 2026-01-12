@@ -133,7 +133,7 @@ serve(async (req) => {
             },
             {
               property: "Status",
-              select: {
+              status: { // Changed from 'select' to 'status'
                 equals: "OPEN" // Filter for OPEN status
               }
             },
