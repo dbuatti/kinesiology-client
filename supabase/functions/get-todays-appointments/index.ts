@@ -80,21 +80,12 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         filter: {
-          and: [
-            {
-              property: "Date",
-              date: {
-                equals: todayString
-              }
-            },
-            {
-              property: "Status",
-              select: {
-                does_not_equal: "CH" // Filter out 'Completed/Charged' sessions
-              }
-            }
-          ]
+          property: "Date",
+          date: {
+            equals: todayString
+          }
         }
+        // Removed the 'Status' filter here
       })
     })
 
