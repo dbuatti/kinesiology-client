@@ -77,6 +77,7 @@ export interface Channel {
   brainAspects: string; // New: Brain Aspects
   activateSinew: string; // New: Activate Sinew
   time: string; // New: Time
+  sound: string; // New: Sound (Select column)
 }
 
 export interface Chakra {

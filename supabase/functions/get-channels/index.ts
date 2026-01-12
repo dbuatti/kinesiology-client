@@ -120,6 +120,7 @@ serve(async (req) => {
         brainAspects: properties["Brain Aspects"]?.rich_text?.[0]?.plain_text || "", // New
         activateSinew: properties["Activate Sinew"]?.rich_text?.[0]?.plain_text || "", // New
         time: properties["Time"]?.rich_text?.[0]?.plain_text || "", // New
+        sound: properties["Sound"]?.select?.name || "", // New: Sound (Select column)
       }
     })
 

@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
-import { Settings, Loader2, Sparkles, ExternalLink, Waves, Leaf, Flame, Gem, Droplet, Sun, Heart, Hand, Footprints, Bone, FlaskConical, Mic, Tag, XCircle, PlusCircle, Brain, Clock } from 'lucide-react';
+import { Settings, Loader2, Sparkles, ExternalLink, Waves, Leaf, Flame, Gem, Droplet, Sun, Heart, Hand, Footprints, Bone, FlaskConical, Mic, Tag, XCircle, PlusCircle, Brain, Clock, Volume2 } from 'lucide-react'; // Added Volume2 icon
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
 import { Channel, GetChannelsPayload, GetChannelsResponse, LogSessionEventPayload, LogSessionEventResponse } from '@/types/api';
 
@@ -604,6 +604,21 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, fetc
                       onClick={() => handleLogItemClick('channel_time', selectedChannelForDisplay.time)}
                     >
                       {selectedChannelForDisplay.time}
+                    </span>
+                  ) : 'N/A'}
+                </p>
+              </div>
+              {/* New: Sound field */}
+              <div className="flex items-start gap-2">
+                <Volume2 className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
+                <p className="flex items-center">
+                  <span className="font-semibold text-indigo-700 mr-1">Sound:</span>
+                  {selectedChannelForDisplay.sound ? (
+                    <span
+                      className={cn("cursor-pointer hover:underline", getLoggedClass('channel_sound', selectedChannelForDisplay.sound))}
+                      onClick={() => handleLogItemClick('channel_sound', selectedChannelForDisplay.sound)}
+                    >
+                      {selectedChannelForDisplay.sound}
                     </span>
                   ) : 'N/A'}
                 </p>
