@@ -498,7 +498,10 @@
                 </Card>
 
                 {/* Channel Dashboard Component - Moved to top */}
-                <ChannelDashboard appointmentId={appointmentId || ''} />
+                <ChannelDashboard
+                  appointmentId={appointmentId || ''}
+                  fetchSessionLogs={fetchSessionLogs} // Pass the fetchSessionLogs function
+                />
 
                 {/* Live Session Controls */}
                 <Card className="shadow-xl">
@@ -842,6 +845,13 @@
                                       <Badge variant="secondary" className="bg-purple-100 text-purple-800 mr-2">Chakra</Badge>
                                       Selected Chakra: <span className="font-semibold">{(log as SessionLog).details?.chakraName}</span>
                                       {(log as SessionLog).details?.emotionalThemes && (log as SessionLog).details.emotionalThemes.length > 0 && <span className="text-gray-600 ml-1">({(log as SessionLog).details.emotionalThemes.join(', ')})</span>}
+                                    </div>
+                                  )}
+                                  {/* New log types for channel details */}
+                                  {log.log_type.startsWith('channel_') && (
+                                    <div className="text-sm text-gray-800">
+                                      <Badge variant="secondary" className="bg-indigo-100 text-indigo-800 mr-2">Channel Detail</Badge>
+                                      Logged <span className="font-semibold">{log.details?.itemType?.replace('channel_', '').replace(/_/g, ' ')}:</span> <span className="font-semibold">{log.details?.itemValue}</span> from <span className="font-semibold">{log.details?.channelName}</span>.
                                     </div>
                                   )}
                                 </>
