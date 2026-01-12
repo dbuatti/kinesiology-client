@@ -10,17 +10,42 @@ import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Loader2 } from 'lucide-react';
 
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+
+// Define the form schema using Zod
+const profileFormSchema = z.object({
+  firstName: z.string().min(1, { message: "First Name is required." }).max(50, { message: "First Name cannot exceed 50 characters." }),
+  lastName: z.string().min(1, { message: "Last Name is required." }).max(50, { message: "Last Name cannot exceed 50 characters." }),
+});
+
+type ProfileFormValues = z.infer<typeof profileFormSchema>;
+
 const ProfileSetup = () => {
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [loadingInitial, setLoadingInitial] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  const form = useForm<ProfileFormValues>({
+    resolver: zodResolver(profileFormSchema),
+    defaultValues: {
+      firstName: '',
+      lastName: '',
+    },
+  });
+
   useEffect(() => {
     const fetchProfile = async () => {
-      setLoading(true);
+      setLoadingInitial(true);
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
@@ -39,8 +64,10 @@ const ProfileSetup = () => {
         }
 
         if (data) {
-          setFirstName(data.first_name || '');
-          setLastName(data.last_name || '');
+          form.reset({
+            firstName: data.first_name || '',
+            lastName: data.last_name || '',
+          });
         }
       } catch (error: any) {
         toast({
@@ -49,26 +76,17 @@ const ProfileSetup = () => {
           description: error.message,
         });
       } finally {
-        setLoading(false);
+        setLoadingInitial(false);
       }
     };
 
     fetchProfile();
-  }, [navigate, toast]);
+  }, [navigate, toast, form]); // Added 'form' to dependency array
 
-  const handleSaveProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-
-    if (!firstName.trim() || !lastName.trim()) {
-      toast({
-        variant: 'destructive',
-        title: 'Validation Error',
-        description: 'First Name and Last Name cannot be empty.',
-      });
-      setSaving(false);
-      return;
-    }
+  const onSubmit = async (values: ProfileFormValues) => {
+    form.setValue('firstName', values.firstName.trim()); // Trim before saving
+    form.setValue('lastName', values.lastName.trim()); // Trim before saving
+    form.clearErrors(); // Clear any previous errors
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -86,8 +104,8 @@ const ProfileSetup = () => {
         .from('profiles')
         .upsert({
           id: user.id,
-          first_name: firstName.trim(),
-          last_name: lastName.trim(),
+          first_name: values.firstName.trim(),
+          last_name: values.lastName.trim(),
           updated_at: new Date().toISOString(),
         }, { onConflict: 'id' });
 
@@ -107,12 +125,10 @@ const ProfileSetup = () => {
         title: 'Save Failed',
         description: error.message || 'An unknown error occurred',
       });
-    } finally {
-      setSaving(false);
     }
   };
 
-  if (loading) {
+  if (loadingInitial) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-indigo-100 p-6">
         <Loader2 className="w-12 h-12 animate-spin text-indigo-600" />
@@ -136,41 +152,57 @@ const ProfileSetup = () => {
         </CardHeader>
         
         <CardContent>
-          <form onSubmit={handleSaveProfile} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="firstName">First Name</Label>
-              <Input
-                id="firstName"
-                type="text"
-                placeholder="John"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                disabled={saving}
-                required
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="firstName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>First Name</FormLabel>
+                    <FormControl>
+                      <Input
+                        id="firstName"
+                        type="text"
+                        placeholder="John"
+                        disabled={form.formState.isSubmitting}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="lastName">Last Name</Label>
-              <Input
-                id="lastName"
-                type="text"
-                placeholder="Doe"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                disabled={saving}
-                required
+              <FormField
+                control={form.control}
+                name="lastName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Last Name</FormLabel>
+                    <FormControl>
+                      <Input
+                        id="lastName"
+                        type="text"
+                        placeholder="Doe"
+                        disabled={form.formState.isSubmitting}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
 
-            <Button
-              type="submit"
-              className="w-full h-12 text-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
-              disabled={saving}
-            >
-              {saving ? 'Saving...' : 'Save Profile'}
-            </Button>
-          </form>
+              <Button
+                type="submit"
+                className="w-full h-12 text-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+                disabled={form.formState.isSubmitting}
+              >
+                {form.formState.isSubmitting ? 'Saving...' : 'Save Profile'}
+              </Button>
+            </form>
+          </Form>
         </CardContent>
       </Card>
     </div>
