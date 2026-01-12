@@ -47,12 +47,12 @@ serve(async (req) => {
     // Use service role key to fetch secrets securely, bypassing RLS if necessary
     const serviceRoleSupabase = createClient(supabaseUrl, supabaseServiceRoleKey)
 
-    // Fetch user profile to get practitioner name
+    // Fetch user profile to get practitioner name (still needed for profile check, but not for Notion filter)
     const { data: profilesData, error: profileError } = await serviceRoleSupabase
       .from('profiles')
       .select('first_name, last_name')
       .eq('id', user.id)
-      .limit(1); // Use limit(1) instead of single() for robustness
+      .limit(1);
 
     if (profileError) {
       console.error("[get-todays-appointments] Profile fetch error:", user.id, profileError?.message);
@@ -65,7 +65,7 @@ serve(async (req) => {
       });
     }
 
-    const profile = profilesData?.[0]; // Get the first profile if available
+    const profile = profilesData?.[0];
 
     if (!profile) {
         console.error("[get-todays-appointments] Profile data is missing for user:", user.id);
@@ -122,16 +122,35 @@ serve(async (req) => {
             date: {
               equals: todayString
             }
+          },
+          {
+            or: [ // Filter for Status 'AP' or 'OPEN'
+              {
+                property: "Status",
+                status: {
+                  equals: "AP"
+                }
+              },
+              {
+                property: "Status",
+                status: {
+                  equals: "OPEN"
+                }
+              }
+            ]
           }
-          // Temporarily removed Status filter to debug
-          // {
-          //   property: "Status",
-          //   status: {
-          //     equals: "OPEN" // Filter for OPEN status
-          //   }
-          // }
         ]
-      }
+      },
+      sorts: [ // Add sorting to ensure consistent order
+        {
+          property: "Date",
+          direction: "ascending"
+        },
+        {
+          property: "Name",
+          direction: "ascending"
+        }
+      ]
     };
 
     console.log("[get-todays-appointments] Notion query filter:", JSON.stringify(filterBody, null, 2));
@@ -165,8 +184,8 @@ serve(async (req) => {
       const properties = page.properties
 
       let clientName = properties.Name?.title?.[0]?.plain_text || "Unknown Client"
-      let starSign = "Unknown" // Renamed from clientStarSign
-      let focus = "" // Renamed from clientFocus
+      let starSign = "Unknown"
+      let focus = ""
 
       // Fetch client details from CRM if relation exists and crm_database_id is available
       const clientCrmRelation = properties["Client CRM"]?.relation?.[0]?.id
@@ -199,13 +218,13 @@ serve(async (req) => {
 
       // Extract Goal from appointment
       const goal = properties.Goal?.rich_text?.[0]?.plain_text || ""
-      const sessionAnchor = properties["Today we are really working with..."]?.rich_text?.[0]?.plain_text || "" // New field
-      const bodyYes = properties["BODY YES"]?.checkbox || false; // New field
-      const bodyNo = properties["BODY NO"]?.checkbox || false; // New field
-      const notionPageId = page.id; // Notion page ID for updating
+      const sessionAnchor = properties["Today we are really working with..."]?.rich_text?.[0]?.plain_text || ""
+      const bodyYes = properties["BODY YES"]?.checkbox || false;
+      const bodyNo = properties["BODY NO"]?.checkbox || false;
+      const notionPageId = page.id;
 
       return {
-        id: notionPageId, // Use Notion page ID as the appointment ID
+        id: notionPageId,
         clientName,
         starSign,
         focus,
@@ -213,6 +232,7 @@ serve(async (req) => {
         sessionAnchor,
         bodyYes,
         bodyNo,
+        status: properties.Status?.status?.name || "UNKNOWN" // Include status for display in Waiting Room
       }
     }))
 
