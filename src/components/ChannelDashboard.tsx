@@ -511,17 +511,17 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                       {selectedChannelForDisplay.akMuscles.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
                           {selectedChannelForDisplay.akMuscles.map((muscle, i) => (
-                            <DialogTrigger asChild key={i}> {/* Wrap Badge with DialogTrigger */}
-                              <Badge
+                            <DialogTrigger asChild key={i} onClick={() => handleOpenMuscleModal(muscle.id)}> {/* Wrap Button with DialogTrigger */}
+                              <Button
                                 variant="outline"
+                                size="sm"
                                 className={cn(
-                                  "text-xs cursor-pointer bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200",
+                                  "text-xs h-auto py-1 px-2 rounded-full bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200",
                                   getLoggedClass('channel_ak_muscle', muscle.name)
                                 )}
-                                onClick={() => handleOpenMuscleModal(muscle.id)} // Pass muscle ID to open modal
                               >
                                 {muscle.name}
-                              </Badge>
+                              </Button>
                             </DialogTrigger>
                           ))}
                         </div>
@@ -535,17 +535,17 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                       {selectedChannelForDisplay.tcmMuscles.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
                           {selectedChannelForDisplay.tcmMuscles.map((muscle, i) => (
-                            <DialogTrigger asChild key={i}> {/* Wrap Badge with DialogTrigger */}
-                              <Badge
+                            <DialogTrigger asChild key={i} onClick={() => handleOpenMuscleModal(muscle.id)}> {/* Wrap Button with DialogTrigger */}
+                              <Button
                                 variant="outline"
+                                size="sm"
                                 className={cn(
-                                  "text-xs cursor-pointer bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200",
+                                  "text-xs h-auto py-1 px-2 rounded-full bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200",
                                   getLoggedClass('channel_tcm_muscle', muscle.name)
                                 )}
-                                onClick={() => handleOpenMuscleModal(muscle.id)} // Pass muscle ID to open modal
                               >
                                 {muscle.name}
-                              </Badge>
+                              </Button>
                             </DialogTrigger>
                           ))}
                         </div>
