@@ -114,6 +114,30 @@ serve(async (req) => {
     const today = new Date()
     const todayString = today.toISOString().split('T')[0]
 
+    const filterBody = {
+      filter: {
+        and: [
+          {
+            property: "Date",
+            date: {
+              equals: todayString
+            }
+          }
+          // Temporarily removed Status filter to debug
+          // {
+          //   property: "Status",
+          //   status: {
+          //     equals: "OPEN" // Filter for OPEN status
+          //   }
+          // }
+        ]
+      }
+    };
+
+    console.log("[get-todays-appointments] Notion query filter:", JSON.stringify(filterBody, null, 2));
+    console.log("[get-todays-appointments] Querying database ID:", secrets.appointments_database_id);
+
+
     // Query Notion API for today's appointments
     const notionAppointmentsResponse = await fetch('https://api.notion.com/v1/databases/' + secrets.appointments_database_id + '/query', {
       method: 'POST',
@@ -122,25 +146,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
         'Notion-Version': '2022-06-28'
       },
-      body: JSON.stringify({
-        filter: {
-          and: [
-            {
-              property: "Date",
-              date: {
-                equals: todayString
-              }
-            },
-            {
-              property: "Status",
-              status: {
-                equals: "OPEN" // Filter for OPEN status
-              }
-            }
-            // Removed the Practitioner filter as it caused an error
-          ]
-        }
-      })
+      body: JSON.stringify(filterBody)
     })
 
     if (!notionAppointmentsResponse.ok) {
