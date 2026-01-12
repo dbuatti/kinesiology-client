@@ -77,6 +77,7 @@ const ActiveSession = () => {
   // Tab and Notion Page Viewer States
   const [activeTab, setActiveTab] = useState('overview'); // Default active tab
   const [selectedNotionPageId, setSelectedNotionPageId] = useState<string | null>(null); // Centralized Notion page ID
+  const [selectedNotionPageTitle, setSelectedNotionPageTitle] = useState<string | null>(null); // Title for Notion Page Viewer
 
   // --- Supabase Edge Function Hooks (Declared first to resolve TS2448) ---
 
@@ -386,9 +387,8 @@ const ActiveSession = () => {
 
   const handleClearChakraSelection = useCallback(() => {
     setSelectedChakra(null);
-    setAcupointSearchTerm(''); // Clear search term in the trigger
-    setSymptomSearchTerm(''); // Clear symptom search when a point is selected
-    setFoundAcupoints([]); // Clear found acupoints after selection
+    // Also clear the search term in the ChakraSelector's internal state
+    // This is handled by the ChakraSelector component itself now.
   }, []);
 
   const handleClearSelectedMode = useCallback(() => {
@@ -402,8 +402,9 @@ const ActiveSession = () => {
   }, [appointmentId, fetchSessionLogs]);
 
   // Centralized handler for opening Notion pages
-  const handleOpenNotionPage = useCallback((pageId: string) => {
+  const handleOpenNotionPage = useCallback((pageId: string, pageTitle: string) => {
     setSelectedNotionPageId(pageId);
+    setSelectedNotionPageTitle(pageTitle);
     setActiveTab('notion-page'); // Switch to the Notion Page tab
   }, []);
 
@@ -632,7 +633,7 @@ const ActiveSession = () => {
                                     size="icon"
                                     onClick={(e) => {
                                       e.stopPropagation(); // Prevent selecting the mode when clicking the info button
-                                      handleOpenNotionPage(mode.id); // Use centralized handler
+                                      handleOpenNotionPage(mode.id, mode.name); // Use centralized handler
                                     }}
                                   >
                                     <Info className="h-4 w-4" />
@@ -749,7 +750,7 @@ const ActiveSession = () => {
                                   className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
                                   onClick={(e) => {
                                     e.stopPropagation(); // Prevent selecting the acupoint when clicking the info button
-                                    handleOpenNotionPage(point.id); // Use centralized handler
+                                    handleOpenNotionPage(point.id, point.name); // Use centralized handler
                                   }}
                                 >
                                   <Info className="h-4 w-4" />
@@ -811,7 +812,7 @@ const ActiveSession = () => {
                                   className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
                                   onClick={(e) => {
                                     e.stopPropagation(); // Prevent selecting the acupoint when clicking the info button
-                                    handleOpenNotionPage(point.id); // Use centralized handler
+                                    handleOpenNotionPage(point.id, point.name); // Use centralized handler
                                   }}
                                 >
                                   <Info className="h-4 w-4" />
@@ -834,7 +835,7 @@ const ActiveSession = () => {
                             variant="ghost"
                             size="icon"
                             className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
-                            onClick={() => { handleOpenNotionPage(selectedAcupoint.id); }} // Use centralized handler
+                            onClick={() => { handleOpenNotionPage(selectedAcupoint.id, selectedAcupoint.name); }} // Use centralized handler
                           >
                             <Info className="h-4 w-4" />
                           </Button>
@@ -921,7 +922,7 @@ const ActiveSession = () => {
                 <CardHeader className="bg-indigo-50 border-b border-indigo-200 rounded-t-lg p-4">
                   <CardTitle className="text-xl font-bold text-indigo-800 flex items-center gap-2">
                     <Info className="w-5 h-5" />
-                    Notion Page Viewer
+                    {selectedNotionPageTitle || "Notion Page Viewer"}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-6">

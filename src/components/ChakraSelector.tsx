@@ -20,7 +20,7 @@ interface ChakraSelectorProps {
   onChakraSelected: (chakra: Chakra) => void; // New prop for notifying parent of selection
   onClearSelection: () => void; // New prop for clearing selection
   selectedChakra: Chakra | null; // New prop to receive selected chakra from parent
-  onOpenNotionPage: (pageId: string) => void; // Changed prop name and type
+  onOpenNotionPage: (pageId: string, pageTitle: string) => void; // Changed prop name and type
 }
 
 const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakraSelected, onClearSelection, selectedChakra, onOpenNotionPage }) => {
@@ -262,7 +262,7 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
                         className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
                         onClick={(e) => {
                           e.stopPropagation(); // Prevent selecting the chakra when clicking the info button
-                          onOpenNotionPage(chakra.id); // Use centralized handler
+                          onOpenNotionPage(chakra.id, chakra.name); // Use centralized handler
                         }}
                       >
                         <Info className="h-4 w-4" />
@@ -286,7 +286,7 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
                   size="icon"
                   className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
                   onClick={() => {
-                    onOpenNotionPage(selectedChakra.id); // Use centralized handler
+                    onOpenNotionPage(selectedChakra.id, selectedChakra.name); // Use centralized handler
                   }}
                 >
                   <ExternalLink className="w-4 h-4" />

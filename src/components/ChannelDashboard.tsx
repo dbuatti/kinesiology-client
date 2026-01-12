@@ -17,7 +17,7 @@ import NotionPageViewer from './NotionPageViewer';
 interface ChannelDashboardProps {
   appointmentId: string;
   onLogSuccess: () => void;
-  onOpenNotionPage: (pageId: string) => void; // Changed prop name and type
+  onOpenNotionPage: (pageId: string, pageTitle: string) => void; // Changed prop name and type
 }
 
 const primaryElements = ['Wood', 'Fire', 'Earth', 'Metal', 'Water'];
@@ -365,7 +365,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                     variant="ghost"
                     size="icon"
                     className={cn("ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100", colors.icon, colors.hoverBg.replace('hover:', 'hover:text-'))}
-                    onClick={() => onOpenNotionPage(selectedChannelForDisplay.id)}
+                    onClick={() => onOpenNotionPage(selectedChannelForDisplay.id, selectedChannelForDisplay.name)}
                   >
                     <ExternalLink className="w-4 h-4" />
                   </Button>
@@ -508,7 +508,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                               variant="ghost"
                               size="icon"
                               className="h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
-                              onClick={() => onOpenNotionPage(muscle.id)}
+                              onClick={() => onOpenNotionPage(muscle.id, muscle.name)}
                             >
                               <Info className="h-4 w-4" />
                             </Button>
@@ -543,7 +543,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                               variant="ghost"
                               size="icon"
                               className="h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
-                              onClick={() => onOpenNotionPage(muscle.id)}
+                              onClick={() => onOpenNotionPage(muscle.id, muscle.name)}
                             >
                               <Info className="h-4 w-4" />
                             </Button>

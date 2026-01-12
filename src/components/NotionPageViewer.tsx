@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 
 interface NotionPageViewerProps {
   pageId: string | null;
+  pageTitle?: string | null; // New prop for dynamic title
 }
 
 const renderRichText = (richText: NotionRichText[]) => {
@@ -34,7 +35,7 @@ const renderRichText = (richText: NotionRichText[]) => {
   });
 };
 
-const NotionPageViewer: React.FC<NotionPageViewerProps> = ({ pageId }) => {
+const NotionPageViewer: React.FC<NotionPageViewerProps> = ({ pageId, pageTitle }) => {
   const {
     data: pageContent,
     loading,
@@ -167,7 +168,8 @@ const NotionPageViewer: React.FC<NotionPageViewerProps> = ({ pageId }) => {
   if (!pageId) {
     return (
       <div className="text-center p-6 text-gray-500">
-        Select a muscle to view its Notion page.
+        <Info className="w-10 h-10 mx-auto mb-4" />
+        <p>Select an item from another tab (e.g., a muscle, chakra, or channel) to view its Notion page details here.</p>
       </div>
     );
   }
@@ -202,7 +204,7 @@ const NotionPageViewer: React.FC<NotionPageViewerProps> = ({ pageId }) => {
 
   return (
     <div className="notion-page-viewer p-4 max-h-[70vh] overflow-y-auto">
-      <h2 className="text-2xl font-bold mb-4 text-gray-900">{pageContent.title}</h2>
+      {/* The title is now passed as a prop to the CardHeader in ActiveSession.tsx */}
       {pageContent.blocks.map(renderBlock)}
     </div>
   );
