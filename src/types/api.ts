@@ -13,7 +13,6 @@ export interface Appointment {
   status: string;
   notes: string;
   sessionAnchor: string;
-  // Removed bodyYes and bodyNo as muscle strength logging moves to Supabase
 }
 
 export interface Client {

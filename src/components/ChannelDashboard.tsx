@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
-import { Search, Check, ChevronsUpDown, Settings, Loader2, Sparkles, ExternalLink, Waves, Leaf, Flame, Gem, Droplet, Sun, Heart, Hand, Walk, Bone, FlaskConical, Mic, Tag, XCircle, PlusCircle } from 'lucide-react';
+import { Search, Check, ChevronsUpDown, Settings, Loader2, Sparkles, ExternalLink, Waves, Leaf, Flame, Gem, Droplet, Sun, Heart, Hand, Footprints, Bone, FlaskConical, Mic, Tag, XCircle, PlusCircle } from 'lucide-react';
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
 import { Channel, GetChannelsPayload, GetChannelsResponse } from '@/types/api';
 
@@ -299,7 +299,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
                 {selectedChannel?.pathways && (
                   <div>
                     <h3 className="font-semibold text-indigo-700 flex items-center gap-2 mb-1">
-                      <Walk className="w-4 h-4" /> Pathways
+                      <Footprints className="w-4 h-4" /> Pathways
                     </h3>
                     <p className="text-gray-800 text-sm">{selectedChannel.pathways}</p>
                   </div>
