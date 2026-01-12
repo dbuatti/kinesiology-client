@@ -109,13 +109,16 @@ serve(async (req) => {
     const properties = page.properties
 
     let clientName = properties.Name?.title?.[0]?.plain_text || "Unknown Client"
-    let starSign = "Unknown"
-    // Removed 'focus' from CRM fetch for appointment context
+    let starSign = "Unknown" // Initial value
+    console.log("[get-single-appointment] Initial starSign:", starSign);
 
     // Fetch client details from CRM if relation exists and crm_database_id is available
     const clientCrmRelation = properties["Client CRM"]?.relation?.[0]?.id
+    console.log("[get-single-appointment] Client CRM Relation ID:", clientCrmRelation);
+    console.log("[get-single-appointment] CRM Database ID configured:", !!secrets.crm_database_id);
+
     if (clientCrmRelation && secrets.crm_database_id) {
-      console.log(`[get-single-appointment] Fetching CRM details for client ID: ${clientCrmRelation}`)
+      console.log(`[get-single-appointment] Attempting to fetch CRM details for client ID: ${clientCrmRelation}`)
       const notionClientResponse = await fetch('https://api.notion.com/v1/pages/' + clientCrmRelation, {
         method: 'GET',
         headers: {
@@ -131,14 +134,13 @@ serve(async (req) => {
 
         clientName = clientProperties.Name?.title?.[0]?.plain_text || clientName
         starSign = clientProperties["Star Sign"]?.select?.name || "Unknown"
-        // 'focus' is now specific to the appointment, not fetched from CRM here
-        console.log(`[get-single-appointment] CRM details fetched for ${clientName}`)
+        console.log(`[get-single-appointment] CRM details fetched for ${clientName}, starSign from CRM: ${starSign}`)
       } else {
         const errorText = await notionClientResponse.text()
         console.warn(`[get-single-appointment] Failed to fetch CRM details for client ID ${clientCrmRelation}:`, errorText)
       }
     } else {
-      console.log("[get-single-appointment] No Client CRM relation or CRM database ID available.")
+      console.log("[get-single-appointment] No Client CRM relation or CRM database ID available, or CRM not configured. Star sign remains 'Unknown'.")
     }
 
     const appointment = {

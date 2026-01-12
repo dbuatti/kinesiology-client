@@ -356,7 +356,15 @@
                     </CardTitle>
                     <div className="flex items-center gap-2 text-indigo-100 mt-2">
                       <Star className="w-4 h-4 fill-current" />
-                      <span className="font-medium">{appointment.starSign}</span>
+                      <span className="font-medium">
+                        {appointment.starSign === "Unknown" ? (
+                          <span className="text-yellow-300">
+                            Star Sign not found. Check Notion CRM config.
+                          </span>
+                        ) : (
+                          appointment.starSign
+                        )}
+                      </span>
                     </div>
                   </CardHeader>
 
