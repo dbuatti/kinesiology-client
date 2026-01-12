@@ -110,7 +110,7 @@
 
           const { data: secrets, error: secretsError } = await supabase
             .from('notion_secrets')
-            .select('id')
+            .select('*') // Changed from 'id' to '*'
             .eq('user_id', session.user.id)
             .single();
 
@@ -453,7 +453,7 @@
                 <div className="text-red-500 mb-4">
                   <AlertCircle className="w-12 h-12 mx-auto" />
                 </div>
-                <h2 className="text-xl font-bold mb-2">Error Loading Appointment</h2>
+                <h2 className="xl font-bold mb-2">Error Loading Appointment</h2>
                 <p className="text-gray-600 mb-4">{error}</p>
                 <div className="space-y-2">
                   <Button onClick={fetchSingleAppointment}>Try Again</Button>

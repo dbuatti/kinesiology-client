@@ -49,7 +49,7 @@ const AllClients = () => {
 
       const { data: secrets, error: secretsError } = await supabase
         .from('notion_secrets')
-        .select('id')
+        .select('*') // Changed from 'id' to '*'
         .eq('user_id', session.user.id)
         .single();
 
