@@ -26,6 +26,22 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
     
+    if (!supabaseUrl) {
+      console.error("[get-notion-secrets] SUPABASE_URL environment variable is not set.")
+      return new Response(JSON.stringify({ error: 'Internal server error: SUPABASE_URL is not set.' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    if (!supabaseServiceRoleKey) {
+      console.error("[get-notion-secrets] SUPABASE_SERVICE_ROLE_KEY environment variable is not set.")
+      return new Response(JSON.stringify({ error: 'Internal server error: SUPABASE_SERVICE_ROLE_KEY is not set.' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
     const supabase = createClient(supabaseUrl, supabaseServiceRoleKey)
 
     const { data: { user }, error: userError } = await supabase.auth.getUser(
