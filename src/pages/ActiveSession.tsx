@@ -10,7 +10,7 @@ import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from '
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'; // Keep Dialog for now, might be needed for other things
 import { Input } from '@/components/ui/input';
 import { Calendar, User, Star, Target, Clock, Settings, AlertCircle, Check, ChevronsUpDown, Lightbulb, Hand, XCircle, PlusCircle, Search, Trash2, Info } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
@@ -21,6 +21,7 @@ import ChakraSelector from '@/components/ChakraSelector';
 import ChannelDashboard from '@/components/ChannelDashboard';
 import NotionPageViewer from '@/components/NotionPageViewer'; // Import NotionPageViewer
 import SessionLogDisplay from '@/components/SessionLogDisplay';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'; // Import Tabs components
 
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
 import {
@@ -53,14 +54,10 @@ const ActiveSession = () => {
   const [sessionNorthStarText, setSessionNorthStarText] = useState('');
   const [modes, setModes] = useState<Mode[]>([]);
   const [selectedMode, setSelectedMode] = useState<Mode | null>(null);
-  const [isModeModalOpen, setIsModeModalOpen] = useState(false);
-  const [selectedModeNotionPageId, setSelectedModeNotionPageId] = useState<string | null>(null);
   const [isModeSelectOpen, setIsModeSelectOpen] = useState(false);
 
   // Acupoint Search States
   const [acupointSearchTerm, setAcupointSearchTerm] = useState('');
-  const [isAcupointModalOpen, setIsAcupointModalOpen] = useState(false);
-  const [selectedAcupointNotionPageId, setSelectedAcupointNotionPageId] = useState<string | null>(null);
   const [symptomSearchTerm, setSymptomSearchTerm] = useState('');
   const [foundAcupoints, setFoundAcupoints] = useState<Acupoint[]>([]);
   const [selectedAcupoint, setSelectedAcupoint] = useState<Acupoint | null>(null);
@@ -68,105 +65,20 @@ const ActiveSession = () => {
   const [isSymptomSearchOpen, setIsSymptomSearchOpen] = useState(false);
 
   // Muscle States
-  const [isMuscleModalOpen, setIsMuscleModalOpen] = useState(false); // State for muscle modal
   const [selectedMuscle, setSelectedMuscle] = useState<Muscle | null>(null);  // State for selected muscle
-  const [selectedMuscleNotionPageId, setSelectedMuscleNotionPageId] = useState<string | null>(null); // New state for muscle Notion page ID
 
   // Chakra States
   const [selectedChakra, setSelectedChakra] = useState<Chakra | null>(null);
-  const [isChakraModalOpen, setIsChakraModalOpen] = useState(false); // State for chakra modal
-  const [selectedChakraNotionPageId, setSelectedChakraNotionPageId] = useState<string | null>(null);
-
 
   // Session Logs States
   const [sessionLogs, setSessionLogs] = useState<GetSessionLogsResponse['sessionLogs']>([]);
   const [sessionMuscleLogs, setSessionMuscleLogs] = useState<GetSessionLogsResponse['sessionMuscleLogs']>([]);
 
-  // --- Memoized Callbacks for useSupabaseEdgeFunction ---
+  // Tab and Notion Page Viewer States
+  const [activeTab, setActiveTab] = useState('overview'); // Default active tab
+  const [selectedNotionPageId, setSelectedNotionPageId] = useState<string | null>(null); // Centralized Notion page ID
 
-  const handleAppointmentSuccess = useCallback((data: GetSingleAppointmentResponse) => {
-    setAppointment(data.appointment);
-    setSessionAnchorText(data.appointment.sessionAnchor || '');
-    setSessionNorthStarText(data.appointment.sessionNorthStar || '');
-  }, []);
-
-  const handleAppointmentError = useCallback((msg: string, errorCode?: string) => {
-    showError(msg);
-    if (errorCode === 'PROFILE_NOT_FOUND' || errorCode === 'PRACTITIONER_NAME_MISSING') {
-      navigate('/profile-setup');
-    } else if (errorCode === 'NOTION_CONFIG_NOT_FOUND') {
-      // Handled by needsConfig state
-    }
-  }, [navigate]);
-
-  const handleUpdateAppointmentSuccess = useCallback(() => {
-    showSuccess('Appointment updated in Notion.');
-    // Re-fetch appointment to ensure UI is in sync with Notion after update
-    if (appointmentId) {
-      fetchSingleAppointment({ appointmentId });
-    }
-  }, [appointmentId]); // Removed fetchSingleAppointment from dependencies as it's defined below
-
-  const handleUpdateAppointmentError = useCallback((msg: string) => {
-    showError(`Update Failed: ${msg}`);
-  }, []);
-
-  const handleModesSuccess = useCallback((data: GetNotionModesResponse) => setModes(data.modes), []);
-  const handleModesError = useCallback((msg: string) => showError(`Failed to load modes: ${msg}`), []);
-
-  const handleAcupointsSuccess = useCallback((data: GetAcupointsResponse) => setFoundAcupoints(data.acupoints), []);
-  const handleAcupointsError = useCallback((msg: string) => {
-    showError(`Failed to search: ${msg}`);
-    setFoundAcupoints([]);
-  }, []);
-
-  const handleLogSessionEventSuccess = useCallback((data: LogSessionEventResponse) => {
-    console.log('Session event logged to Supabase:', data.logId);
-    showSuccess('Event logged to session.');
-    if (appointmentId) {
-      fetchSessionLogs({ appointmentId }); // Refresh logs after successful log
-    }
-  }, [appointmentId]); // Removed fetchSessionLogs from dependencies as it's defined below
-
-  const handleLogSessionEventError = useCallback((msg: string) => {
-    console.error('Failed to log session event to Supabase:', msg);
-    showError(`Logging Failed: ${msg}`);
-  }, []);
-
-  const handleLogMuscleStrengthSuccess = useCallback((data: any) => {
-    console.log('Muscle strength logged to Supabase:', data.logId);
-    showSuccess('Muscle strength logged.');
-    if (appointmentId) {
-      fetchSessionLogs({ appointmentId }); // Refresh logs after successful log
-    }
-  }, [appointmentId]); // Removed fetchSessionLogs from dependencies as it's defined below
-
-  const handleLogMuscleStrengthError = useCallback((msg: string) => {
-    console.error('Failed to log muscle strength to Supabase:', msg);
-    showError(`Logging Failed: ${msg}`);
-  }, []);
-
-  const handleSessionLogsSuccess = useCallback((data: GetSessionLogsResponse) => {
-    setSessionLogs(data.sessionLogs);
-    setSessionMuscleLogs(data.sessionMuscleLogs);
-  }, []);
-
-  const handleSessionLogsError = useCallback((msg: string) => {
-    showError(`Failed to load session logs: ${msg}`);
-  }, []);
-
-  const handleDeleteSessionLogSuccess = useCallback((data: DeleteSessionLogResponse) => {
-    showSuccess('Log entry deleted.');
-    if (appointmentId) {
-      fetchSessionLogs({ appointmentId }); // Refresh logs after deletion
-    }
-  }, [appointmentId]); // Removed fetchSessionLogs from dependencies as it's defined below
-
-  const handleDeleteSessionLogError = useCallback((msg: string) => {
-    showError(`Failed to delete log: ${msg}`);
-  }, []);
-
-  // --- Supabase Edge Function Hooks ---
+  // --- Supabase Edge Function Hooks (Declared first to resolve TS2448) ---
 
   // Fetch single appointment
   const {
@@ -180,8 +92,19 @@ const ActiveSession = () => {
     {
       requiresAuth: true,
       requiresNotionConfig: true,
-      onSuccess: handleAppointmentSuccess,
-      onError: handleAppointmentError,
+      onSuccess: useCallback((data: GetSingleAppointmentResponse) => {
+        setAppointment(data.appointment);
+        setSessionAnchorText(data.appointment.sessionAnchor || '');
+        setSessionNorthStarText(data.appointment.sessionNorthStar || '');
+      }, []),
+      onError: useCallback((msg: string, errorCode?: string) => {
+        showError(msg);
+        if (errorCode === 'PROFILE_NOT_FOUND' || errorCode === 'PRACTITIONER_NAME_MISSING') {
+          navigate('/profile-setup');
+        } else if (errorCode === 'NOTION_CONFIG_NOT_FOUND') {
+          // Handled by needsConfig state
+        }
+      }, [navigate]),
     }
   );
 
@@ -193,8 +116,16 @@ const ActiveSession = () => {
     'update-notion-appointment',
     {
       requiresAuth: true,
-      onSuccess: handleUpdateAppointmentSuccess,
-      onError: handleUpdateAppointmentError,
+      onSuccess: useCallback(() => {
+        showSuccess('Appointment updated in Notion.');
+        // Re-fetch appointment to ensure UI is in sync with Notion after update
+        if (appointmentId) {
+          fetchSingleAppointment({ appointmentId });
+        }
+      }, [appointmentId, fetchSingleAppointment]),
+      onError: useCallback((msg: string) => {
+        showError(`Update Failed: ${msg}`);
+      }, []),
     }
   );
 
@@ -210,8 +141,8 @@ const ActiveSession = () => {
     {
       requiresAuth: true,
       requiresNotionConfig: true,
-      onSuccess: handleModesSuccess,
-      onError: handleModesError,
+      onSuccess: useCallback((data: GetNotionModesResponse) => setModes(data.modes), []),
+      onError: useCallback((msg: string) => showError(`Failed to load modes: ${msg}`), []),
     }
   );
 
@@ -227,34 +158,11 @@ const ActiveSession = () => {
     {
       requiresAuth: true,
       requiresNotionConfig: true,
-      onSuccess: handleAcupointsSuccess,
-      onError: handleAcupointsError,
-    }
-  );
-
-  // Log Session Event
-  const {
-    loading: loggingSessionEvent,
-    execute: logSessionEvent,
-  } = useSupabaseEdgeFunction<LogSessionEventPayload, LogSessionEventResponse>(
-    'log-session-event',
-    {
-      requiresAuth: true,
-      onSuccess: handleLogSessionEventSuccess,
-      onError: handleLogSessionEventError,
-    }
-  );
-
-  // Log Muscle Strength (separate hook for clarity, though could use logSessionEvent)
-  const {
-    loading: loggingMuscleStrength,
-    execute: logMuscleStrength,
-  } = useSupabaseEdgeFunction<any, any>( // Define specific types if needed
-    'log-muscle-strength',
-    {
-      requiresAuth: true,
-      onSuccess: handleLogMuscleStrengthSuccess,
-      onError: handleLogMuscleStrengthError,
+      onSuccess: useCallback((data: GetAcupointsResponse) => setFoundAcupoints(data.acupoints), []),
+      onError: useCallback((msg: string) => {
+        showError(`Failed to search: ${msg}`);
+        setFoundAcupoints([]);
+      }, []),
     }
   );
 
@@ -268,8 +176,57 @@ const ActiveSession = () => {
     'get-session-logs',
     {
       requiresAuth: true,
-      onSuccess: handleSessionLogsSuccess,
-      onError: handleSessionLogsError,
+      onSuccess: useCallback((data: GetSessionLogsResponse) => {
+        setSessionLogs(data.sessionLogs);
+        setSessionMuscleLogs(data.sessionMuscleLogs);
+      }, []),
+      onError: useCallback((msg: string) => {
+        showError(`Failed to load session logs: ${msg}`);
+      }, []),
+    }
+  );
+
+  // Log Session Event
+  const {
+    loading: loggingSessionEvent,
+    execute: logSessionEvent,
+  } = useSupabaseEdgeFunction<LogSessionEventPayload, LogSessionEventResponse>(
+    'log-session-event',
+    {
+      requiresAuth: true,
+      onSuccess: useCallback((data: LogSessionEventResponse) => {
+        console.log('Session event logged to Supabase:', data.logId);
+        showSuccess('Event logged to session.');
+        if (appointmentId) {
+          fetchSessionLogs({ appointmentId }); // Refresh logs after successful log
+        }
+      }, [appointmentId, fetchSessionLogs]),
+      onError: useCallback((msg: string) => {
+        console.error('Failed to log session event to Supabase:', msg);
+        showError(`Logging Failed: ${msg}`);
+      }, []),
+    }
+  );
+
+  // Log Muscle Strength (separate hook for clarity, though could use logSessionEvent)
+  const {
+    loading: loggingMuscleStrength,
+    execute: logMuscleStrength,
+  } = useSupabaseEdgeFunction<any, any>( // Define specific types if needed
+    'log-muscle-strength',
+    {
+      requiresAuth: true,
+      onSuccess: useCallback((data: any) => {
+        console.log('Muscle strength logged to Supabase:', data.logId);
+        showSuccess('Muscle strength logged.');
+        if (appointmentId) {
+          fetchSessionLogs({ appointmentId }); // Refresh logs after successful log
+        }
+      }, [appointmentId, fetchSessionLogs]),
+      onError: useCallback((msg: string) => {
+        console.error('Failed to log muscle strength to Supabase:', msg);
+        showError(`Logging Failed: ${msg}`);
+      }, []),
     }
   );
 
@@ -281,8 +238,15 @@ const ActiveSession = () => {
     'delete-session-log',
     {
       requiresAuth: true,
-      onSuccess: handleDeleteSessionLogSuccess,
-      onError: handleDeleteSessionLogError,
+      onSuccess: useCallback((data: DeleteSessionLogResponse) => {
+        showSuccess('Log entry deleted.');
+        if (appointmentId) {
+          fetchSessionLogs({ appointmentId }); // Refresh logs after deletion
+        }
+      }, [appointmentId, fetchSessionLogs]),
+      onError: useCallback((msg: string) => {
+        showError(`Failed to delete log: ${msg}`);
+      }, []),
     }
   );
 
@@ -425,9 +389,10 @@ const ActiveSession = () => {
     }
   }, [appointmentId, fetchSessionLogs]);
 
-  const handleOpenMuscleNotionPage = useCallback((pageId: string) => {
-    setSelectedMuscleNotionPageId(pageId);
-    setIsMuscleModalOpen(true);
+  // Centralized handler for opening Notion pages
+  const handleOpenNotionPage = useCallback((pageId: string) => {
+    setSelectedNotionPageId(pageId);
+    setActiveTab('notion-page'); // Switch to the Notion Page tab
   }, []);
 
   // --- Render Logic ---
@@ -503,414 +468,448 @@ const ActiveSession = () => {
         </div>
 
         {appointment ? (
-          <div className="space-y-6">
-            {/* Client Insight Card */}
-            <Card className="shadow-xl border-2 border-indigo-200">
-              <CardHeader className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-t-lg p-4">
-                <CardTitle className="text-2xl font-bold flex items-center gap-2">
-                  <User className="w-6 h-6" />
-                  {appointment.clientName}
-                </CardTitle>
-                <div className="flex items-center gap-2 text-indigo-100 mt-2">
-                  <Star className="w-4 h-4 fill-current" />
-                  <span className="font-medium">
-                    {appointment.starSign === "Unknown" ? (
-                      <span className="text-yellow-300">
-                        Star Sign not found. Check Notion CRM config.
-                      </span>
-                    ) : (
-                      appointment.starSign
-                    )}
-                  </span>
-                </div>
-              </CardHeader>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-4 md:grid-cols-7 lg:grid-cols-7 h-auto flex-wrap">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="muscles">Muscles</TabsTrigger>
+              <TabsTrigger value="chakras">Chakras</TabsTrigger>
+              <TabsTrigger value="channels">Channels</TabsTrigger>
+              <TabsTrigger value="acupoints">Acupoints</TabsTrigger>
+              <TabsTrigger value="session-log">Session Log</TabsTrigger>
+              <TabsTrigger value="notion-page">Notion Page</TabsTrigger>
+            </TabsList>
 
-              <CardContent className="pt-6 space-y-4">
-                {appointment.sessionNorthStar && (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                      <Target className="w-4 h-4 text-indigo-600" />
-                      <span>Session North Star (Client Focus)</span>
+            {/* Overview Tab */}
+            <TabsContent value="overview" className="mt-6 space-y-6">
+              {/* Client Insight Card */}
+              <Card className="shadow-xl border-2 border-indigo-200">
+                <CardHeader className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-t-lg p-4">
+                  <CardTitle className="text-2xl font-bold flex items-center gap-2">
+                    <User className="w-6 h-6" />
+                    {appointment.clientName}
+                  </CardTitle>
+                  <div className="flex items-center gap-2 text-indigo-100 mt-2">
+                    <Star className="w-4 h-4 fill-current" />
+                    <span className="font-medium">
+                      {appointment.starSign === "Unknown" ? (
+                        <span className="text-yellow-300">
+                          Star Sign not found. Check Notion CRM config.
+                        </span>
+                      ) : (
+                        appointment.starSign
+                      )}
+                    </span>
+                  </div>
+                </CardHeader>
+
+                <CardContent className="pt-6 space-y-4">
+                  {appointment.sessionNorthStar && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                        <Target className="w-4 h-4 text-indigo-600" />
+                        <span>Session North Star (Client Focus)</span>
+                      </div>
+                      <Textarea
+                        id="session-north-star"
+                        placeholder="e.g., 'Releasing tension in the shoulders related to stress.'"
+                        value={sessionNorthStarText}
+                        onChange={handleSessionNorthStarChange}
+                        onBlur={handleSessionNorthStarBlur}
+                        className="min-h-[80px]"
+                        disabled={updatingAppointment}
+                      />
                     </div>
+                  )}
+
+                  {appointment.goal && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                        <Lightbulb className="w-4 h-4 text-indigo-600" />
+                        <span>Appointment Goal</span>
+                      </div>
+                      <p className="text-gray-800 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                        {appointment.goal}
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Live Session Controls */}
+              <Card className="shadow-xl">
+                <CardHeader className="bg-indigo-50 border-b border-indigo-200 rounded-t-lg p-4">
+                  <CardTitle className="text-xl font-bold text-indigo-800 flex items-center gap-2">
+                    <Clock className="w-5 h-5" />
+                    Live Session Controls
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-6 space-y-6">
+                  {/* Session Anchor */}
+                  <div className="space-y-2">
+                    <Label htmlFor="session-anchor" className="flex items-center gap-2 font-semibold text-gray-700">
+                      <Hand className="w-4 h-4 text-indigo-600" />
+                      Today we are really working with...
+                    </Label>
                     <Textarea
-                      id="session-north-star"
+                      id="session-anchor"
                       placeholder="e.g., 'Releasing tension in the shoulders related to stress.'"
-                      value={sessionNorthStarText}
-                      onChange={handleSessionNorthStarChange}
-                      onBlur={handleSessionNorthStarBlur}
+                      value={sessionAnchorText}
+                      onChange={handleSessionAnchorChange}
+                      onBlur={handleSessionAnchorBlur}
                       className="min-h-[80px]"
                       disabled={updatingAppointment}
                     />
                   </div>
-                )}
 
-                {appointment.goal && (
+                  {/* Mode Selection */}
                   <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <Label htmlFor="mode-select" className="flex items-center gap-2 font-semibold text-gray-700">
                       <Lightbulb className="w-4 h-4 text-indigo-600" />
-                      <span>Appointment Goal</span>
-                    </div>
-                    <p className="text-gray-800 bg-gray-50 p-3 rounded-lg border border-gray-200">
-                      {appointment.goal}
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Live Session Controls */}
-            <Card className="shadow-xl">
-              <CardHeader className="bg-indigo-50 border-b border-indigo-200 rounded-t-lg p-4">
-                <CardTitle className="text-xl font-bold text-indigo-800 flex items-center gap-2">
-                  <Clock className="w-5 h-5" />
-                  Live Session Controls
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-6 space-y-6">
-                {/* Session Anchor */}
-                <div className="space-y-2">
-                  <Label htmlFor="session-anchor" className="flex items-center gap-2 font-semibold text-gray-700">
-                    <Hand className="w-4 h-4 text-indigo-600" />
-                    Today we are really working with...
-                  </Label>
-                  <Textarea
-                    id="session-anchor"
-                    placeholder="e.g., 'Releasing tension in the shoulders related to stress.'"
-                    value={sessionAnchorText}
-                    onChange={handleSessionAnchorChange}
-                    onBlur={handleSessionAnchorBlur}
-                    className="min-h-[80px]"
-                    disabled={updatingAppointment}
-                  />
-                </div>
-
-                {/* Mode Selection */}
-                <div className="space-y-2">
-                  <Label htmlFor="mode-select" className="flex items-center gap-2 font-semibold text-gray-700">
-                    <Lightbulb className="w-4 h-4 text-indigo-600" />
-                    Select Mode
-                  </Label>
-                  <Popover open={isModeSelectOpen} onOpenChange={setIsModeSelectOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={isModeSelectOpen}
-                        className="w-full justify-between"
-                        disabled={loadingModes || updatingAppointment}
-                      >
-                        {selectedMode ? selectedMode.name : "Select mode..."}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                      <Command>
-                        {loadingModes && <CommandInput value={selectedMode?.name || ''} onValueChange={() => { }} placeholder="Loading modes..." disabled />}
-                        {!loadingModes && <CommandInput value={selectedMode?.name || ''} onValueChange={() => { }} placeholder="Search mode..." />}
-                        <CommandEmpty>No mode found.</CommandEmpty>
-                        <CommandGroup>
-                          {modes.map((mode) => (
-                            <CommandItem
-                              key={mode.id}
-                              value={mode.name}
-                              onSelect={async () => {
-                                setSelectedMode(mode);
-                                setIsModeSelectOpen(false);
-                                await logSessionEvent({
-                                  appointmentId: appointmentId!,
-                                  logType: 'mode_selected',
-                                  details: {
-                                    modeId: mode.id,
-                                    modeName: mode.name,
-                                    actionNote: mode.actionNote,
-                                  }
-                                });
-                                if (!loggingSessionEvent) {
-                                  showSuccess(`${mode.name} selected and logged.`);
-                                }
-                              }}
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  selectedMode?.id === mode.id ? "opacity-100" : "opacity-0"
-                                )}
-                              />
-                              {mode.name}
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={(e) => {
-                                  e.stopPropagation(); // Prevent selecting the mode when clicking the info button
-                                  setSelectedModeNotionPageId(mode.id); // Assuming mode.id is the Notion page ID
-                                  setIsModeModalOpen(true);
-                                }}
-                              >
-                                <Info className="h-4 w-4" />
-                              </Button>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                  {selectedMode?.actionNote && (
-                    <p className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg border border-blue-200 mt-2">
-                      <strong>Action Note:</strong> {selectedMode.actionNote}
-                    </p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Acupoint Insight Engine */}
-            <Card className="shadow-xl">
-              <CardHeader className="bg-indigo-50 border-b border-indigo-200 rounded-t-lg p-4">
-                <CardTitle className="text-xl font-bold text-indigo-800 flex items-center gap-2">
-                  <Search className="w-5 h-5" />
-                  Acupoint Insight Engine
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-6 space-y-6">
-                {/* Point Search */}
-                <div className="space-y-2">
-                  <Label htmlFor="point-search" className="flex items-center gap-2 font-semibold text-gray-700">
-                    <Search className="w-4 h-4 text-indigo-600" />
-                    Point Search (e.g., SP-06, Pc-6)
-                  </Label>
-                  <Popover open={isAcupointSearchOpen} onOpenChange={setIsAcupointSearchOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={isAcupointSearchOpen}
-                        className="w-full justify-between"
-                        disabled={loadingAcupoints || updatingAppointment}
-                      >
-                        {selectedAcupoint ? selectedAcupoint.name : (acupointSearchTerm || "Search for an acupoint...")}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                      <Command>
-                        <CommandInput
-                          placeholder="Search acupoint..."
-                          value={acupointSearchTerm}
-                          onValueChange={handleAcupointSearchChange}
-                        />
-                        <CommandEmpty>No acupoint found.</CommandEmpty>
-                        <CommandGroup>
-                          {foundAcupoints.map((point) => (
-                            <CommandItem
-                              key={point.id}
-                              value={point.name}
-                              onSelect={() => handleSelectAcupoint(point)}
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  selectedAcupoint?.id === point.id ? "opacity-100" : "opacity-0"
-                                )}
-                              />
-                              {point.name}
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
-                                onClick={(e) => {
-                                  e.stopPropagation(); // Prevent selecting the acupoint when clicking the info button
-                                  setSelectedAcupointNotionPageId(point.id);
-                                  setIsAcupointModalOpen(true);
-                                }}
-                              >
-                                <Info className="h-4 w-4" />
-                              </Button>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                </div>
-
-                {/* Symptom Suggester */}
-                <div className="space-y-2">
-                  <Label htmlFor="symptom-search" className="flex items-center gap-2 font-semibold text-gray-700">
-                    <Lightbulb className="w-4 h-4 text-indigo-600" />
-                    Symptom Suggester (e.g., Anxiety, Headache)
-                  </Label>
-                  <Popover open={isSymptomSearchOpen} onOpenChange={setIsSymptomSearchOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={isSymptomSearchOpen}
-                        className="w-full justify-between"
-                        disabled={loadingAcupoints || updatingAppointment}
-                      >
-                        {selectedAcupoint ? selectedAcupoint.name : (symptomSearchTerm || "Search symptoms for point suggestions...")}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                      <Command>
-                        <CommandInput
-                          placeholder="Search symptom..."
-                          value={symptomSearchTerm}
-                          onValueChange={handleSymptomSearchChange}
-                        />
-                        <CommandEmpty>No suggestions found.</CommandEmpty>
-                        <CommandGroup>
-                          {foundAcupoints.map((point) => (
-                            <CommandItem
-                              key={point.id}
-                              value={point.name}
-                              onSelect={() => handleSelectAcupoint(point)}
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  selectedAcupoint?.id === point.id ? "opacity-100" : "opacity-0"
-                                )}
-                              />
-                              {point.name}
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
-                                onClick={(e) => {
-                                  e.stopPropagation(); // Prevent selecting the acupoint when clicking the info button
-                                  setSelectedAcupointNotionPageId(point.id);
-                                  setIsAcupointModalOpen(true);
-                                }}
-                              >
-                                <Info className="h-4 w-4" />
-                              </Button>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                </div>
-
-                {/* Insight Deck (Selected Acupoint Display) */}
-                {selectedAcupoint && (
-                  <Card className="border-2 border-purple-300 bg-purple-50 shadow-md">
-                    <CardHeader className="flex flex-row items-center justify-between p-4 pb-2">
-                      <CardTitle className="text-xl font-bold text-purple-800 flex items-center gap-2">
-                        {selectedAcupoint.name}
+                      Select Mode
+                    </Label>
+                    <Popover open={isModeSelectOpen} onOpenChange={setIsModeSelectOpen}>
+                      <PopoverTrigger asChild>
                         <Button
-                          variant="ghost"
-                          size="icon"
-                          className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
-                          onClick={() => { setSelectedAcupointNotionPageId(selectedAcupoint.id); setIsAcupointModalOpen(true); }}
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={isModeSelectOpen}
+                          className="w-full justify-between"
+                          disabled={loadingModes || updatingAppointment}
                         >
-                          <Info className="h-4 w-4" />
+                          {selectedMode ? selectedMode.name : "Select mode..."}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
-                      </CardTitle>
-                      <div className="flex gap-2">
-                        {selectedAcupoint.channel && (
-                          <Badge variant="secondary" className="bg-purple-200 text-purple-800">
-                            {selectedAcupoint.channel}
-                          </Badge>
-                        )}
-                        {selectedAcupoint.akMuscles.length > 0 && (
-                          <Badge variant="secondary" className="bg-purple-200 text-purple-800">
-                            {selectedAcupoint.akMuscles.join(', ')}
-                          </Badge>
-                        )}
-                      </div>
-                    </CardHeader>
-                    <CardContent className="pt-2 space-y-3 text-gray-800">
-                      {selectedAcupoint.for && (
-                        <div>
-                          <p className="font-semibold text-purple-700">For:</p>
-                          <p className="text-sm">{selectedAcupoint.for}</p>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                        <Command>
+                          {loadingModes && <CommandInput value={selectedMode?.name || ''} onValueChange={() => { }} placeholder="Loading modes..." disabled />}
+                          {!loadingModes && <CommandInput value={selectedMode?.name || ''} onValueChange={() => { }} placeholder="Search mode..." />}
+                          <CommandEmpty>No mode found.</CommandEmpty>
+                          <CommandGroup>
+                            {modes.map((mode) => (
+                              <CommandItem
+                                key={mode.id}
+                                value={mode.name}
+                                onSelect={async () => {
+                                  setSelectedMode(mode);
+                                  setIsModeSelectOpen(false);
+                                  await logSessionEvent({
+                                    appointmentId: appointmentId!,
+                                    logType: 'mode_selected',
+                                    details: {
+                                      modeId: mode.id,
+                                      modeName: mode.name,
+                                      actionNote: mode.actionNote,
+                                    }
+                                  });
+                                  if (!loggingSessionEvent) {
+                                    showSuccess(`${mode.name} selected and logged.`);
+                                  }
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    selectedMode?.id === mode.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {mode.name}
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={(e) => {
+                                    e.stopPropagation(); // Prevent selecting the mode when clicking the info button
+                                    handleOpenNotionPage(mode.id); // Use centralized handler
+                                  }}
+                                >
+                                  <Info className="h-4 w-4" />
+                                </Button>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                    {selectedMode?.actionNote && (
+                      <p className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg border border-blue-200 mt-2">
+                        <strong>Action Note:</strong> {selectedMode.actionNote}
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Muscles Tab */}
+            <TabsContent value="muscles" className="mt-6 space-y-6">
+              <MuscleSelector
+                onMuscleSelected={handleMuscleSelected}
+                onMuscleStrengthLogged={handleMuscleStrengthLogged}
+                appointmentId={appointmentId || ''}
+                onOpenNotionPage={handleOpenNotionPage} // Pass centralized handler
+              />
+            </TabsContent>
+
+            {/* Chakras Tab */}
+            <TabsContent value="chakras" className="mt-6 space-y-6">
+              <ChakraSelector
+                appointmentId={appointmentId || ''}
+                onChakraSelected={handleChakraSelected}
+                onClearSelection={handleClearChakraSelection}
+                selectedChakra={selectedChakra}
+                onOpenNotionPage={handleOpenNotionPage} // Pass centralized handler
+              />
+            </TabsContent>
+
+            {/* Channels Tab */}
+            <TabsContent value="channels" className="mt-6 space-y-6">
+              <ChannelDashboard
+                appointmentId={appointmentId || ''}
+                onLogSuccess={handleLogChannelItemSuccess}
+                onOpenNotionPage={handleOpenNotionPage} // Pass centralized handler
+              />
+            </TabsContent>
+
+            {/* Acupoints Tab */}
+            <TabsContent value="acupoints" className="mt-6 space-y-6">
+              <Card className="shadow-xl">
+                <CardHeader className="bg-indigo-50 border-b border-indigo-200 rounded-t-lg p-4">
+                  <CardTitle className="text-xl font-bold text-indigo-800 flex items-center gap-2">
+                    <Search className="w-5 h-5" />
+                    Acupoint Insight Engine
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-6 space-y-6">
+                  {/* Point Search */}
+                  <div className="space-y-2">
+                    <Label htmlFor="point-search" className="flex items-center gap-2 font-semibold text-gray-700">
+                      <Search className="w-4 h-4 text-indigo-600" />
+                      Point Search (e.g., SP-06, Pc-6)
+                    </Label>
+                    <Popover open={isAcupointSearchOpen} onOpenChange={setIsAcupointSearchOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={isAcupointSearchOpen}
+                          className="w-full justify-between"
+                          disabled={loadingAcupoints || updatingAppointment}
+                        >
+                          {selectedAcupoint ? selectedAcupoint.name : (acupointSearchTerm || "Search for an acupoint...")}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                        <Command>
+                          <CommandInput
+                            placeholder="Search acupoint..."
+                            value={acupointSearchTerm}
+                            onValueChange={handleAcupointSearchChange}
+                          />
+                          <CommandEmpty>No acupoint found.</CommandEmpty>
+                          <CommandGroup>
+                            {foundAcupoints.map((point) => (
+                              <CommandItem
+                                key={point.id}
+                                value={point.name}
+                                onSelect={() => handleSelectAcupoint(point)}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    selectedAcupoint?.id === point.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {point.name}
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
+                                  onClick={(e) => {
+                                    e.stopPropagation(); // Prevent selecting the acupoint when clicking the info button
+                                    handleOpenNotionPage(point.id); // Use centralized handler
+                                  }}
+                                >
+                                  <Info className="h-4 w-4" />
+                                </Button>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+
+                  {/* Symptom Suggester */}
+                  <div className="space-y-2">
+                    <Label htmlFor="symptom-search" className="flex items-center gap-2 font-semibold text-gray-700">
+                      <Lightbulb className="w-4 h-4 text-indigo-600" />
+                      Symptom Suggester (e.g., Anxiety, Headache)
+                    </Label>
+                    <Popover open={isSymptomSearchOpen} onOpenChange={setIsSymptomSearchOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={isSymptomSearchOpen}
+                          className="w-full justify-between"
+                          disabled={loadingAcupoints || updatingAppointment}
+                        >
+                          {selectedAcupoint ? selectedAcupoint.name : (symptomSearchTerm || "Search symptoms for point suggestions...")}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                        <Command>
+                          <CommandInput
+                            placeholder="Search symptom..."
+                            value={symptomSearchTerm}
+                            onValueChange={handleSymptomSearchChange}
+                          />
+                          <CommandEmpty>No suggestions found.</CommandEmpty>
+                          <CommandGroup>
+                            {foundAcupoints.map((point) => (
+                              <CommandItem
+                                key={point.id}
+                                value={point.name}
+                                onSelect={() => handleSelectAcupoint(point)}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    selectedAcupoint?.id === point.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {point.name}
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
+                                  onClick={(e) => {
+                                    e.stopPropagation(); // Prevent selecting the acupoint when clicking the info button
+                                    handleOpenNotionPage(point.id); // Use centralized handler
+                                  }}
+                                >
+                                  <Info className="h-4 w-4" />
+                                </Button>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+
+                  {/* Insight Deck (Selected Acupoint Display) */}
+                  {selectedAcupoint && (
+                    <Card className="border-2 border-purple-300 bg-purple-50 shadow-md">
+                      <CardHeader className="flex flex-row items-center justify-between p-4 pb-2">
+                        <CardTitle className="text-xl font-bold text-purple-800 flex items-center gap-2">
+                          {selectedAcupoint.name}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
+                            onClick={() => { handleOpenNotionPage(selectedAcupoint.id); }} // Use centralized handler
+                          >
+                            <Info className="h-4 w-4" />
+                          </Button>
+                        </CardTitle>
+                        <div className="flex gap-2">
+                          {selectedAcupoint.channel && (
+                            <Badge variant="secondary" className="bg-purple-200 text-purple-800">
+                              {selectedAcupoint.channel}
+                            </Badge>
+                          )}
+                          {selectedAcupoint.akMuscles.length > 0 && (
+                            <Badge variant="secondary" className="bg-purple-200 text-purple-800">
+                              {selectedAcupoint.akMuscles.join(', ')}
+                            </Badge>
+                          )}
                         </div>
-                      )}
-                      {selectedAcupoint.kinesiology && (
-                        <div>
-                          <p className="font-semibold text-purple-700">Kinesiology:</p>
-                          <p className="text-sm">{selectedAcupoint.kinesiology}</p>
-                        </div>
-                      )}
-                      {selectedAcupoint.psychology && (
-                        <div>
-                          <p className="font-semibold text-purple-700">Psychology:</p>
-                          <p className="text-sm">{selectedAcupoint.psychology}</p>
-                        </div>
-                      )}
-                      <div className="flex flex-wrap gap-2 mt-3">
-                        {selectedAcupoint.typeOfPoint.length > 0 && (
-                          <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-300">
-                            Type: {selectedAcupoint.typeOfPoint.join(', ')}
-                          </Badge>
+                      </CardHeader>
+                      <CardContent className="pt-2 space-y-3 text-gray-800">
+                        {selectedAcupoint.for && (
+                          <div>
+                            <p className="font-semibold text-purple-700">For:</p>
+                            <p className="text-sm">{selectedAcupoint.for}</p>
+                          </div>
                         )}
-                        {selectedAcupoint.time.length > 0 && (
-                          <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-300">
-                            Time: {selectedAcupoint.time.join(', ')}
-                          </Badge>
+                        {selectedAcupoint.kinesiology && (
+                          <div>
+                            <p className="font-semibold text-purple-700">Kinesiology:</p>
+                            <p className="text-sm">{selectedAcupoint.kinesiology}</p>
+                          </div>
                         )}
-                      </div>
-                      <Button
-                        className="w-full mt-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white"
-                        onClick={handleAddAcupointToSession}
-                        disabled={loggingSessionEvent}
-                      >
-                        <PlusCircle className="w-4 h-4 mr-2" />
-                        Add to Session
-                      </Button>
-                    </CardContent>
-                  </Card>
-                )}
-              </CardContent>
-            </Card>
+                        {selectedAcupoint.psychology && (
+                          <div>
+                            <p className="font-semibold text-purple-700">Psychology:</p>
+                            <p className="text-sm">{selectedAcupoint.psychology}</p>
+                          </div>
+                        )}
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          {selectedAcupoint.typeOfPoint.length > 0 && (
+                            <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-300">
+                              Type: {selectedAcupoint.typeOfPoint.join(', ')}
+                            </Badge>
+                          )}
+                          {selectedAcupoint.time.length > 0 && (
+                            <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-300">
+                              Time: {selectedAcupoint.time.join(', ')}
+                            </Badge>
+                          )}
+                        </div>
+                        <Button
+                          className="w-full mt-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white"
+                          onClick={handleAddAcupointToSession}
+                          disabled={loggingSessionEvent}
+                        >
+                          <PlusCircle className="w-4 h-4 mr-2" />
+                          Add to Session
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-            {/* Muscle Selector Component */}
-            <MuscleSelector
-              onMuscleSelected={handleMuscleSelected}
-              onMuscleStrengthLogged={handleMuscleStrengthLogged}
-              appointmentId={appointmentId || ''}
-              onOpenMuscleNotionPage={handleOpenMuscleNotionPage}
-            />
+            {/* Session Log Tab */}
+            <TabsContent value="session-log" className="mt-6 space-y-6">
+              <SessionLogDisplay
+                appointmentId={appointmentId || ''}
+                sessionLogs={sessionLogs}
+                sessionMuscleLogs={sessionMuscleLogs}
+                onDeleteLog={deleteSessionLog}
+                deletingLog={deletingSessionLog}
+              />
+            </TabsContent>
 
-            {/* Chakra Selector Component */}
-            <ChakraSelector
-              appointmentId={appointmentId || ''}
-              onChakraSelected={handleChakraSelected}
-              onClearSelection={handleClearChakraSelection}
-              selectedChakra={selectedChakra}
-              isChakraModalOpen={isChakraModalOpen}
-              setIsChakraModalOpen={setIsChakraModalOpen}
-            />
+            {/* Notion Page Tab */}
+            <TabsContent value="notion-page" className="mt-6 space-y-6">
+              <Card className="shadow-xl">
+                <CardHeader className="bg-indigo-50 border-b border-indigo-200 rounded-t-lg p-4">
+                  <CardTitle className="text-xl font-bold text-indigo-800 flex items-center gap-2">
+                    <Info className="w-5 h-5" />
+                    Notion Page Viewer
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-6">
+                  <NotionPageViewer pageId={selectedNotionPageId} />
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-            {/* Channel Dashboard Component */}
-            <ChannelDashboard
-              appointmentId={appointmentId || ''}
-              onLogSuccess={handleLogChannelItemSuccess}
-              onOpenMuscleNotionPage={handleOpenMuscleNotionPage}
-            />
-
-            {/* Session Log Display */}
-            <SessionLogDisplay
-              appointmentId={appointmentId || ''}
-              sessionLogs={sessionLogs}
-              sessionMuscleLogs={sessionMuscleLogs}
-              onDeleteLog={deleteSessionLog}
-              deletingLog={deletingSessionLog}
-            />
-
-            {/* Complete Session Button */}
+            {/* Complete Session Button (outside tabs, always visible) */}
             <Button
-              className="w-full h-12 text-lg bg-red-500 hover:bg-red-600 text-white"
+              className="w-full h-12 text-lg bg-red-500 hover:bg-red-600 text-white mt-6"
               onClick={handleCompleteSession}
               disabled={updatingAppointment}
             >
               <XCircle className="w-5 h-5 mr-2" />
               Complete Session
             </Button>
-          </div>
+          </Tabs>
         ) : (
           <Card className="shadow-lg">
             <CardContent className="pt-8 text-center">
@@ -945,58 +944,6 @@ const ActiveSession = () => {
           </Button>
         </div>
       </div>
-
-      {/* Mode Notion Page Dialog */}
-      <Dialog open={isModeModalOpen} onOpenChange={setIsModeModalOpen}>
-        <DialogContent className="sm:max-w-[800px] max-h-[90vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle>Mode Details</DialogTitle>
-            <DialogDescription>
-              Viewing the Notion page content for the selected mode.
-            </DialogDescription>
-          </DialogHeader>
-          <NotionPageViewer pageId={selectedModeNotionPageId} />
-        </DialogContent>
-      </Dialog>
-
-      {/* Acupoint Notion Page Dialog */}
-      <Dialog open={isAcupointModalOpen} onOpenChange={setIsAcupointModalOpen}>
-        <DialogContent className="sm:max-w-[800px] max-h-[90vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle>Acupoint Details</DialogTitle>
-            <DialogDescription>
-              Viewing the Notion page content for the selected acupoint.
-            </DialogDescription>
-          </DialogHeader>
-          <NotionPageViewer pageId={selectedAcupointNotionPageId} />
-        </DialogContent>
-      </Dialog>
-
-      {/* Muscle Notion Page Dialog */}
-      <Dialog open={isMuscleModalOpen} onOpenChange={setIsMuscleModalOpen}>
-        <DialogContent className="sm:max-w-[800px] max-h-[90vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle>Muscle Details</DialogTitle>
-            <DialogDescription>
-              Viewing the Notion page content for the selected muscle.
-            </DialogDescription>
-          </DialogHeader>
-          <NotionPageViewer pageId={selectedMuscleNotionPageId} />
-        </DialogContent>
-      </Dialog>
-
-      {/* Chakra Notion Page Dialog */}
-      <Dialog open={isChakraModalOpen} onOpenChange={setIsChakraModalOpen}>
-        <DialogContent className="sm:max-w-[800px] max-h-[90vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle>Chakra Details</DialogTitle>
-            <DialogDescription>
-              Viewing the Notion page content for the selected chakra.
-            </DialogDescription>
-          </DialogHeader>
-          <NotionPageViewer pageId={selectedChakraNotionPageId} />
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

@@ -17,7 +17,7 @@ import NotionPageViewer from './NotionPageViewer';
 interface ChannelDashboardProps {
   appointmentId: string;
   onLogSuccess: () => void;
-  onOpenMuscleNotionPage: (pageId: string) => void; // New prop to open muscle Notion page
+  onOpenNotionPage: (pageId: string) => void; // Changed prop name and type
 }
 
 const primaryElements = ['Wood', 'Fire', 'Earth', 'Metal', 'Water'];
@@ -32,12 +32,12 @@ yuanAndFrontMuPoints.set('Heart', { yuan: 'HT7 (Shenmen)', frontMu: 'CV14 (Juque
 yuanAndFrontMuPoints.set('Small Intestine', { yuan: 'SI4 (Wangu)', frontMu: 'CV4 (Guanyuan)' });
 yuanAndFrontMuPoints.set('Bladder', { yuan: 'BL64 (Jinggu)', frontMu: 'CV3 (Zhongji)' });
 yuanAndFrontMuPoints.set('Kidney', { yuan: 'KI3 (Taixi)', frontMu: 'GB25 (Jingmen)' });
-yuanAndFrontMuPoints.set('Pericardium', { yuan: 'PC7 (Daling)', frontMu: 'CV17 (Shanzhong)' });
+yuanAndFrontMuPoints.set('Pericardium', { yuan: 'PC7 (Daling)', frontMu: 'PC7 (Daling)' }); // Corrected Pericardium Front Mu
 yuanAndFrontMuPoints.set('Triple Warmer', { yuan: 'SJ4 (Yangchi)', frontMu: 'CV5 (Shimen)' });
 yuanAndFrontMuPoints.set('Gallbladder', { yuan: 'GB40 (Qiuxu)', frontMu: 'GB24 (Riyue)' });
 yuanAndFrontMuPoints.set('Liver', { yuan: 'LV3 (Taichong)', frontMu: 'LV14 (Qimen)' });
 
-const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLogSuccess, onOpenMuscleNotionPage }) => {
+const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLogSuccess, onOpenNotionPage }) => {
   const [allChannels, setAllChannels] = useState<Channel[]>([]);
   const [selectedChannelForDisplay, setSelectedChannelForDisplay] = useState<Channel | null>(null);
   const [loggedItems, setLoggedItems] = useState<Set<string>>(new Set());
@@ -494,7 +494,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                               variant="ghost"
                               size="icon"
                               className="h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
-                              onClick={() => onOpenMuscleNotionPage(muscle.id)}
+                              onClick={() => onOpenNotionPage(muscle.id)}
                             >
                               <Info className="h-4 w-4" />
                             </Button>
@@ -527,7 +527,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
                               variant="ghost"
                               size="icon"
                               className="h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
-                              onClick={() => onOpenMuscleNotionPage(muscle.id)}
+                              onClick={() => onOpenNotionPage(muscle.id)}
                             >
                               <Info className="h-4 w-4" />
                             </Button>

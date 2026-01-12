@@ -13,7 +13,6 @@ import { cn } from '@/lib/utils';
 import { Search, Check, ChevronsUpDown, Settings, Loader2, Sparkles, PlusCircle, Trash2, ExternalLink, Info } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
-import NotionPageViewer from './NotionPageViewer'; // Import NotionPageViewer
 import { Chakra, GetChakrasPayload, GetChakrasResponse, LogSessionEventPayload, LogSessionEventResponse } from '@/types/api';
 
 interface ChakraSelectorProps {
@@ -21,17 +20,15 @@ interface ChakraSelectorProps {
   onChakraSelected: (chakra: Chakra) => void; // New prop for notifying parent of selection
   onClearSelection: () => void; // New prop for clearing selection
   selectedChakra: Chakra | null; // New prop to receive selected chakra from parent
-  isChakraModalOpen: boolean; // Prop to control modal visibility from parent
-  setIsChakraModalOpen: (open: boolean) => void; // Prop to update modal visibility from parent
+  onOpenNotionPage: (pageId: string) => void; // Changed prop name and type
 }
 
-const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakraSelected, onClearSelection, selectedChakra, isChakraModalOpen, setIsChakraModalOpen }) => {
+const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakraSelected, onClearSelection, selectedChakra, onOpenNotionPage }) => {
   const [allChakras, setAllChakras] = useState<Chakra[]>([]);
   const [filteredChakras, setFilteredChakras] = useState<Chakra[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchType, setSearchType] = useState<'name' | 'element' | 'emotion' | 'organ'>('name');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [selectedChakraNotionPageId, setSelectedChakraNotionPageId] = useState<string | null>(null);
 
   const navigate = useNavigate();
 
@@ -263,8 +260,7 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
                         className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
                         onClick={(e) => {
                           e.stopPropagation(); // Prevent selecting the chakra when clicking the info button
-                          setSelectedChakraNotionPageId(chakra.id);
-                          setIsChakraModalOpen(true);
+                          onOpenNotionPage(chakra.id); // Use centralized handler
                         }}
                       >
                         <Info className="h-4 w-4" />
@@ -288,8 +284,7 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
                   size="icon"
                   className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
                   onClick={() => {
-                    setSelectedChakraNotionPageId(selectedChakra.id);
-                    setIsChakraModalOpen(true);
+                    onOpenNotionPage(selectedChakra.id); // Use centralized handler
                   }}
                 >
                   <ExternalLink className="w-4 h-4" />
