@@ -95,7 +95,8 @@ serve(async (req) => {
 
     const channels = notionChannelsData.results.map((page: any) => {
       const properties = page.properties
-      console.log(`[get-channels] Raw Notion properties for channel ${properties.Meridian?.title?.[0]?.plain_text || page.id}:`, JSON.stringify(properties, null, 2)); // Log raw properties
+      // DIAGNOSTIC LOG: Log the elements property for each channel
+      console.log(`[get-channels] Channel: ${properties.Meridian?.title?.[0]?.plain_text || page.id}, Elements:`, properties.Elements?.multi_select?.map((s: any) => s.name) || []);
 
       return {
         id: page.id,
