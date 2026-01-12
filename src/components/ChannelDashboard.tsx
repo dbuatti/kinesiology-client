@@ -81,21 +81,21 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
     fetchChannels({ searchTerm: '', searchType: 'name' }); // Fetch all channels initially
   }, [fetchChannels]);
 
-  const { meridian, nonMeridian } = useMemo(() => {
-    const meridianChannels: Channel[] = [];
-    const nonMeridianChannels: Channel[] = [];
+  const { meridianChannels, nonMeridianChannels } = useMemo(() => {
+    const meridian: Channel[] = [];
+    const nonMeridian: Channel[] = [];
 
     allChannels.forEach(channel => {
       const hasPrimaryElement = channel.elements.some(element => primaryElements.includes(element));
       if (hasPrimaryElement) {
-        meridianChannels.push(channel);
+        meridian.push(channel);
       } else {
-        nonMeridianChannels.push(channel);
+        nonMeridian.push(channel);
       }
     });
 
     // Sort meridian channels by element, then by name
-    meridianChannels.sort((a, b) => {
+    meridian.sort((a, b) => {
       const elementA = primaryElements.indexOf(a.elements[0] || '');
       const elementB = primaryElements.indexOf(b.elements[0] || '');
       if (elementA !== elementB) {
@@ -105,9 +105,9 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
     });
 
     // Sort non-meridian channels by name
-    nonMeridianChannels.sort((a, b) => a.name.localeCompare(b.name));
+    nonMeridian.sort((a, b) => a.name.localeCompare(b.name));
 
-    return { meridian: meridianChannels, nonMeridian: nonMeridianChannels };
+    return { meridianChannels, nonMeridianChannels };
   }, [allChannels]);
 
   const handleSelectChannel = (channel: Channel) => {
@@ -165,7 +165,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
           <>
             {/* Meridian Channels */}
             <div className="flex flex-wrap gap-2">
-              {meridian.map(channel => (
+              {meridianChannels.map(channel => (
                 <Button
                   key={channel.id}
                   variant="outline"
@@ -183,14 +183,14 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
             </div>
 
             {/* Non-Meridian Channels */}
-            {nonMeridian.length > 0 && (
+            {nonMeridianChannels.length > 0 && (
               <>
                 <Separator className="my-6" />
                 <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1">
                   <Sparkles className="w-4 h-4 text-gray-600" /> Other Channels
                 </h3>
                 <div className="flex flex-wrap gap-2">
-                  {nonMeridian.map(channel => (
+                  {nonMeridianChannels.map(channel => (
                     <Button
                       key={channel.id}
                       variant="outline"
@@ -235,108 +235,76 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId }) =>
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2 text-sm text-gray-800">
-              {selectedChannelForDisplay.pathways && (
-                <div className="flex items-start gap-2">
-                  <Footprints className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                  <p><span className="font-semibold text-indigo-700">Pathways:</span> {selectedChannelForDisplay.pathways}</p>
+              <div className="flex items-start gap-2">
+                <Footprints className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
+                <p><span className="font-semibold text-indigo-700">Pathways:</span> {selectedChannelForDisplay.pathways || 'N/A'}</p>
+              </div>
+              <div className="flex items-start gap-2">
+                <FlaskConical className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
+                <p><span className="font-semibold text-indigo-700">Functions:</span> {selectedChannelForDisplay.functions || 'N/A'}</p>
+              </div>
+              <div className="flex items-start gap-2">
+                <Heart className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
+                <p><span className="font-semibold text-indigo-700">Emotional Themes:</span> {selectedChannelForDisplay.emotions.length > 0 ? selectedChannelForDisplay.emotions.join(', ') : 'N/A'}</p>
+              </div>
+              <div className="flex items-start gap-2">
+                <Hand className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
+                <p><span className="font-semibold text-indigo-700">Front Mu:</span> {selectedChannelForDisplay.frontMu || 'N/A'}</p>
+              </div>
+              <div className="flex items-start gap-2">
+                <Waves className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
+                <p><span className="font-semibold text-indigo-700">He Sea:</span> {selectedChannelForDisplay.heSea || 'N/A'}</p>
+              </div>
+              <div className="flex items-start gap-2">
+                <Droplet className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
+                <p><span className="font-semibold text-indigo-700">Jing River:</span> {selectedChannelForDisplay.jingRiver || 'N/A'}</p>
+              </div>
+              <div className="flex items-start gap-2">
+                <Sparkles className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
+                <p><span className="font-semibold text-indigo-700">Jing Well:</span> {selectedChannelForDisplay.jingWell || 'N/A'}</p>
+              </div>
+              <div className="flex items-start gap-2">
+                <Hand className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
+                <p><span className="font-semibold text-indigo-700">AK Muscles:</span> {selectedChannelForDisplay.akMuscles.length > 0 ? selectedChannelForDisplay.akMuscles.join(', ') : 'N/A'}</p>
+              </div>
+              <div className="flex items-start gap-2">
+                <Bone className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
+                <p><span className="font-semibold text-indigo-700">TCM Muscles:</span> {selectedChannelForDisplay.tcmMuscles.length > 0 ? selectedChannelForDisplay.tcmMuscles.join(', ') : 'N/A'}</p>
+              </div>
+              <div className="flex items-start gap-2">
+                <Sparkles className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
+                <p><span className="font-semibold text-indigo-700">Yuan Points:</span> {selectedChannelForDisplay.yuanPoints || 'N/A'}</p>
+              </div>
+              <div className="flex items-start gap-2">
+                <XCircle className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
+                <p><span className="font-semibold text-indigo-700">Sedate 1:</span> {selectedChannelForDisplay.sedate1 || 'N/A'}</p>
+              </div>
+              <div className="flex items-start gap-2">
+                <XCircle className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
+                <p><span className="font-semibold text-indigo-700">Sedate 2:</span> {selectedChannelForDisplay.sedate2 || 'N/A'}</p>
+              </div>
+              <div className="flex items-start gap-2">
+                <PlusCircle className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
+                <p><span className="font-semibold text-indigo-700">Tonify 1:</span> {selectedChannelForDisplay.tonify1 || 'N/A'}</p>
+              </div>
+              <div className="flex items-start gap-2">
+                <PlusCircle className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
+                <p><span className="font-semibold text-indigo-700">Tonify 2:</span> {selectedChannelForDisplay.tonify2 || 'N/A'}</p>
+              </div>
+              <div className="flex items-start gap-2">
+                <Mic className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
+                <p><span className="font-semibold text-indigo-700">Appropriate Sound:</span> {selectedChannelForDisplay.appropriateSound || 'N/A'}</p>
+              </div>
+              <div className="flex items-start gap-2">
+                <Tag className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
+                <div className="flex flex-wrap gap-1">
+                  <p><span className="font-semibold text-indigo-700">Tags:</span> {selectedChannelForDisplay.tags.length > 0 ? selectedChannelForDisplay.tags.map((tag, i) => (
+                    <Badge key={i} variant="outline" className="bg-gray-100 text-gray-700 text-xs">
+                      {tag}
+                    </Badge>
+                  )) : 'N/A'}</p>
                 </div>
-              )}
-              {selectedChannelForDisplay.functions && (
-                <div className="flex items-start gap-2">
-                  <FlaskConical className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                  <p><span className="font-semibold text-indigo-700">Functions:</span> {selectedChannelForDisplay.functions}</p>
-                </div>
-              )}
-              {selectedChannelForDisplay.emotions.length > 0 && (
-                <div className="flex items-start gap-2">
-                  <Heart className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                  <p><span className="font-semibold text-indigo-700">Emotional Themes:</span> {selectedChannelForDisplay.emotions.join(', ')}</p>
-                </div>
-              )}
-              {selectedChannelForDisplay.frontMu && (
-                <div className="flex items-start gap-2">
-                  <Hand className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                  <p><span className="font-semibold text-indigo-700">Front Mu:</span> {selectedChannelForDisplay.frontMu}</p>
-                </div>
-              )}
-              {selectedChannelForDisplay.heSea && (
-                <div className="flex items-start gap-2">
-                  <Waves className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                  <p><span className="font-semibold text-indigo-700">He Sea:</span> {selectedChannelForDisplay.heSea}</p>
-                </div>
-              )}
-              {selectedChannelForDisplay.jingRiver && (
-                <div className="flex items-start gap-2">
-                  <Droplet className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                  <p><span className="font-semibold text-indigo-700">Jing River:</span> {selectedChannelForDisplay.jingRiver}</p>
-                </div>
-              )}
-              {selectedChannelForDisplay.jingWell && (
-                <div className="flex items-start gap-2">
-                  <Sparkles className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                  <p><span className="font-semibold text-indigo-700">Jing Well:</span> {selectedChannelForDisplay.jingWell}</p>
-                </div>
-              )}
-              {selectedChannelForDisplay.akMuscles.length > 0 && (
-                <div className="flex items-start gap-2">
-                  <Hand className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                  <p><span className="font-semibold text-indigo-700">AK Muscles:</span> {selectedChannelForDisplay.akMuscles.join(', ')}</p>
-                </div>
-              )}
-              {selectedChannelForDisplay.tcmMuscles.length > 0 && (
-                <div className="flex items-start gap-2">
-                  <Bone className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                  <p><span className="font-semibold text-indigo-700">TCM Muscles:</span> {selectedChannelForDisplay.tcmMuscles.join(', ')}</p>
-                </div>
-              )}
-              {selectedChannelForDisplay.yuanPoints && (
-                <div className="flex items-start gap-2">
-                  <Sparkles className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                  <p><span className="font-semibold text-indigo-700">Yuan Points:</span> {selectedChannelForDisplay.yuanPoints}</p>
-                </div>
-              )}
-              {selectedChannelForDisplay.sedate1 && (
-                <div className="flex items-start gap-2">
-                  <XCircle className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                  <p><span className="font-semibold text-indigo-700">Sedate 1:</span> {selectedChannelForDisplay.sedate1}</p>
-                </div>
-              )}
-              {selectedChannelForDisplay.sedate2 && (
-                <div className="flex items-start gap-2">
-                  <XCircle className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                  <p><span className="font-semibold text-indigo-700">Sedate 2:</span> {selectedChannelForDisplay.sedate2}</p>
-                </div>
-              )}
-              {selectedChannelForDisplay.tonify1 && (
-                <div className="flex items-start gap-2">
-                  <PlusCircle className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                  <p><span className="font-semibold text-indigo-700">Tonify 1:</span> {selectedChannelForDisplay.tonify1}</p>
-                </div>
-              )}
-              {selectedChannelForDisplay.tonify2 && (
-                <div className="flex items-start gap-2">
-                  <PlusCircle className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                  <p><span className="font-semibold text-indigo-700">Tonify 2:</span> {selectedChannelForDisplay.tonify2}</p>
-                </div>
-              )}
-              {selectedChannelForDisplay.appropriateSound && (
-                <div className="flex items-start gap-2">
-                  <Mic className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                  <p><span className="font-semibold text-indigo-700">Appropriate Sound:</span> {selectedChannelForDisplay.appropriateSound}</p>
-                </div>
-              )}
-              {selectedChannelForDisplay.tags.length > 0 && (
-                <div className="flex items-start gap-2">
-                  <Tag className="w-4 h-4 text-indigo-700 flex-shrink-0 mt-0.5" />
-                  <div className="flex flex-wrap gap-1">
-                    {selectedChannelForDisplay.tags.map((tag, i) => (
-                      <Badge key={i} variant="outline" className="bg-gray-100 text-gray-700">
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
+              </div>
             </div>
             <div className="flex justify-end mt-4">
               <Button variant="outline" onClick={handleClearSelection} size="sm">
