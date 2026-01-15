@@ -56,6 +56,8 @@ export const useCachedEdgeFunction = <TRequest, TResponse>(
 
     try {
       let session = null;
+      let userId: string | null = null;
+
       if (requiresAuth) {
         const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
         if (sessionError) throw sessionError;
@@ -67,6 +69,8 @@ export const useCachedEdgeFunction = <TRequest, TResponse>(
           return;
         }
         session = currentSession;
+        userId = session.user.id;
+        console.log(`[useCachedEdgeFunction] Session found for ${functionName}. User ID: ${userId}`);
       }
 
       if (requiresNotionConfig && session) {
@@ -98,8 +102,8 @@ export const useCachedEdgeFunction = <TRequest, TResponse>(
       }
 
       // Check cache first
-      if (cacheKey) {
-        const cachedData = await cacheService.get(cacheKey);
+      if (cacheKey && userId) {
+        const cachedData = await cacheService.get(userId, cacheKey);
         if (cachedData) {
           console.log(`[useCachedEdgeFunction] Cache hit for ${functionName} with key: ${cacheKey}`);
           setData(cachedData);
@@ -152,8 +156,8 @@ export const useCachedEdgeFunction = <TRequest, TResponse>(
       console.log(`[useCachedEdgeFunction] Successfully fetched data for ${functionName}.`);
 
       // Cache the result if cacheKey is provided
-      if (cacheKey && result) {
-        await cacheService.set(cacheKey, result, cacheTtl);
+      if (cacheKey && userId && result) {
+        await cacheService.set(userId, cacheKey, result, cacheTtl);
         console.log(`[useCachedEdgeFunction] Cached data for ${functionName} with key: ${cacheKey}`);
       }
 
@@ -171,8 +175,11 @@ export const useCachedEdgeFunction = <TRequest, TResponse>(
 
   const invalidateCache = useCallback(async () => {
     if (cacheKey) {
-      await cacheService.invalidate(cacheKey);
-      console.log(`[useCachedEdgeFunction] Invalidated cache for ${functionName} with key: ${cacheKey}`);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await cacheService.invalidate(user.id, cacheKey);
+        console.log(`[useCachedEdgeFunction] Invalidated cache for ${functionName} with key: ${cacheKey}`);
+      }
     }
   }, [cacheKey, functionName]);
 

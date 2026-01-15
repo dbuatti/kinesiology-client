@@ -10,9 +10,12 @@ export interface CacheEntry {
   updated_at: string;
 }
 
+const buildKey = (userId: string, resourceKey: string) => `${userId}:${resourceKey}`;
+
 export const cacheService = {
   // Get cached data by key
-  async get(key: string): Promise<any | null> {
+  async get(userId: string, resourceKey: string): Promise<any | null> {
+    const key = buildKey(userId, resourceKey);
     const { data, error } = await supabase
       .from('notion_cache')
       .select('data, expires_at')
@@ -34,7 +37,8 @@ export const cacheService = {
   },
 
   // Set cached data with TTL
-  async set(key: string, data: any, ttlMinutes: number = 30): Promise<void> {
+  async set(userId: string, resourceKey: string, data: any, ttlMinutes: number = 30): Promise<void> {
+    const key = buildKey(userId, resourceKey);
     const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000).toISOString();
     
     const { error } = await supabase
@@ -52,16 +56,18 @@ export const cacheService = {
   },
 
   // Invalidate cache for a specific key
-  async invalidate(key: string): Promise<void> {
+  async invalidate(userId: string, resourceKey: string): Promise<void> {
+    const key = buildKey(userId, resourceKey);
     await supabase.from('notion_cache').delete().eq('id', key);
   },
 
   // Invalidate cache by pattern (e.g., 'appointments:*')
-  async invalidateByPattern(pattern: string): Promise<void> {
+  async invalidateByPattern(userId: string, pattern: string): Promise<void> {
+    const searchPattern = buildKey(userId, pattern); // e.g., 'user-id:appointments:*'
     const { data, error } = await supabase
       .from('notion_cache')
       .select('id')
-      .ilike('id', `${pattern}%`);
+      .ilike('id', `${searchPattern}%`);
 
     if (error || !data) return;
 

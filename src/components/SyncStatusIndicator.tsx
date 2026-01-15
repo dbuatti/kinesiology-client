@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useCachedEdgeFunction } from '@/hooks/use-cached-edge-function';
 import { showSuccess, showError } from '@/utils/toast';
+import { cacheService } from '@/integrations/supabase/cache';
+import { supabase } from '@/integrations/supabase/client';
 
 interface SyncStatusIndicatorProps {
   onSyncComplete?: () => void;
@@ -16,21 +18,48 @@ const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({ onSyncComplet
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
 
+  const handleSyncSuccess = useCallback(async (data: any) => {
+    setSyncStatus('success');
+    setLastSync(new Date());
+    showSuccess(`Synced ${data.synced?.length || 0} databases successfully!`);
+
+    // Manually invalidate client-side caches that rely on this data
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const userId = user.id;
+      // Invalidate main lists
+      await cacheService.invalidate(userId, 'all-clients');
+      await cacheService.invalidate(userId, 'all-appointments');
+      await cacheService.invalidate(userId, 'todays-appointments');
+      
+      // Invalidate reference data caches
+      await cacheService.invalidate(userId, 'all-modes');
+      await cacheService.invalidate(userId, 'all-acupoints');
+      await cacheService.invalidate(userId, 'all-muscles');
+      await cacheService.invalidate(userId, 'all-chakras');
+      await cacheService.invalidate(userId, 'all-channels');
+      
+      // Invalidate all individual page caches (e.g., page:pageId)
+      await cacheService.invalidateByPattern(userId, 'page');
+      
+      console.log('[SyncStatusIndicator] Cleared relevant caches after successful sync.');
+    }
+
+    if (onSyncComplete) onSyncComplete();
+  }, [onSyncComplete]);
+
+  const handleSyncError = useCallback((msg: string) => {
+    setSyncStatus('error');
+    showError(`Sync failed: ${msg}`);
+  }, []);
+
   const {
     execute: syncNotionData,
     loading: syncLoading,
   } = useCachedEdgeFunction<any, any>('sync-notion-data', {
     requiresAuth: true,
-    onSuccess: (data) => {
-      setSyncStatus('success');
-      setLastSync(new Date());
-      showSuccess(`Synced ${data.synced?.length || 0} databases successfully!`);
-      if (onSyncComplete) onSyncComplete();
-    },
-    onError: (msg) => {
-      setSyncStatus('error');
-      showError(`Sync failed: ${msg}`);
-    },
+    onSuccess: handleSyncSuccess,
+    onError: handleSyncError,
   });
 
   const handleSync = async () => {
