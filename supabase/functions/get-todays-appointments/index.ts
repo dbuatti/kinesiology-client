@@ -113,15 +113,17 @@ serve(async (req) => {
 
     console.log("[get-todays-appointments] Secrets loaded successfully for user:", user.id)
 
-    // Get today's date in Notion format (YYYY-MM-DD)
-    const today = new Date()
-    // Ensure we get the date part only, regardless of timezone offset, by using UTC methods
-    const year = today.getUTCFullYear();
-    const month = String(today.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(today.getUTCDate()).padStart(2, '0');
-    const todayString = `${year}-${month}-${day}`;
+    // Calculate today's date range (start of today to start of tomorrow, UTC)
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setUTCDate(today.getUTCDate() + 1);
+
+    const todayString = today.toISOString().split('T')[0]; // YYYY-MM-DD
+    const tomorrowString = tomorrow.toISOString().split('T')[0]; // YYYY-MM-DD
 
     console.log("[get-todays-appointments] Calculated today's date string (UTC):", todayString);
+    console.log("[get-todays-appointments] Calculated tomorrow's date string (UTC):", tomorrowString);
 
 
     const filterBody = {
@@ -130,7 +132,13 @@ serve(async (req) => {
           {
             property: "Date",
             date: {
-              equals: todayString
+              on_or_after: todayString
+            }
+          },
+          {
+            property: "Date",
+            date: {
+              on_or_before: todayString // For date-only properties, filtering on_or_after and on_or_before the same date works like 'equals' but is more robust.
             }
           },
           {
