@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
-import { Check, ChevronsUpDown, Calendar, User, Settings, Loader2, Search, AlertCircle, XCircle } from 'lucide-react'; // Added XCircle
+import { Check, ChevronsUpDown, Calendar, User, Settings, Loader2, Search, AlertCircle, XCircle, PlayCircle } from 'lucide-react'; // Added PlayCircle
 import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -111,6 +111,11 @@ const AllAppointments = () => {
     setSearchTerm('');
     setFilteredAppointments(appointments); // Reset to all appointments
   }, [appointments]);
+
+  const handleStartSession = useCallback(async (appointmentId: string) => {
+    // Navigate directly to the active session page for this appointment
+    navigate(`/active-session/${appointmentId}`);
+  }, [navigate]);
 
   if (loadingAppointments) {
     return (
@@ -226,6 +231,7 @@ const AllAppointments = () => {
                       <TableHead className="min-w-[150px]">Priority Pattern</TableHead>
                       <TableHead className="min-w-[120px]">Status</TableHead>
                       <TableHead className="min-w-[250px]">Notes</TableHead>
+                      <TableHead className="min-w-[100px]">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -335,6 +341,17 @@ const AllAppointments = () => {
                             className="min-h-[60px] w-full"
                             disabled={updatingAppointment}
                           />
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleStartSession(app.id)}
+                            disabled={updatingAppointment}
+                          >
+                            <PlayCircle className="h-4 w-4 mr-2" />
+                            Start Session
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
