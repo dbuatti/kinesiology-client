@@ -13,6 +13,7 @@ import { showSuccess, showError } from '@/utils/toast';
 import { useCachedEdgeFunction } from '@/hooks/use-cached-edge-function';
 import { Client, GetAllClientsResponse, UpdateNotionClientPayload, UpdateNotionClientResponse } from '@/types/api';
 import SyncStatusIndicator from '@/components/SyncStatusIndicator';
+import { Badge } from '@/components/ui/badge';
 
 const AllClients = () => {
   const [clients, setClients] = useState<Client[]>([]);
@@ -226,7 +227,14 @@ const AllClients = () => {
                   <TableBody>
                     {filteredClients.map((client) => (
                       <TableRow key={client.id}>
-                        <TableCell className="font-medium">{client.name}</TableCell>
+                        <TableCell className="font-medium">
+                          {client.name}
+                          {clientsIsCached && (
+                            <Badge variant="secondary" className="bg-green-200 text-green-800 ml-2">
+                              Cached
+                            </Badge>
+                          )}
+                        </TableCell>
                         <TableCell>
                           <Textarea
                             value={client.focus}

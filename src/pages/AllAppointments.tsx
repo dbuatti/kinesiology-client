@@ -17,6 +17,7 @@ import { format } from 'date-fns';
 import { useCachedEdgeFunction } from '@/hooks/use-cached-edge-function';
 import { Appointment, GetAllAppointmentsResponse, UpdateNotionAppointmentPayload, UpdateNotionAppointmentResponse } from '@/types/api';
 import SyncStatusIndicator from '@/components/SyncStatusIndicator';
+import { Badge } from '@/components/ui/badge';
 
 const statusOptions = ['OPEN', 'AP', 'CH', 'CXL'];
 const priorityPatternOptions = ['Pattern A', 'Pattern B', 'Pattern C', 'Pattern D'];
@@ -248,7 +249,14 @@ const AllAppointments = () => {
                   <TableBody>
                     {filteredAppointments.map((app) => (
                       <TableRow key={app.id}>
-                        <TableCell className="font-medium">{app.clientName}</TableCell>
+                        <TableCell className="font-medium">
+                          {app.clientName}
+                          {appointmentsIsCached && (
+                            <Badge variant="secondary" className="bg-green-200 text-green-800 ml-2">
+                              Cached
+                            </Badge>
+                          )}
+                        </TableCell>
                         <TableCell>{app.date ? format(new Date(app.date), 'PPP') : 'N/A'}</TableCell>
                         <TableCell>
                           <Textarea

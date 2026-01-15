@@ -12,6 +12,7 @@ import { useCachedEdgeFunction } from '@/hooks/use-cached-edge-function';
 import { Appointment, GetTodaysAppointmentsResponse, UpdateNotionAppointmentPayload, UpdateNotionAppointmentResponse, GetTodaysAppointmentsPayload } from '@/types/api';
 import CreateAppointmentDialog from '@/components/CreateAppointmentDialog';
 import SyncStatusIndicator from '@/components/SyncStatusIndicator';
+import { Badge } from '@/components/ui/badge';
 
 const WaitingRoom = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
