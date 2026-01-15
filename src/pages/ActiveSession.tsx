@@ -281,14 +281,14 @@ const ActiveSession = () => {
     setSelectedMuscle(muscle);
   }, []);
 
-  const handleMuscleStrengthLogged = useCallback(async (muscle: Muscle, isStrong: boolean) => {
+  const handleMuscleStrengthLogged = useCallback(async (muscle: Muscle, isStrong: boolean, notes: string) => {
     if (appointmentId) {
       await logMuscleStrength({
         appointmentId: appointmentId,
         muscleId: muscle.id,
         muscleName: muscle.name,
         isStrong: isStrong,
-        notes: '', // Optional notes
+        notes: notes, // Pass notes here
       });
     }
   }, [appointmentId, logMuscleStrength]);

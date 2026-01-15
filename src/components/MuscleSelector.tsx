@@ -8,9 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea'; // Import Textarea
 import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
 import { cn } from '@/lib/utils';
-import { Search, Check, ChevronsUpDown, Hand, Info, Image, Settings, Loader2, Trash2, ExternalLink, XCircle, Clock, Brain, FlaskConical, Footprints, Heart, Gem, Leaf, Flame, Droplet, Sun, Bone, Mic, Tag, RefreshCw, Shield, Eye, Sparkles, Waves } from 'lucide-react'; // Added RefreshCw, Shield, Eye, Sparkles, Waves
+import { Search, Check, ChevronsUpDown, Hand, Info, Image, Settings, Loader2, Trash2, ExternalLink, XCircle, Clock, Brain, FlaskConical, Footprints, Heart, Gem, Leaf, Flame, Droplet, Sun, Bone, Mic, Tag, RefreshCw, Shield, Eye, Sparkles, Waves } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
 import { Muscle, GetMusclesPayload, GetMusclesResponse } from '@/types/api';
@@ -18,7 +19,7 @@ import { useDebounce } from '@/hooks/use-debounce'; // Import useDebounce
 
 interface MuscleSelectorProps {
   onMuscleSelected: (muscle: Muscle | null) => void; // Updated to allow null for clearing
-  onMuscleStrengthLogged: (muscle: Muscle, isStrong: boolean) => void;
+  onMuscleStrengthLogged: (muscle: Muscle, isStrong: boolean, notes: string) => void; // Updated signature
   appointmentId: string;
   onClearSelection: () => void; // New prop for clearing selection
   onOpenNotionPage: (pageId: string, pageTitle: string) => void; // Changed prop name and type
@@ -32,6 +33,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [selectedMuscle, setSelectedMuscle] = useState<Muscle | null>(null);
   const [showWeaknessChecklist, setShowWeaknessChecklist] = useState(false);
+  const [notes, setNotes] = useState(''); // New state for notes
 
   const navigate = useNavigate();
   const debouncedSearchTerm = useDebounce(searchTerm, 500); // Debounce search term
@@ -99,17 +101,19 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
     setIsSearchOpen(false);
     setSearchTerm(muscle.name); // Pre-fill search with selected muscle name
     setShowWeaknessChecklist(false); // Reset checklist visibility
+    setNotes(''); // Clear notes when selecting a new muscle
   };
 
   const handleLogStrength = (isStrong: boolean) => {
     if (selectedMuscle) {
-      onMuscleStrengthLogged(selectedMuscle, isStrong);
+      onMuscleStrengthLogged(selectedMuscle, isStrong, notes); // Pass notes
       if (!isStrong) {
         setShowWeaknessChecklist(true);
       } else {
         setShowWeaknessChecklist(false);
       }
       showSuccess(`Muscle strength for ${selectedMuscle.name} logged as ${isStrong ? 'Strong' : 'Weak'}.`);
+      setNotes(''); // Clear notes after logging
     }
   };
 
@@ -132,6 +136,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
     setSearchTerm(''); // Clear search term in the trigger
     setFilteredMuscles(allMuscles);
     setShowWeaknessChecklist(false);
+    setNotes(''); // Clear notes
     onClearSelection(); // Notify parent of clear action
   };
 
@@ -418,6 +423,22 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
                   </div>
                 </div>
               )}
+              
+              {/* Notes Input */}
+              <div className="space-y-2 pt-4">
+                <Label htmlFor="muscle-notes" className="flex items-center gap-2 font-semibold text-gray-700">
+                  <Mic className="w-4 h-4 text-indigo-600" />
+                  Notes (Optional)
+                </Label>
+                <Textarea
+                  id="muscle-notes"
+                  placeholder="Add observations, client feedback, or specific correction details here..."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="min-h-[60px]"
+                  disabled={loadingMuscles}
+                />
+              </div>
 
               {/* Strength Logging Buttons */}
               <div className="flex gap-2 mt-4">
