@@ -115,7 +115,14 @@ serve(async (req) => {
 
     // Get today's date in Notion format (YYYY-MM-DD)
     const today = new Date()
-    const todayString = today.toISOString().split('T')[0]
+    // Ensure we get the date part only, regardless of timezone offset, by using UTC methods
+    const year = today.getUTCFullYear();
+    const month = String(today.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(today.getUTCDate()).padStart(2, '0');
+    const todayString = `${year}-${month}-${day}`;
+
+    console.log("[get-todays-appointments] Calculated today's date string (UTC):", todayString);
+
 
     const filterBody = {
       filter: {
