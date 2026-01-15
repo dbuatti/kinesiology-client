@@ -13,6 +13,14 @@ interface SyncStatusIndicatorProps {
   onSyncComplete?: () => void;
 }
 
+const REFERENCE_CACHE_KEYS = [
+  'all-modes',
+  'all-acupoints',
+  'all-muscles',
+  'all-chakras',
+  'all-channels',
+];
+
 const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({ onSyncComplete }) => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<Date | null>(null);
@@ -33,11 +41,7 @@ const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({ onSyncComplet
       await cacheService.invalidate(userId, 'todays-appointments');
       
       // Invalidate reference data caches
-      await cacheService.invalidate(userId, 'all-modes');
-      await cacheService.invalidate(userId, 'all-acupoints');
-      await cacheService.invalidate(userId, 'all-muscles');
-      await cacheService.invalidate(userId, 'all-chakras');
-      await cacheService.invalidate(userId, 'all-channels');
+      REFERENCE_CACHE_KEYS.forEach(key => cacheService.invalidate(userId, key));
       
       // Invalidate all individual page caches (e.g., page:pageId)
       await cacheService.invalidateByPattern(userId, 'page');
@@ -68,6 +72,44 @@ const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({ onSyncComplet
     await syncNotionData({ syncType: 'all' });
     setIsSyncing(false);
   };
+
+  // New effect to check cache status on mount and trigger background sync if needed
+  useEffect(() => {
+    const checkAndSyncCache = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const userId = user.id;
+      let needsSync = false;
+
+      for (const key of REFERENCE_CACHE_KEYS) {
+        const cachedData = await cacheService.get(userId, key);
+        if (!cachedData) {
+          console.log(`[SyncStatusIndicator] Cache miss for key: ${key}. Triggering background sync.`);
+          needsSync = true;
+          break;
+        }
+      }
+
+      if (needsSync) {
+        // Trigger sync in the background without blocking the UI
+        setSyncStatus('syncing');
+        setIsSyncing(true);
+        await syncNotionData({ syncType: 'all' });
+        setIsSyncing(false);
+      } else {
+        // If cache is present, try to determine the last sync time from one of the keys
+        const firstKeyData = await cacheService.getRaw(userId, REFERENCE_CACHE_KEYS[0]);
+        if (firstKeyData && firstKeyData.updated_at) {
+            setLastSync(new Date(firstKeyData.updated_at));
+            setSyncStatus('success');
+        }
+      }
+    };
+
+    checkAndSyncCache();
+  }, [syncNotionData]);
+
 
   const getStatusBadge = () => {
     switch (syncStatus) {

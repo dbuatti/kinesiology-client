@@ -15,17 +15,23 @@ const buildKey = (userId: string, resourceKey: string) => `${userId}:${resourceK
 export const cacheService = {
   // Get cached data by key
   async get(userId: string, resourceKey: string): Promise<any | null> {
+    const rawData = await this.getRaw(userId, resourceKey);
+    return rawData ? rawData.data : null;
+  },
+
+  // Get raw cached entry including metadata
+  async getRaw(userId: string, resourceKey: string): Promise<CacheEntry | null> {
     const key = buildKey(userId, resourceKey);
     
     // Use .maybeSingle() to handle cases where no row is found without throwing an error
     const { data, error } = await supabase
       .from('notion_cache')
-      .select('data, expires_at')
+      .select('*')
       .eq('id', key)
       .maybeSingle(); // Use maybeSingle to gracefully handle 0 results
 
     if (error) {
-      console.error('Cache get error:', error);
+      console.error('Cache getRaw error:', error);
       return null;
     }
     
@@ -44,7 +50,7 @@ export const cacheService = {
       return null;
     }
 
-    return data.data;
+    return data as CacheEntry;
   },
 
   // Set cached data with TTL
