@@ -10,6 +10,7 @@ import { showSuccess, showError } from '@/utils/toast';
 import { format } from 'date-fns';
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
 import { Appointment, GetTodaysAppointmentsResponse, UpdateNotionAppointmentPayload, UpdateNotionAppointmentResponse } from '@/types/api';
+import CreateAppointmentDialog from '@/components/CreateAppointmentDialog';
 
 const WaitingRoom = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -90,6 +91,10 @@ const WaitingRoom = () => {
     fetchTodaysAppointments();
   }, [fetchTodaysAppointments]);
 
+  const handleAppointmentCreated = useCallback(() => {
+    fetchTodaysAppointments();
+  }, [fetchTodaysAppointments]);
+
   console.log('[WaitingRoom] Rendering with appointments:', appointments);
 
   if (loadingAppointments) {
@@ -153,17 +158,20 @@ const WaitingRoom = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6">
       <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-8 flex items-center justify-center gap-4">
+        <div className="text-center mb-8 flex flex-col md:flex-row items-center justify-between gap-4">
           <h1 className="text-3xl font-bold text-indigo-900">Waiting Room</h1>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={handleRefresh}
-            disabled={loadingAppointments}
-            className="text-indigo-600 hover:bg-indigo-100 hover:text-indigo-800"
-          >
-            {loadingAppointments ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-          </Button>
+          <div className="flex gap-3">
+            <CreateAppointmentDialog onAppointmentCreated={handleAppointmentCreated} />
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleRefresh}
+              disabled={loadingAppointments}
+              className="text-indigo-600 hover:bg-indigo-100 hover:text-indigo-800"
+            >
+              {loadingAppointments ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            </Button>
+          </div>
         </div>
         <p className="text-gray-600 text-center mb-8">
           {format(new Date(), 'EEEE, MMMM d, yyyy')}

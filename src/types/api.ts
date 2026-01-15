@@ -321,3 +321,17 @@ export interface SetNotionSecretsResponse {
   success: boolean;
   message: string;
 }
+
+// NEW: Create Appointment Types
+export interface CreateNotionAppointmentPayload {
+  clientCrmId: string;
+  clientName: string; // For logging/display purposes
+  date: string; // YYYY-MM-DD
+  goal: string;
+  sessionNorthStar: string;
+}
+
+export interface CreateNotionAppointmentResponse {
+  success: boolean;
+  newAppointmentId: string;
+}
