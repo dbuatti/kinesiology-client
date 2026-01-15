@@ -39,14 +39,13 @@ import {
   GetSingleAppointmentResponse,
   UpdateNotionAppointmentPayload,
   UpdateNotionAppointmentResponse,
-  GetNotionModesResponse,
-  GetAcupointsPayload,
-  GetAcupointsResponse,
   LogSessionEventPayload,
   LogSessionEventResponse,
   GetSessionLogsResponse,
   DeleteSessionLogPayload,
   DeleteSessionLogResponse,
+  LogMuscleStrengthPayload, // Import new type
+  LogMuscleStrengthResponse, // Import new type
 } from '@/types/api';
 
 const ActiveSession = () => {
@@ -149,11 +148,11 @@ const ActiveSession = () => {
   const {
     loading: loggingMuscleStrength,
     execute: logMuscleStrength,
-  } = useSupabaseEdgeFunction<any, any>( // Define specific types if needed
+  } = useSupabaseEdgeFunction<LogMuscleStrengthPayload, LogMuscleStrengthResponse>( // Use new types
     'log-muscle-strength',
     {
       requiresAuth: true,
-      onSuccess: useCallback((data: any) => {
+      onSuccess: useCallback((data: LogMuscleStrengthResponse) => {
         console.log('Muscle strength logged to Supabase:', data.logId);
         showSuccess('Muscle strength logged.');
         if (appointmentId) {
@@ -288,7 +287,7 @@ const ActiveSession = () => {
         muscleId: muscle.id,
         muscleName: muscle.name,
         isStrong: isStrong,
-        notes: notes, // Pass notes here
+        notes: notes || null, // Pass notes here, ensuring null if empty string
       });
     }
   }, [appointmentId, logMuscleStrength]);

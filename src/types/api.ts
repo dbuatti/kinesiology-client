@@ -255,6 +255,20 @@ export interface LogSessionEventResponse {
   logId: string;
 }
 
+// New interfaces for muscle strength logging
+export interface LogMuscleStrengthPayload {
+  appointmentId: string;
+  muscleId: string;
+  muscleName: string;
+  isStrong: boolean;
+  notes: string | null;
+}
+
+export interface LogMuscleStrengthResponse {
+  success: boolean;
+  logId: string;
+}
+
 // New interfaces for session logs
 export interface SessionLog {
   id: string;
