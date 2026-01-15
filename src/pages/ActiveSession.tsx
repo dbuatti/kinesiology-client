@@ -334,6 +334,32 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
     }
   }, [actualAppointmentId, clearAllSessionLogs]);
 
+  // New handler for clearing individual items from summary display
+  const handleClearSummaryItem = useCallback(async (type: string, id?: string) => {
+    if (!id) return;
+    
+    // Clear the item from local state based on type
+    switch (type) {
+      case 'muscle':
+        setSelectedMuscle(null);
+        break;
+      case 'chakra':
+        setSelectedChakra(null);
+        break;
+      case 'channel':
+        setSelectedChannel(null);
+        break;
+      case 'acupoint':
+        setSelectedAcupoint(null);
+        break;
+      case 'mode':
+        setSessionSelectedModes(prev => prev.filter(mode => mode.id !== id));
+        break;
+      default:
+        break;
+    }
+  }, []);
+
   // --- Render Logic ---
 
   if (overallLoading && !appointment) { // Only show full loading skeleton if no appointment data yet
@@ -422,6 +448,9 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
               selectedAcupoint={selectedAcupoint}
               sessionNorthStar={sessionNorthStarText}
               sessionAnchor={sessionAnchorText}
+              appointmentId={actualAppointmentId || ''}
+              onClearItem={handleClearSummaryItem}
+              onLogSuccess={handleLogSuccess}
             />
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
