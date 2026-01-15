@@ -5,7 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Menu, Home, Calendar, Users, Settings, LogOut, UserCircle2 } from 'lucide-react';
+import { Menu, Home, Calendar, Users, Settings, LogOut, UserCircle2, Bug } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -69,6 +69,7 @@ const AppNavbar = () => {
     { to: '/', icon: Home, label: 'Home' },
     { to: '/all-appointments', icon: Calendar, label: 'All Appointments' },
     { to: '/all-clients', icon: Users, label: 'All Clients' },
+    { to: '/debug-zone', icon: Bug, label: 'Debug Zone' },
   ];
 
   const renderNavLinks = (onLinkClick?: () => void) => (

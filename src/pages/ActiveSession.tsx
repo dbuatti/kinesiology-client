@@ -48,8 +48,13 @@ import {
   LogMuscleStrengthResponse, // Import new type
 } from '@/types/api';
 
-const ActiveSession = () => {
-  const { appointmentId } = useParams<{ appointmentId: string }>();
+interface ActiveSessionProps {
+  mockAppointmentId?: string; // New optional prop
+}
+
+const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
+  const params = useParams<{ appointmentId: string }>();
+  const actualAppointmentId = mockAppointmentId || params.appointmentId;
   const navigate = useNavigate();
 
   const [appointment, setAppointment] = useState<Appointment | null>(null);
@@ -114,10 +119,10 @@ const ActiveSession = () => {
       onSuccess: useCallback(() => {
         showSuccess('Appointment updated in Notion.');
         // Re-fetch appointment to ensure UI is in sync with Notion after update
-        if (appointmentId) {
-          fetchSingleAppointment({ appointmentId });
+        if (actualAppointmentId) {
+          fetchSingleAppointment({ appointmentId: actualAppointmentId });
         }
-      }, [appointmentId, fetchSingleAppointment]),
+      }, [actualAppointmentId, fetchSingleAppointment]),
       onError: useCallback((msg: string) => {
         showError(`Update Failed: ${msg}`);
       }, []),
@@ -155,10 +160,10 @@ const ActiveSession = () => {
       onSuccess: useCallback((data: LogMuscleStrengthResponse) => {
         console.log('Muscle strength logged to Supabase:', data.logId);
         showSuccess('Muscle strength logged.');
-        if (appointmentId) {
-          fetchSessionLogs({ appointmentId }); // Refresh logs after successful log
+        if (actualAppointmentId) {
+          fetchSessionLogs({ appointmentId: actualAppointmentId }); // Refresh logs after successful log
         }
-      }, [appointmentId, fetchSessionLogs]),
+      }, [actualAppointmentId, fetchSessionLogs]),
       onError: useCallback((msg: string) => {
         console.error('Failed to log muscle strength to Supabase:', msg);
         showError(`Logging Failed: ${msg}`);
@@ -176,10 +181,10 @@ const ActiveSession = () => {
       requiresAuth: true,
       onSuccess: useCallback((data: DeleteSessionLogResponse) => {
         showSuccess('Log entry deleted.');
-        if (appointmentId) {
-          fetchSessionLogs({ appointmentId }); // Refresh logs after deletion
+        if (actualAppointmentId) {
+          fetchSessionLogs({ appointmentId: actualAppointmentId }); // Refresh logs after deletion
         }
-      }, [appointmentId, fetchSessionLogs]),
+      }, [actualAppointmentId, fetchSessionLogs]),
       onError: useCallback((msg: string) => {
         showError(`Failed to delete log: ${msg}`);
       }, []),
@@ -196,10 +201,10 @@ const ActiveSession = () => {
       requiresAuth: true,
       onSuccess: useCallback(() => {
         showSuccess('All session logs cleared.');
-        if (appointmentId) {
-          fetchSessionLogs({ appointmentId }); // Refresh logs after clearing
+        if (actualAppointmentId) {
+          fetchSessionLogs({ appointmentId: actualAppointmentId }); // Refresh logs after clearing
         }
-      }, [appointmentId, fetchSessionLogs]),
+      }, [actualAppointmentId, fetchSessionLogs]),
       onError: useCallback((msg: string) => {
         showError(`Failed to clear all logs: ${msg}`);
       }, []),
@@ -209,11 +214,11 @@ const ActiveSession = () => {
   // --- Effects ---
 
   useEffect(() => {
-    if (appointmentId) {
-      fetchSingleAppointment({ appointmentId });
-      fetchSessionLogs({ appointmentId }); // Fetch logs on component mount
+    if (actualAppointmentId) {
+      fetchSingleAppointment({ appointmentId: actualAppointmentId });
+      fetchSessionLogs({ appointmentId: actualAppointmentId }); // Fetch logs on component mount
     }
-  }, [appointmentId, fetchSingleAppointment, fetchSessionLogs]);
+  }, [actualAppointmentId, fetchSingleAppointment, fetchSessionLogs]);
 
   // Clear Notion page viewer when switching tabs
   useEffect(() => {
@@ -281,16 +286,16 @@ const ActiveSession = () => {
   }, []);
 
   const handleMuscleStrengthLogged = useCallback(async (muscle: Muscle, isStrong: boolean, notes: string) => {
-    if (appointmentId) {
+    if (actualAppointmentId) {
       await logMuscleStrength({
-        appointmentId: appointmentId,
+        appointmentId: actualAppointmentId,
         muscleId: muscle.id,
         muscleName: muscle.name,
         isStrong: isStrong,
         notes: notes || null, // Pass notes here, ensuring null if empty string
       });
     }
-  }, [appointmentId, logMuscleStrength]);
+  }, [actualAppointmentId, logMuscleStrength]);
 
   const handleChakraSelected = useCallback((chakra: Chakra | null) => {
     setSelectedChakra(chakra);
@@ -305,10 +310,10 @@ const ActiveSession = () => {
   }, []);
 
   const handleLogSuccess = useCallback(() => {
-    if (appointmentId) {
-      fetchSessionLogs({ appointmentId }); // Refresh logs after any item is logged
+    if (actualAppointmentId) {
+      fetchSessionLogs({ appointmentId: actualAppointmentId }); // Refresh logs after any item is logged
     }
-  }, [appointmentId, fetchSessionLogs]);
+  }, [actualAppointmentId, fetchSessionLogs]);
 
   // Centralized handler for opening Notion pages
   const handleOpenNotionPage = useCallback((pageId: string, pageTitle: string) => {
@@ -324,10 +329,10 @@ const ActiveSession = () => {
   }, []);
 
   const handleClearAllSessionLogs = useCallback(async () => {
-    if (appointmentId && confirm('Are you sure you want to clear ALL logs for this session? This action cannot be undone.')) {
-      await clearAllSessionLogs({ appointmentId });
+    if (actualAppointmentId && confirm('Are you sure you want to clear ALL logs for this session? This action cannot be undone.')) {
+      await clearAllSessionLogs({ appointmentId: actualAppointmentId });
     }
-  }, [appointmentId, clearAllSessionLogs]);
+  }, [actualAppointmentId, clearAllSessionLogs]);
 
   // --- Render Logic ---
 
@@ -380,7 +385,7 @@ const ActiveSession = () => {
             <h2 className="xl font-bold mb-2">Error Loading Appointment</h2>
             <p className="text-gray-600 mb-4">{overallError}</p>
             <div className="space-y-2">
-              <Button onClick={() => fetchSingleAppointment({ appointmentId: appointmentId! })}>Try Again</Button>
+              <Button onClick={() => fetchSingleAppointment({ appointmentId: actualAppointmentId! })}>Try Again</Button>
               <Button variant="outline" onClick={() => navigate('/notion-config')}>
                 Check Configuration
               </Button>
@@ -395,7 +400,10 @@ const ActiveSession = () => {
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-indigo-900 mb-2">Active Session</h1>
+          <h1 className="text-3xl font-bold text-indigo-900 mb-2 flex items-center justify-center gap-3">
+            Active Session
+            {mockAppointmentId && <Badge variant="destructive" className="ml-3">DEBUG MODE</Badge>}
+          </h1>
           <p className="text-gray-600">
             {format(new Date(), 'EEEE, MMMM d, yyyy')}
           </p>
@@ -517,7 +525,7 @@ const ActiveSession = () => {
                         Select Mode
                       </Label>
                       <ModeSelect
-                        appointmentId={appointmentId!}
+                        appointmentId={actualAppointmentId || ''} // Use actualAppointmentId
                         onModesChanged={handleModesChanged} // Pass the new handler
                         onOpenNotionPage={handleOpenNotionPage}
                         onLogSuccess={handleLogSuccess}
@@ -533,7 +541,7 @@ const ActiveSession = () => {
                 <MuscleSelector
                   onMuscleSelected={handleMuscleSelected}
                   onMuscleStrengthLogged={handleMuscleStrengthLogged}
-                  appointmentId={appointmentId || ''}
+                  appointmentId={actualAppointmentId || ''} // Use actualAppointmentId
                   onClearSelection={() => setSelectedMuscle(null)} // Clear selected muscle in parent
                   onOpenNotionPage={handleOpenNotionPage} // Pass centralized handler
                 />
@@ -542,7 +550,7 @@ const ActiveSession = () => {
               {/* Chakras Tab */}
               <TabsContent value="chakras" className="mt-6 space-y-6">
                 <ChakraSelector
-                  appointmentId={appointmentId || ''}
+                  appointmentId={actualAppointmentId || ''} // Use actualAppointmentId
                   onChakraSelected={handleChakraSelected}
                   onClearSelection={() => setSelectedChakra(null)} // Clear selected chakra in parent
                   selectedChakra={selectedChakra}
@@ -553,7 +561,7 @@ const ActiveSession = () => {
               {/* Channels Tab */}
               <TabsContent value="channels" className="mt-6 space-y-6">
                 <ChannelDashboard
-                  appointmentId={appointmentId || ''}
+                  appointmentId={actualAppointmentId || ''} // Use actualAppointmentId
                   onLogSuccess={handleLogSuccess}
                   onClearSelection={() => setSelectedChannel(null)} // Clear selected channel in parent
                   onOpenNotionPage={handleOpenNotionPage} // Pass centralized handler
@@ -564,24 +572,24 @@ const ActiveSession = () => {
               {/* Acupoints Tab */}
               <TabsContent value="acupoints" className="mt-6 space-y-6">
                 <AcupointSelector
-                  appointmentId={appointmentId || ''}
+                  appointmentId={actualAppointmentId || ''} // Use actualAppointmentId
                   onLogSuccess={handleLogSuccess}
                   onClearSelection={() => setSelectedAcupoint(null)}
                   onOpenNotionPage={handleOpenNotionPage}
-                  onAcupointSelected={handleAcupointSelected} // Pass new prop
+                  onAcupointSelected={handleAcupointSelected}
                 />
               </TabsContent>
 
               {/* Session Log Tab */}
               <TabsContent value="session-log" className="mt-6 space-y-6">
                 <SessionLogDisplay
-                  appointmentId={appointmentId || ''}
+                  appointmentId={actualAppointmentId || ''} // Use actualAppointmentId
                   sessionLogs={sessionLogs}
                   sessionMuscleLogs={sessionMuscleLogs}
                   onDeleteLog={deleteSessionLog}
                   deletingLog={deletingSessionLog}
-                  onClearAllLogs={handleClearAllSessionLogs} // Pass new handler
-                  clearingAllLogs={clearingAllLogs} // Pass new loading state
+                  onClearAllLogs={handleClearAllSessionLogs}
+                  clearingAllLogs={clearingAllLogs}
                 />
               </TabsContent>
 
@@ -623,10 +631,10 @@ const ActiveSession = () => {
                 <Calendar className="w-16 h-16 mx-auto" />
               </div>
               <h2 className="xl font-semibold text-gray-700 mb-2">
-                No Active Session
+                {mockAppointmentId ? "Debug Session Initialized" : "No Active Session"}
               </h2>
               <p className="text-gray-500">
-                No session is currently active. Please select one from the Waiting Room.
+                {mockAppointmentId ? "Attempting to load mock appointment data. If this fails, ensure your Notion configuration is correct and a test appointment exists with ID 'debug-session-id' if you want to test data interaction." : "No session is currently active. Please select one from the Waiting Room."}
               </p>
             </CardContent>
           </Card>

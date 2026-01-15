@@ -13,6 +13,7 @@ import AllClients from "./pages/AllClients";
 import ProfileSetup from "./pages/ProfileSetup";
 import ProtectedRouteLayout from "./components/ProtectedRouteLayout"; // Import the new layout
 import ModeDetailsPage from "./pages/ModeDetailsPage"; // Import the new ModeDetailsPage
+import DebugZone from "./pages/DebugZone"; // Import the new DebugZone page
 
 const queryClient = new QueryClient();
 
@@ -31,11 +32,12 @@ const App = () => (
           <Route element={<ProtectedRouteLayout />}>
             <Route path="/" element={<WaitingRoom />} />
             <Route path="/active-session/:appointmentId" element={<ActiveSession />} />
+            <Route path="/debug-zone" element={<DebugZone />} /> {/* New Debug Zone route */}
             <Route path="/notion-config" element={<NotionConfig />} />
             <Route path="/all-appointments" element={<AllAppointments />} />
             <Route path="/all-clients" element={<AllClients />} />
             <Route path="/profile-setup" element={<ProfileSetup />} />
-            <Route path="/mode-details/:modeId" element={<ModeDetailsPage />} /> {/* New Mode Details Page */}
+            <Route path="/mode-details/:modeId" element={<ModeDetailsPage />} />
           </Route>
         </Routes>
       </BrowserRouter>
