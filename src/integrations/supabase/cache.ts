@@ -42,11 +42,14 @@ export const cacheService = {
     // Check if cache is expired
     if (new Date(data.expires_at) < new Date()) {
       // Delete expired cache entry (fire and forget)
-      supabase.from('notion_cache').delete().eq('id', key).then(() => {
+      (async () => {
+        try {
+          await supabase.from('notion_cache').delete().eq('id', key);
           console.log(`Expired cache entry deleted: ${key}`);
-      }).catch(err => {
+        } catch (err) {
           console.error('Failed to delete expired cache entry:', err);
-      });
+        }
+      })();
       return null;
     }
 
