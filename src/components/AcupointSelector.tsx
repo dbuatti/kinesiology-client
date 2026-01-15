@@ -22,25 +22,29 @@ interface AcupointSelectorProps {
   onClearSelection: () => void;
   onOpenNotionPage: (pageId: string, pageTitle: string) => void;
   onAcupointSelected: (acupoint: Acupoint | null) => void;
+  initialAcupoints?: Acupoint[]; // New prop for pre-fetched data
+  loadingInitial: boolean; // New prop for initial loading state
 }
 
-const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLogSuccess, onClearSelection, onOpenNotionPage, onAcupointSelected }) => {
-  const [allAcupoints, setAllAcupoints] = useState<Acupoint[]>([]);
-  const [foundAcupoints, setFoundAcupoints] = useState<Acupoint[]>([]);
+const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLogSuccess, onClearSelection, onOpenNotionPage, onAcupointSelected, initialAcupoints, loadingInitial }) => {
+  const [allAcupoints, setAllAcupoints] = useState<Acupoint[]>(initialAcupoints || []);
+  const [foundAcupoints, setFoundAcupoints] = useState<Acupoint[]>(initialAcupoints || []);
   const [acupointSearchTerm, setAcupointSearchTerm] = useState('');
   const [symptomSearchTerm, setSymptomSearchTerm] = useState('');
   const [selectedAcupoint, setSelectedAcupoint] = useState<Acupoint | null>(null);
   const [isAcupointSearchOpen, setIsAcupointSearchOpen] = useState(false);
   const [isSymptomSearchOpen, setIsSymptomSearchOpen] = useState(false);
+  const [isDataCached, setIsDataCached] = useState(false); // Local state to track if data came from cache
 
   const navigate = useNavigate();
 
   const debouncedAcupointSearchTerm = useDebounce(acupointSearchTerm, 500);
   const debouncedSymptomSearchTerm = useDebounce(symptomSearchTerm, 500);
 
-  const onAcupointsSuccess = useCallback((data: GetAcupointsResponse) => {
+  const onAcupointsSuccess = useCallback((data: GetAcupointsResponse, isCached: boolean) => {
     setAllAcupoints(data.acupoints);
     setFoundAcupoints(data.acupoints);
+    setIsDataCached(isCached);
   }, []);
 
   const onAcupointsError = useCallback((msg: string) => {
@@ -49,8 +53,9 @@ const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLo
     setFoundAcupoints([]);
   }, []);
 
+  // Use a local hook instance only for logging/updates, not for initial fetch if props are provided
   const {
-    loading: loadingAcupoints,
+    loading: loadingAcupointsHook,
     error: acupointsError,
     needsConfig,
     execute: fetchAcupoints,
@@ -66,6 +71,18 @@ const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLo
       onError: onAcupointsError,
     }
   );
+
+  // Effect to handle initial data load from props or trigger fetch if props are empty
+  useEffect(() => {
+    if (initialAcupoints && initialAcupoints.length > 0) {
+      setAllAcupoints(initialAcupoints);
+      setFoundAcupoints(initialAcupoints);
+      setIsDataCached(true); // Assume data passed via props is likely cached/fresh
+    } else if (!loadingInitial && allAcupoints.length === 0 && !acupointsError && !needsConfig) {
+      // If no initial data provided, fetch it now (this should rarely happen if pre-fetching works)
+      fetchAcupoints({ searchTerm: '', searchType: 'point' }); // Fetch all initially
+    }
+  }, [initialAcupoints, loadingInitial, allAcupoints.length, acupointsError, needsConfig, fetchAcupoints]);
 
   const {
     loading: loggingSessionEvent,
@@ -85,13 +102,6 @@ const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLo
       }
     }
   );
-
-  // Effect to fetch all acupoints on initial mount
-  useEffect(() => {
-    if (allAcupoints.length === 0 && !loadingAcupoints && !acupointsError && !needsConfig) {
-      fetchAcupoints({ searchTerm: '', searchType: 'point' }); // Fetch all initially
-    }
-  }, [allAcupoints.length, loadingAcupoints, acupointsError, needsConfig, fetchAcupoints]);
 
   // Effect to filter acupoints based on debounced search terms (client-side)
   useEffect(() => {
@@ -189,6 +199,8 @@ const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLo
     }
   }, [selectedAcupoint, appointmentId, loggingSessionEvent, logSessionEvent, handleClearSelectedAcupoint]);
 
+  const isLoading = loadingInitial || loadingAcupointsHook;
+
   if (needsConfig) {
     return (
       <Card className="max-w-md w-full w-full shadow-xl mx-auto">
@@ -219,7 +231,7 @@ const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLo
         <CardTitle className="text-xl font-bold text-indigo-800 flex items-center gap-2">
           <Search className="w-5 h-5" />
           Acupoint Insight Engine
-          {acupointsIsCached && (
+          {(isDataCached || acupointsIsCached) && (
             <Badge variant="secondary" className="bg-green-200 text-green-800 ml-2">
               Cached
             </Badge>
@@ -240,9 +252,9 @@ const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLo
                 role="combobox"
                 aria-expanded={isAcupointSearchOpen}
                 className="w-full justify-between"
-                disabled={loadingAcupoints}
+                disabled={isLoading}
               >
-                {loadingAcupoints ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 {selectedAcupoint ? selectedAcupoint.name : (acupointSearchTerm || "Search for an acupoint...")}
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
@@ -254,7 +266,7 @@ const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLo
                     placeholder="Search acupoint..."
                     value={acupointSearchTerm}
                     onValueChange={handleAcupointSearchChange}
-                    disabled={loadingAcupoints}
+                    disabled={isLoading}
                   />
                   {acupointSearchTerm && (
                     <Button
@@ -262,7 +274,7 @@ const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLo
                       size="sm"
                       className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0 text-gray-500 hover:text-gray-700"
                       onClick={handleClearAcupointSearch}
-                      disabled={loadingAcupoints}
+                      disabled={isLoading}
                     >
                       <XCircle className="h-4 w-4" />
                     </Button>
@@ -315,9 +327,9 @@ const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLo
                 role="combobox"
                 aria-expanded={isSymptomSearchOpen}
                 className="w-full justify-between"
-                disabled={loadingAcupoints}
+                disabled={isLoading}
               >
-                {loadingAcupoints ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 {selectedAcupoint ? selectedAcupoint.name : (symptomSearchTerm || "Search symptoms for point suggestions...")}
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
@@ -329,7 +341,7 @@ const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLo
                     placeholder="Search symptom..."
                     value={symptomSearchTerm}
                     onValueChange={handleSymptomSearchChange}
-                    disabled={loadingAcupoints}
+                    disabled={isLoading}
                   />
                   {symptomSearchTerm && (
                     <Button
@@ -337,7 +349,7 @@ const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLo
                       size="sm"
                       className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0 text-gray-500 hover:text-gray-700"
                       onClick={handleClearSymptomSearch}
-                      disabled={loadingAcupoints}
+                      disabled={isLoading}
                     >
                       <XCircle className="h-4 w-4" />
                     </Button>

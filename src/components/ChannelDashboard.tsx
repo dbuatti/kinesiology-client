@@ -20,6 +20,8 @@ interface ChannelDashboardProps {
   onClearSelection: () => void;
   onOpenNotionPage: (pageId: string, pageTitle: string) => void;
   onChannelSelected: (channel: Channel | null) => void;
+  initialChannels?: Channel[]; // New prop for pre-fetched data
+  loadingInitial: boolean; // New prop for initial loading state
 }
 
 const primaryElements = ['Wood', 'Fire', 'Earth', 'Metal', 'Water'];
@@ -39,10 +41,11 @@ yuanAndFrontMuPoints.set('Triple Warmer', { yuan: 'SJ4 (Yangchi)', frontMu: 'CV5
 yuanAndFrontMuPoints.set('Gallbladder', { yuan: 'GB40 (Qiuxu)', frontMu: 'GB24 (Riyue)' });
 yuanAndFrontMuPoints.set('Liver', { yuan: 'LV3 (Taichong)', frontMu: 'LV14 (Qimen)' });
 
-const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLogSuccess, onClearSelection, onOpenNotionPage, onChannelSelected }) => {
-  const [allChannels, setAllChannels] = useState<Channel[]>([]);
+const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLogSuccess, onClearSelection, onOpenNotionPage, onChannelSelected, initialChannels, loadingInitial }) => {
+  const [allChannels, setAllChannels] = useState<Channel[]>(initialChannels || []);
   const [selectedChannelForDisplay, setSelectedChannelForDisplay] = useState<Channel | null>(null);
   const [loggedItems, setLoggedItems] = useState<Set<string>>(new Set());
+  const [isDataCached, setIsDataCached] = useState(false); // Local state to track if data came from cache
 
   const navigate = useNavigate();
 
@@ -117,8 +120,9 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
     }
   };
 
-  const onChannelsSuccess = useCallback((data: GetChannelsResponse) => {
+  const onChannelsSuccess = useCallback((data: GetChannelsResponse, isCached: boolean) => {
     setAllChannels(data.channels);
+    setIsDataCached(isCached);
   }, []);
 
   const onChannelsError = useCallback((msg: string) => {
@@ -126,8 +130,9 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
     setAllChannels([]);
   }, []);
 
+  // Use a local hook instance only for logging/updates, not for initial fetch if props are provided
   const {
-    loading: loadingChannels,
+    loading: loadingChannelsHook,
     error: channelsError,
     needsConfig,
     execute: fetchChannels,
@@ -163,12 +168,16 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
     }
   );
 
-  // Effect to fetch all channels on initial mount
+  // Effect to handle initial data load from props or trigger fetch if props are empty
   useEffect(() => {
-    if (allChannels.length === 0 && !loadingChannels && !channelsError && !needsConfig) {
+    if (initialChannels && initialChannels.length > 0) {
+      setAllChannels(initialChannels);
+      setIsDataCached(true); // Assume data passed via props is likely cached/fresh
+    } else if (!loadingInitial && allChannels.length === 0 && !channelsError && !needsConfig) {
+      // If no initial data provided, fetch it now (this should rarely happen if pre-fetching works)
       fetchChannels({ searchTerm: '', searchType: 'name' }); // Fetch all initially
     }
-  }, [allChannels.length, loadingChannels, channelsError, needsConfig, fetchChannels]);
+  }, [initialChannels, loadingInitial, allChannels.length, channelsError, needsConfig, fetchChannels]);
 
   const { meridianChannels, nonMeridianChannels } = useMemo(() => {
     const meridian: Channel[] = [];
@@ -265,6 +274,8 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
     return channelName;
   };
 
+  const isLoading = loadingInitial || loadingChannelsHook;
+
   if (needsConfig) {
     return (
       <Card className="max-w-md w-full shadow-xl mx-auto">
@@ -295,7 +306,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
         <CardTitle className="text-xl font-bold text-indigo-800 flex items-center gap-2">
           <Waves className="w-5 h-5" />
           Channel Dashboard
-          {channelsIsCached && (
+          {(isDataCached || channelsIsCached) && (
             <Badge variant="secondary" className="bg-green-200 text-green-800 ml-2">
               Cached
             </Badge>
@@ -303,7 +314,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-6 space-y-6">
-        {loadingChannels ? (
+        {isLoading ? (
           <div className="flex justify-center items-center h-40">
             <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
           </div>

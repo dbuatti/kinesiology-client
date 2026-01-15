@@ -22,21 +22,25 @@ interface ChakraSelectorProps {
   onClearSelection: () => void;
   selectedChakra: Chakra | null;
   onOpenNotionPage: (pageId: string, pageTitle: string) => void;
+  initialChakras?: Chakra[]; // New prop for pre-fetched data
+  loadingInitial: boolean; // New prop for initial loading state
 }
 
-const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakraSelected, onClearSelection, selectedChakra, onOpenNotionPage }) => {
-  const [allChakras, setAllChakras] = useState<Chakra[]>([]);
-  const [filteredChakras, setFilteredChakras] = useState<Chakra[]>([]);
+const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakraSelected, onClearSelection, selectedChakra, onOpenNotionPage, initialChakras, loadingInitial }) => {
+  const [allChakras, setAllChakras] = useState<Chakra[]>(initialChakras || []);
+  const [filteredChakras, setFilteredChakras] = useState<Chakra[]>(initialChakras || []);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchType, setSearchType] = useState<'name' | 'element' | 'emotion' | 'organ'>('name');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isDataCached, setIsDataCached] = useState(false); // Local state to track if data came from cache
 
   const navigate = useNavigate();
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
-  const onChakrasSuccess = useCallback((data: GetChakrasResponse) => {
+  const onChakrasSuccess = useCallback((data: GetChakrasResponse, isCached: boolean) => {
     setAllChakras(data.chakras);
     setFilteredChakras(data.chakras);
+    setIsDataCached(isCached);
   }, []);
 
   const onChakrasError = useCallback((msg: string) => {
@@ -45,9 +49,9 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
     setFilteredChakras([]);
   }, []);
 
+  // Use a local hook instance only for logging/updates, not for initial fetch if props are provided
   const {
-    data: fetchedChakrasData,
-    loading: loadingChakras,
+    loading: loadingChakrasHook,
     error: chakrasError,
     needsConfig,
     execute: fetchChakras,
@@ -63,6 +67,18 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
       onError: onChakrasError,
     }
   );
+
+  // Effect to handle initial data load from props or trigger fetch if props are empty
+  useEffect(() => {
+    if (initialChakras && initialChakras.length > 0) {
+      setAllChakras(initialChakras);
+      setFilteredChakras(initialChakras);
+      setIsDataCached(true); // Assume data passed via props is likely cached/fresh
+    } else if (!loadingInitial && allChakras.length === 0 && !chakrasError && !needsConfig) {
+      // If no initial data provided, fetch it now (this should rarely happen if pre-fetching works)
+      fetchChakras({ searchTerm: '', searchType: 'name' });
+    }
+  }, [initialChakras, loadingInitial, allChakras.length, chakrasError, needsConfig, fetchChakras]);
 
   // Hook for logging general session events
   const {
@@ -81,13 +97,6 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
       }
     }
   );
-
-  // Effect to fetch all chakras on initial mount
-  useEffect(() => {
-    if (allChakras.length === 0 && !loadingChakras && !chakrasError && !needsConfig) {
-      fetchChakras({ searchTerm: '', searchType: 'name' }); // Fetch all initially
-    }
-  }, [allChakras.length, loadingChakras, chakrasError, needsConfig, fetchChakras]);
 
   // Effect to filter chakras based on search term and type (client-side)
   useEffect(() => {
@@ -158,6 +167,8 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
     onClearSelection();
   };
 
+  const isLoading = loadingInitial || loadingChakrasHook;
+
   if (needsConfig) {
     return (
       <Card className="max-w-md w-full shadow-xl mx-auto">
@@ -188,7 +199,7 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
         <CardTitle className="text-xl font-bold text-indigo-800 flex items-center gap-2">
           <Sparkles className="w-5 h-5" />
           Chakra Insight Engine
-          {chakrasIsCached && (
+          {(isDataCached || chakrasIsCached) && (
             <Badge variant="secondary" className="bg-green-200 text-green-800 ml-2">
               Cached
             </Badge>
@@ -207,7 +218,7 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
               variant={searchType === 'name' ? 'default' : 'outline'}
               onClick={() => handleSearchTypeChange('name')}
               className={cn(searchType === 'name' ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'text-indigo-600 border-indigo-300 hover:bg-indigo-50')}
-              disabled={loadingChakras || loggingSessionEvent}
+              disabled={isLoading || loggingSessionEvent}
             >
               Name
             </Button>
@@ -215,7 +226,7 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
               variant={searchType === 'element' ? 'default' : 'outline'}
               onClick={() => handleSearchTypeChange('element')}
               className={cn(searchType === 'element' ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'text-indigo-600 border-indigo-300 hover:bg-indigo-50')}
-              disabled={loadingChakras || loggingSessionEvent}
+              disabled={isLoading || loggingSessionEvent}
             >
               Element
             </Button>
@@ -223,7 +234,7 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
               variant={searchType === 'emotion' ? 'default' : 'outline'}
               onClick={() => handleSearchTypeChange('emotion')}
               className={cn(searchType === 'emotion' ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'text-indigo-600 border-indigo-300 hover:bg-indigo-50')}
-              disabled={loadingChakras || loggingSessionEvent}
+              disabled={isLoading || loggingSessionEvent}
             >
               Emotion
             </Button>
@@ -231,7 +242,7 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
               variant={searchType === 'organ' ? 'default' : 'outline'}
               onClick={() => handleSearchTypeChange('organ')}
               className={cn(searchType === 'organ' ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'text-indigo-600 border-indigo-300 hover:bg-indigo-50')}
-              disabled={loadingChakras || loggingSessionEvent}
+              disabled={isLoading || loggingSessionEvent}
             >
               Organ
             </Button>
@@ -243,9 +254,9 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
                 role="combobox"
                 aria-expanded={isSearchOpen}
                 className="w-full justify-between"
-                disabled={loadingChakras || loggingSessionEvent}
+                disabled={isLoading || loggingSessionEvent}
               >
-                {loadingChakras ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 {selectedChakra ? selectedChakra.name : (searchTerm || `Search by ${searchType}...`)}
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
@@ -258,7 +269,7 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
                   onValueChange={(value) => {
                     setSearchTerm(value);
                   }}
-                  disabled={loadingChakras}
+                  disabled={isLoading}
                 />
                 <CommandEmpty>No chakras found.</CommandEmpty>
                 <CommandGroup className="max-h-[300px] overflow-y-auto">

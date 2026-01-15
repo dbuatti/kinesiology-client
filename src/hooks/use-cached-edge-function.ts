@@ -11,7 +11,7 @@ interface UseCachedEdgeFunctionOptions {
   requiresNotionConfig?: boolean;
   cacheKey?: string;
   cacheTtl?: number; // minutes
-  onSuccess?: (data: any) => void;
+  onSuccess?: (data: any, isCached: boolean) => void;
   onError?: (error: string, errorCode?: string) => void;
   onNotionConfigNeeded?: () => void;
 }
@@ -108,7 +108,7 @@ export const useCachedEdgeFunction = <TRequest, TResponse>(
           console.log(`[useCachedEdgeFunction] Cache hit for ${functionName} with key: ${cacheKey}`);
           setData(cachedData);
           setIsCached(true);
-          onSuccessRef.current?.(cachedData);
+          onSuccessRef.current?.(cachedData, true); // Pass true for isCached
           setLoading(false);
           return;
         }
@@ -152,7 +152,7 @@ export const useCachedEdgeFunction = <TRequest, TResponse>(
 
       const result = await response.json();
       setData(result);
-      onSuccessRef.current?.(result);
+      onSuccessRef.current?.(result, false); // Pass false for isCached
       console.log(`[useCachedEdgeFunction] Successfully fetched data for ${functionName}.`);
 
       // Cache the result if cacheKey is provided

@@ -23,24 +23,28 @@ interface MuscleSelectorProps {
   appointmentId: string;
   onClearSelection: () => void;
   onOpenNotionPage: (pageId: string, pageTitle: string) => void;
+  initialMuscles?: Muscle[]; // New prop for pre-fetched data
+  loadingInitial: boolean; // New prop for initial loading state
 }
 
-const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMuscleStrengthLogged, appointmentId, onClearSelection, onOpenNotionPage }) => {
-  const [allMuscles, setAllMuscles] = useState<Muscle[]>([]);
-  const [filteredMuscles, setFilteredMuscles] = useState<Muscle[]>([]);
+const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMuscleStrengthLogged, appointmentId, onClearSelection, onOpenNotionPage, initialMuscles, loadingInitial }) => {
+  const [allMuscles, setAllMuscles] = useState<Muscle[]>(initialMuscles || []);
+  const [filteredMuscles, setFilteredMuscles] = useState<Muscle[]>(initialMuscles || []);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchType, setSearchType] = useState<'muscle' | 'meridian' | 'organ' | 'emotion'>('muscle');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [selectedMuscle, setSelectedMuscle] = useState<Muscle | null>(null);
   const [showWeaknessChecklist, setShowWeaknessChecklist] = useState(false);
   const [notes, setNotes] = useState('');
+  const [isDataCached, setIsDataCached] = useState(false); // Local state to track if data came from cache
 
   const navigate = useNavigate();
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
-  const onMusclesSuccess = useCallback((data: GetMusclesResponse) => {
+  const onMusclesSuccess = useCallback((data: GetMusclesResponse, isCached: boolean) => {
     setAllMuscles(data.muscles);
     setFilteredMuscles(data.muscles);
+    setIsDataCached(isCached);
   }, []);
 
   const onMusclesError = useCallback((msg: string) => {
@@ -49,8 +53,9 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
     setFilteredMuscles([]);
   }, []);
 
+  // Use a local hook instance only for logging/updates, not for initial fetch if props are provided
   const {
-    loading: loadingMuscles,
+    loading: loadingMusclesHook,
     error: musclesError,
     needsConfig,
     execute: fetchMuscles,
@@ -67,12 +72,17 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
     }
   );
 
-  // Effect to fetch all muscles on initial mount
+  // Effect to handle initial data load from props or trigger fetch if props are empty
   useEffect(() => {
-    if (allMuscles.length === 0 && !loadingMuscles && !musclesError && !needsConfig) {
-      fetchMuscles({ searchTerm: '', searchType: 'muscle' }); // Fetch all initially
+    if (initialMuscles && initialMuscles.length > 0) {
+      setAllMuscles(initialMuscles);
+      setFilteredMuscles(initialMuscles);
+      setIsDataCached(true); // Assume data passed via props is likely cached/fresh
+    } else if (!loadingInitial && allMuscles.length === 0 && !musclesError && !needsConfig) {
+      // If no initial data provided, fetch it now (this should rarely happen if pre-fetching works)
+      fetchMuscles({ searchTerm: '', searchType: 'muscle' });
     }
-  }, [allMuscles.length, loadingMuscles, musclesError, needsConfig, fetchMuscles]);
+  }, [initialMuscles, loadingInitial, allMuscles.length, musclesError, needsConfig, fetchMuscles]);
 
   // Effect to filter muscles based on search term and type (client-side)
   useEffect(() => {
@@ -146,6 +156,8 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
     setIsSearchOpen(false);
   };
 
+  const isLoading = loadingInitial || loadingMusclesHook;
+
   if (needsConfig) {
     return (
       <Card className="max-w-md w-full shadow-xl mx-auto">
@@ -176,7 +188,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
         <CardTitle className="text-xl font-bold text-indigo-800 flex items-center gap-2">
           <Hand className="w-5 h-5" />
           Muscle Testing & Insights
-          {musclesIsCached && (
+          {(isDataCached || musclesIsCached) && (
             <Badge variant="secondary" className="bg-green-200 text-green-800 ml-2">
               Cached
             </Badge>
@@ -200,7 +212,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
               variant={searchType === 'muscle' ? 'default' : 'outline'}
               onClick={() => handleSearchTypeChange('muscle')}
               className={cn(searchType === 'muscle' ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'text-indigo-600 border-indigo-300 hover:bg-indigo-50')}
-              disabled={loadingMuscles}
+              disabled={isLoading}
             >
               Muscle Name
             </Button>
@@ -208,7 +220,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
               variant={searchType === 'organ' ? 'default' : 'outline'}
               onClick={() => handleSearchTypeChange('organ')}
               className={cn(searchType === 'organ' ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'text-indigo-600 border-indigo-300 hover:bg-indigo-50')}
-              disabled={loadingMuscles}
+              disabled={isLoading}
             >
               Organ System
             </Button>
@@ -216,7 +228,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
               variant={searchType === 'emotion' ? 'default' : 'outline'}
               onClick={() => handleSearchTypeChange('emotion')}
               className={cn(searchType === 'emotion' ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'text-indigo-600 border-indigo-300 hover:bg-indigo-50')}
-              disabled={loadingMuscles}
+              disabled={isLoading}
             >
               Emotion
             </Button>
@@ -228,9 +240,9 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
                 role="combobox"
                 aria-expanded={isSearchOpen}
                 className="w-full justify-between"
-                disabled={loadingMuscles}
+                disabled={isLoading}
               >
-                {loadingMuscles ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 {selectedMuscle ? selectedMuscle.name : (searchTerm || `Search by ${searchType}...`)}
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
@@ -447,7 +459,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   className="min-h-[60px]"
-                  disabled={loadingMuscles}
+                  disabled={isLoading}
                 />
               </div>
 
@@ -456,20 +468,20 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
                 <Button
                   className="flex-1 bg-green-500 hover:bg-green-600 text-white"
                   onClick={() => handleLogStrength(true)}
-                  disabled={loadingMuscles}
+                  disabled={isLoading}
                 >
-                  {loadingMuscles ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                   Body Yes (Strong)
                 </Button>
                 <Button
                   className="flex-1 bg-red-500 hover:bg-red-600 text-white"
                   onClick={() => handleLogStrength(false)}
-                  disabled={loadingMuscles}
+                  disabled={isLoading}
                 >
-                  {loadingMuscles ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                   Body No (Weak)
                 </Button>
-                <Button variant="outline" onClick={handleClearAll} disabled={loadingMuscles}>
+                <Button variant="outline" onClick={handleClearAll} disabled={isLoading}>
                   <Trash2 className="h-4 w-4 mr-2" />
                   Clear
                 </Button>
