@@ -3,7 +3,8 @@
 import React from 'react';
 import ActiveSession from './ActiveSession';
 
-const MOCK_APPOINTMENT_ID = 'debug-session-id';
+// Use a valid UUID format for the mock appointment ID
+const MOCK_APPOINTMENT_ID = '00000000-0000-0000-0000-000000000000';
 
 const DebugZone = () => {
   return (

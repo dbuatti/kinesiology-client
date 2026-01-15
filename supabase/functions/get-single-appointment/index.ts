@@ -9,6 +9,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Define the mock ID used in the client DebugZone
+const MOCK_APPOINTMENT_ID = '00000000-0000-0000-0000-000000000000';
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -87,26 +90,56 @@ serve(async (req) => {
       })
     }
 
+    let page: any;
+    let notionAppointmentResponse: Response;
+
     // Query Notion API for the specific appointment page
-    const notionAppointmentResponse = await retryFetch('https://api.notion.com/v1/pages/' + appointmentId, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${secrets.notion_integration_token}`,
-        'Content-Type': 'application/json',
-        'Notion-Version': '2022-06-28'
-      }
-    })
+    try {
+      notionAppointmentResponse = await retryFetch('https://api.notion.com/v1/pages/' + appointmentId, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${secrets.notion_integration_token}`,
+          'Content-Type': 'application/json',
+          'Notion-Version': '2022-06-28'
+        }
+      })
+    } catch (fetchError) {
+      console.error("[get-single-appointment] Retry fetch failed:", fetchError);
+      return new Response(JSON.stringify({ error: 'Failed to communicate with Notion API.', details: fetchError.message }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
 
     if (!notionAppointmentResponse.ok) {
       const errorText = await notionAppointmentResponse.text()
       console.error("[get-single-appointment] Notion API (Page) error:", errorText)
+
+      // Handle the mock ID case gracefully for the Debug Zone
+      if (appointmentId === MOCK_APPOINTMENT_ID) {
+        console.warn("[get-single-appointment] Using mock data for Debug Zone ID.")
+        const mockAppointment = {
+          id: MOCK_APPOINTMENT_ID,
+          clientName: "Debug Client (Mock)",
+          starSign: "♑ Capricorn",
+          sessionNorthStar: "Testing the live session dashboard functionality.",
+          goal: "Ensure all selectors and logging mechanisms work correctly.",
+          sessionAnchor: "Focusing on UI/UX and data flow.",
+          status: "OPEN"
+        };
+        return new Response(JSON.stringify({ appointment: mockAppointment }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
       return new Response(JSON.stringify({ error: 'Failed to fetch appointment from Notion', details: errorText }), {
         status: notionAppointmentResponse.status,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    const page = await notionAppointmentResponse.json()
+    page = await notionAppointmentResponse.json()
     console.log("[get-single-appointment] Found appointment page:", page.id)
 
     const properties = page.properties
