@@ -9,7 +9,7 @@ import { Calendar, Settings, AlertCircle, PlayCircle, User, Star, Target, Lightb
 import { showSuccess, showError } from '@/utils/toast';
 import { format } from 'date-fns';
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
-import { Appointment, GetTodaysAppointmentsResponse, UpdateNotionAppointmentPayload, UpdateNotionAppointmentResponse } from '@/types/api';
+import { Appointment, GetTodaysAppointmentsResponse, UpdateNotionAppointmentPayload, UpdateNotionAppointmentResponse, GetTodaysAppointmentsPayload } from '@/types/api';
 import CreateAppointmentDialog from '@/components/CreateAppointmentDialog';
 
 const WaitingRoom = () => {
@@ -40,7 +40,7 @@ const WaitingRoom = () => {
     error: appointmentsError,
     needsConfig,
     execute: fetchTodaysAppointments,
-  } = useSupabaseEdgeFunction<void, GetTodaysAppointmentsResponse>(
+  } = useSupabaseEdgeFunction<GetTodaysAppointmentsPayload, GetTodaysAppointmentsResponse>(
     'get-todays-appointments',
     {
       requiresAuth: true,
@@ -53,7 +53,8 @@ const WaitingRoom = () => {
 
   useEffect(() => {
     console.log('[WaitingRoom] Initial fetch for appointments.');
-    fetchTodaysAppointments();
+    const todayDate = format(new Date(), 'yyyy-MM-dd'); // Calculate today's date string
+    fetchTodaysAppointments({ todayDate }); // Pass payload
   }, [fetchTodaysAppointments]);
 
   const handleUpdateSuccess = useCallback(() => {
@@ -88,11 +89,13 @@ const WaitingRoom = () => {
   }, [updateNotionAppointment, updatingAppointment, navigate]); // Added dependencies
 
   const handleRefresh = useCallback(() => {
-    fetchTodaysAppointments();
+    const todayDate = format(new Date(), 'yyyy-MM-dd'); // Calculate today's date string
+    fetchTodaysAppointments({ todayDate }); // Pass payload
   }, [fetchTodaysAppointments]);
 
   const handleAppointmentCreated = useCallback(() => {
-    fetchTodaysAppointments();
+    const todayDate = format(new Date(), 'yyyy-MM-dd'); // Calculate today's date string
+    fetchTodaysAppointments({ todayDate }); // Pass payload
   }, [fetchTodaysAppointments]);
 
   console.log('[WaitingRoom] Rendering with appointments:', appointments);
@@ -147,7 +150,7 @@ const WaitingRoom = () => {
             <h2 className="xl font-bold mb-2">Error Loading Appointments</h2>
             <p className="text-gray-600 mb-4">{appointmentsError}</p>
             <div className="space-y-2">
-              <Button onClick={() => fetchTodaysAppointments()}>Try Again</Button>
+              <Button onClick={() => fetchTodaysAppointments({ todayDate: format(new Date(), 'yyyy-MM-dd') })}>Try Again</Button>
             </div>
           </CardContent>
         </Card>

@@ -155,6 +155,10 @@ export interface NotionSecrets {
 }
 
 // Edge Function Payloads and Responses
+export interface GetTodaysAppointmentsPayload {
+  todayDate: string; // YYYY-MM-DD format
+}
+
 export interface GetTodaysAppointmentsResponse {
   appointments: Appointment[];
 }

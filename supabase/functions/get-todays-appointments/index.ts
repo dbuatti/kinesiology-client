@@ -113,15 +113,21 @@ serve(async (req) => {
 
     console.log("[get-todays-appointments] Secrets loaded successfully for user:", user.id)
 
-    // Calculate today's date string using local time methods (which Deno runs as UTC, but Notion often expects YYYY-MM-DD for date-only properties)
-    // We will use the current date string and rely on Notion's date-only property handling.
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-    const todayString = `${year}-${month}-${day}`;
+    // --- START MODIFICATION: Read date from client payload ---
+    const { todayDate } = await req.json();
 
-    console.log("[get-todays-appointments] Calculated today's date string (Local/Deno Time):", todayString);
+    if (!todayDate) {
+      console.warn("[get-todays-appointments] Bad request: Missing todayDate in request body")
+      return new Response(JSON.stringify({ error: 'Missing todayDate in request body' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    const todayString = todayDate;
+    // --- END MODIFICATION ---
+
+    console.log("[get-todays-appointments] Calculated today's date string (Client Time):", todayString);
 
 
     const filterBody = {
