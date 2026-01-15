@@ -113,17 +113,15 @@ serve(async (req) => {
 
     console.log("[get-todays-appointments] Secrets loaded successfully for user:", user.id)
 
-    // Calculate today's date range (start of today to start of tomorrow, UTC)
+    // Calculate today's date string using local time methods (which Deno runs as UTC, but Notion often expects YYYY-MM-DD for date-only properties)
+    // We will use the current date string and rely on Notion's date-only property handling.
     const today = new Date();
-    today.setUTCHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setUTCDate(today.getUTCDate() + 1);
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const todayString = `${year}-${month}-${day}`;
 
-    const todayString = today.toISOString().split('T')[0]; // YYYY-MM-DD
-    const tomorrowString = tomorrow.toISOString().split('T')[0]; // YYYY-MM-DD
-
-    console.log("[get-todays-appointments] Calculated today's date string (UTC):", todayString);
-    console.log("[get-todays-appointments] Calculated tomorrow's date string (UTC):", tomorrowString);
+    console.log("[get-todays-appointments] Calculated today's date string (Local/Deno Time):", todayString);
 
 
     const filterBody = {
@@ -132,13 +130,7 @@ serve(async (req) => {
           {
             property: "Date",
             date: {
-              on_or_after: todayString
-            }
-          },
-          {
-            property: "Date",
-            date: {
-              on_or_before: todayString // For date-only properties, filtering on_or_after and on_or_before the same date works like 'equals' but is more robust.
+              equals: todayString // Use strict equals for date-only property
             }
           },
           {
