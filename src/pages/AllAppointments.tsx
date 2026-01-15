@@ -10,15 +10,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
-import { Check, ChevronsUpDown, Calendar, User, Settings, Loader2, Search, AlertCircle, XCircle, PlayCircle } from 'lucide-react'; // Added PlayCircle
-import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
+import { Check, ChevronsUpDown, Calendar, User, Settings, Loader2, Search, AlertCircle, XCircle, PlayCircle } from 'lucide-react';
+import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
+import { useCachedEdgeFunction } from '@/hooks/use-cached-edge-function';
 import { Appointment, GetAllAppointmentsResponse, UpdateNotionAppointmentPayload, UpdateNotionAppointmentResponse } from '@/types/api';
+import SyncStatusIndicator from '@/components/SyncStatusIndicator';
 
-const statusOptions = ['OPEN', 'AP', 'CH', 'CXL']; // Assuming these are your Notion Status options
-const priorityPatternOptions = ['Pattern A', 'Pattern B', 'Pattern C', 'Pattern D']; // Example options, adjust as needed
+const statusOptions = ['OPEN', 'AP', 'CH', 'CXL'];
+const priorityPatternOptions = ['Pattern A', 'Pattern B', 'Pattern C', 'Pattern D'];
 
 const AllAppointments = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -50,11 +51,14 @@ const AllAppointments = () => {
     error: appointmentsError,
     needsConfig,
     execute: fetchAllAppointments,
-  } = useSupabaseEdgeFunction<void, GetAllAppointmentsResponse>(
+    isCached: appointmentsIsCached,
+  } = useCachedEdgeFunction<void, GetAllAppointmentsResponse>(
     'get-all-appointments',
     {
       requiresAuth: true,
       requiresNotionConfig: true,
+      cacheKey: 'all-appointments',
+      cacheTtl: 60, // 1 hour cache
       onSuccess: handleFetchAllAppointmentsSuccess,
       onError: handleFetchAllAppointmentsError,
     }
@@ -63,7 +67,7 @@ const AllAppointments = () => {
   const {
     loading: updatingAppointment,
     execute: updateNotionAppointment,
-  } = useSupabaseEdgeFunction<UpdateNotionAppointmentPayload, UpdateNotionAppointmentResponse>(
+  } = useCachedEdgeFunction<UpdateNotionAppointmentPayload, UpdateNotionAppointmentResponse>(
     'update-notion-appointment',
     {
       requiresAuth: true,
@@ -209,6 +213,13 @@ const AllAppointments = () => {
                 {loadingAppointments ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 {loadingAppointments ? 'Refreshing...' : 'Refresh'}
               </Button>
+            </div>
+
+            <div className="flex justify-center mb-4">
+              <SyncStatusIndicator onSyncComplete={() => {
+                // Refresh data after sync
+                fetchAllAppointments();
+              }} />
             </div>
 
             {filteredAppointments.length === 0 && searchTerm !== '' ? (

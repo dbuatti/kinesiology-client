@@ -10,7 +10,7 @@ import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from '
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'; // Keep Dialog for now, might be needed for other things
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Calendar, User, Star, Target, Clock, Settings, AlertCircle, Check, ChevronsUpDown, Lightbulb, Hand, XCircle, PlusCircle, Search, Trash2, Info, Loader2 } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
@@ -19,15 +19,16 @@ import { format } from 'date-fns';
 import MuscleSelector from '@/components/MuscleSelector';
 import ChakraSelector from '@/components/ChakraSelector';
 import ChannelDashboard from '@/components/ChannelDashboard';
-import NotionPageViewer from '@/components/NotionPageViewer'; // Import NotionPageViewer
+import NotionPageViewer from '@/components/NotionPageViewer';
 import SessionLogDisplay from '@/components/SessionLogDisplay';
-import AcupointSelector from '@/components/AcupointSelector'; // Import new AcupointSelector
-import ModeSelect from '@/components/ModeSelect'; // Import new ModeSelect component
-import SessionSummaryDisplay from '@/components/SessionSummaryDisplay'; // Import new SessionSummaryDisplay component
-import ModeDetailsPanel from '@/components/ModeDetailsPanel'; // Import new ModeDetailsPanel component
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'; // Import Tabs components
+import AcupointSelector from '@/components/AcupointSelector';
+import ModeSelect from '@/components/ModeSelect';
+import SessionSummaryDisplay from '@/components/SessionSummaryDisplay';
+import ModeDetailsPanel from '@/components/ModeDetailsPanel';
+import SyncStatusIndicator from '@/components/SyncStatusIndicator';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
-import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
+import { useCachedEdgeFunction } from '@/hooks/use-cached-edge-function';
 import {
   Appointment,
   Mode,
@@ -44,12 +45,12 @@ import {
   GetSessionLogsResponse,
   DeleteSessionLogPayload,
   DeleteSessionLogResponse,
-  LogMuscleStrengthPayload, // Import new type
-  LogMuscleStrengthResponse, // Import new type
+  LogMuscleStrengthPayload,
+  LogMuscleStrengthResponse,
 } from '@/types/api';
 
 interface ActiveSessionProps {
-  mockAppointmentId?: string; // New optional prop
+  mockAppointmentId?: string;
 }
 
 const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
@@ -60,7 +61,7 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
   const [appointment, setAppointment] = useState<Appointment | null>(null);
   const [sessionAnchorText, setSessionAnchorText] = useState('');
   const [sessionNorthStarText, setSessionNorthStarText] = useState('');
-  const [sessionSelectedModes, setSessionSelectedModes] = useState<Mode[]>([]); // Changed to array
+  const [sessionSelectedModes, setSessionSelectedModes] = useState<Mode[]>([]);
 
   // Selector States for Summary Display
   const [selectedMuscle, setSelectedMuscle] = useState<Muscle | null>(null);
@@ -73,12 +74,12 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
   const [sessionMuscleLogs, setSessionMuscleLogs] = useState<GetSessionLogsResponse['sessionMuscleLogs']>([]);
 
   // Tab and Notion Page Viewer States
-  const [activeTab, setActiveTab] = useState('overview'); // Default active tab
-  const [selectedNotionPageId, setSelectedNotionPageId] = useState<string | null>(null); // Centralized Notion page ID
-  const [selectedNotionPageTitle, setSelectedNotionPageTitle] = useState<string | null>(null); // Title for Notion Page Viewer
-  const [selectedModeForDetailsPanel, setSelectedModeForDetailsPanel] = useState<Mode | null>(null); // For custom mode details panel
+  const [activeTab, setActiveTab] = useState('overview');
+  const [selectedNotionPageId, setSelectedNotionPageId] = useState<string | null>(null);
+  const [selectedNotionPageTitle, setSelectedNotionPageTitle] = useState<string | null>(null);
+  const [selectedModeForDetailsPanel, setSelectedModeForDetailsPanel] = useState<Mode | null>(null);
 
-  // --- Supabase Edge Function Hooks (Declared first to resolve TS2448) ---
+  // --- Supabase Edge Function Hooks (Using Cached Version) ---
 
   // Fetch single appointment
   const {
@@ -87,11 +88,14 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
     error: appointmentError,
     needsConfig: appointmentNeedsConfig,
     execute: fetchSingleAppointment,
-  } = useSupabaseEdgeFunction<GetSingleAppointmentPayload, GetSingleAppointmentResponse>(
+    isCached: appointmentIsCached,
+  } = useCachedEdgeFunction<GetSingleAppointmentPayload, GetSingleAppointmentResponse>(
     'get-single-appointment',
     {
       requiresAuth: true,
       requiresNotionConfig: true,
+      cacheKey: actualAppointmentId ? `${actualAppointmentId}:appointment` : undefined,
+      cacheTtl: 60, // 1 hour cache
       onSuccess: useCallback((data: GetSingleAppointmentResponse) => {
         setAppointment(data.appointment);
         setSessionAnchorText(data.appointment.sessionAnchor || '');
@@ -101,8 +105,6 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
         showError(msg);
         if (errorCode === 'PROFILE_NOT_FOUND' || errorCode === 'PRACTITIONER_NAME_MISSING') {
           navigate('/profile-setup');
-        } else if (errorCode === 'NOTION_CONFIG_NOT_FOUND') {
-          // Handled by needsConfig state
         }
       }, [navigate]),
     }
@@ -112,13 +114,13 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
   const {
     loading: updatingAppointment,
     execute: updateNotionAppointment,
-  } = useSupabaseEdgeFunction<UpdateNotionAppointmentPayload, UpdateNotionAppointmentResponse>(
+  } = useCachedEdgeFunction<UpdateNotionAppointmentPayload, UpdateNotionAppointmentResponse>(
     'update-notion-appointment',
     {
       requiresAuth: true,
       onSuccess: useCallback(() => {
         showSuccess('Appointment updated in Notion.');
-        // Re-fetch appointment to ensure UI is in sync with Notion after update
+        // Invalidate cache after update
         if (actualAppointmentId) {
           fetchSingleAppointment({ appointmentId: actualAppointmentId });
         }
@@ -135,10 +137,12 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
     loading: loadingSessionLogs,
     error: sessionLogsError,
     execute: fetchSessionLogs,
-  } = useSupabaseEdgeFunction<{ appointmentId: string }, GetSessionLogsResponse>(
+  } = useCachedEdgeFunction<{ appointmentId: string }, GetSessionLogsResponse>(
     'get-session-logs',
     {
       requiresAuth: true,
+      cacheKey: actualAppointmentId ? `${actualAppointmentId}:logs` : undefined,
+      cacheTtl: 5, // 5 minutes cache for logs
       onSuccess: useCallback((data: GetSessionLogsResponse) => {
         setSessionLogs(data.sessionLogs);
         setSessionMuscleLogs(data.sessionMuscleLogs);
@@ -149,11 +153,11 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
     }
   );
 
-  // Log Muscle Strength (separate hook for clarity, though could use logSessionEvent)
+  // Log Muscle Strength
   const {
     loading: loggingMuscleStrength,
     execute: logMuscleStrength,
-  } = useSupabaseEdgeFunction<LogMuscleStrengthPayload, LogMuscleStrengthResponse>( // Use new types
+  } = useCachedEdgeFunction<LogMuscleStrengthPayload, LogMuscleStrengthResponse>(
     'log-muscle-strength',
     {
       requiresAuth: true,
@@ -161,7 +165,7 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
         console.log('Muscle strength logged to Supabase:', data.logId);
         showSuccess('Muscle strength logged.');
         if (actualAppointmentId) {
-          fetchSessionLogs({ appointmentId: actualAppointmentId }); // Refresh logs after successful log
+          fetchSessionLogs({ appointmentId: actualAppointmentId });
         }
       }, [actualAppointmentId, fetchSessionLogs]),
       onError: useCallback((msg: string) => {
@@ -175,14 +179,14 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
   const {
     loading: deletingSessionLog,
     execute: deleteSessionLog,
-  } = useSupabaseEdgeFunction<DeleteSessionLogPayload, DeleteSessionLogResponse>(
+  } = useCachedEdgeFunction<DeleteSessionLogPayload, DeleteSessionLogResponse>(
     'delete-session-log',
     {
       requiresAuth: true,
       onSuccess: useCallback((data: DeleteSessionLogResponse) => {
         showSuccess('Log entry deleted.');
         if (actualAppointmentId) {
-          fetchSessionLogs({ appointmentId: actualAppointmentId }); // Refresh logs after deletion
+          fetchSessionLogs({ appointmentId: actualAppointmentId });
         }
       }, [actualAppointmentId, fetchSessionLogs]),
       onError: useCallback((msg: string) => {
@@ -191,18 +195,18 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
     }
   );
 
-  // New: Clear All Session Logs
+  // Clear All Session Logs
   const {
     loading: clearingAllLogs,
     execute: clearAllSessionLogs,
-  } = useSupabaseEdgeFunction<{ appointmentId: string }, { success: boolean }>(
-    'clear-session-logs', // New edge function name
+  } = useCachedEdgeFunction<{ appointmentId: string }, { success: boolean }>(
+    'clear-session-logs',
     {
       requiresAuth: true,
       onSuccess: useCallback(() => {
         showSuccess('All session logs cleared.');
         if (actualAppointmentId) {
-          fetchSessionLogs({ appointmentId: actualAppointmentId }); // Refresh logs after clearing
+          fetchSessionLogs({ appointmentId: actualAppointmentId });
         }
       }, [actualAppointmentId, fetchSessionLogs]),
       onError: useCallback((msg: string) => {
@@ -216,7 +220,7 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
   useEffect(() => {
     if (actualAppointmentId) {
       fetchSingleAppointment({ appointmentId: actualAppointmentId });
-      fetchSessionLogs({ appointmentId: actualAppointmentId }); // Fetch logs on component mount
+      fetchSessionLogs({ appointmentId: actualAppointmentId });
     }
   }, [actualAppointmentId, fetchSingleAppointment, fetchSessionLogs]);
 
@@ -226,7 +230,6 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
       setSelectedNotionPageId(null);
       setSelectedNotionPageTitle(null);
     }
-    // Clear selected mode for details panel if not on that tab
     if (activeTab !== 'mode-details') {
       setSelectedModeForDetailsPanel(null);
     }
@@ -235,9 +238,9 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
   // Combine all loading states
   const overallLoading = loadingAppointment || loggingMuscleStrength || loadingSessionLogs || deletingSessionLog || clearingAllLogs;
   // Combine all needsConfig states
-  const overallNeedsConfig = appointmentNeedsConfig; // Other selectors handle their own needsConfig
+  const overallNeedsConfig = appointmentNeedsConfig;
   // Combine all errors for initial display
-  const overallError = appointmentError || sessionLogsError; // Other selectors handle their own errors
+  const overallError = appointmentError || sessionLogsError;
 
   // --- Handlers ---
 
@@ -265,10 +268,10 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
 
   const handleCompleteSession = async () => {
     if (appointment) {
-      await updateNotionAppointment({ appointmentId: appointment.id, updates: { status: 'CH' } }); // Set status to Charged/Complete
-      if (!updatingAppointment) { // Only navigate if update was successful and not still loading
+      await updateNotionAppointment({ appointmentId: appointment.id, updates: { status: 'CH' } });
+      if (!updatingAppointment) {
         showSuccess(`${appointment.clientName}'s session marked as complete.`);
-        navigate('/'); // Return to Waiting Room
+        navigate('/');
       }
     }
   };
@@ -292,7 +295,7 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
         muscleId: muscle.id,
         muscleName: muscle.name,
         isStrong: isStrong,
-        notes: notes || null, // Pass notes here, ensuring null if empty string
+        notes: notes || null,
       });
     }
   }, [actualAppointmentId, logMuscleStrength]);
@@ -311,21 +314,19 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
 
   const handleLogSuccess = useCallback(() => {
     if (actualAppointmentId) {
-      fetchSessionLogs({ appointmentId: actualAppointmentId }); // Refresh logs after any item is logged
+      fetchSessionLogs({ appointmentId: actualAppointmentId });
     }
   }, [actualAppointmentId, fetchSessionLogs]);
 
-  // Centralized handler for opening Notion pages
   const handleOpenNotionPage = useCallback((pageId: string, pageTitle: string) => {
     setSelectedNotionPageId(pageId);
     setSelectedNotionPageTitle(pageTitle);
-    setActiveTab('notion-page'); // Switch to the Notion Page tab
+    setActiveTab('notion-page');
   }, []);
 
-  // New handler for opening custom Mode Details Panel
   const handleOpenModeDetailsPanel = useCallback((mode: Mode) => {
     setSelectedModeForDetailsPanel(mode);
-    setActiveTab('mode-details'); // Switch to the new Mode Details tab
+    setActiveTab('mode-details');
   }, []);
 
   const handleClearAllSessionLogs = useCallback(async () => {
@@ -334,11 +335,9 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
     }
   }, [actualAppointmentId, clearAllSessionLogs]);
 
-  // New handler for clearing individual items from summary display
   const handleClearSummaryItem = useCallback(async (type: string, id?: string) => {
     if (!id) return;
     
-    // Clear the item from local state based on type
     switch (type) {
       case 'muscle':
         setSelectedMuscle(null);
@@ -362,7 +361,7 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
 
   // --- Render Logic ---
 
-  if (overallLoading && !appointment) { // Only show full loading skeleton if no appointment data yet
+  if (overallLoading && !appointment) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6 flex items-center justify-center">
         <div className="max-w-4xl mx-auto space-y-6 w-full">
@@ -400,7 +399,7 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
     );
   }
 
-  if (overallError && !appointment) { // Only show error card if no appointment data could be loaded
+  if (overallError && !appointment) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center p-6">
         <Card className="max-w-md w-full shadow-lg">
@@ -433,6 +432,14 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
           <p className="text-gray-600">
             {format(new Date(), 'EEEE, MMMM d, yyyy')}
           </p>
+          <div className="mt-2">
+            <SyncStatusIndicator onSyncComplete={() => {
+              // Refresh data after sync
+              if (actualAppointmentId) {
+                fetchSingleAppointment({ appointmentId: actualAppointmentId });
+              }
+            }} />
+          </div>
         </div>
 
         {appointment ? (
@@ -441,7 +448,7 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
             <SessionSummaryDisplay
               sessionLogs={sessionLogs}
               sessionMuscleLogs={sessionMuscleLogs}
-              sessionSelectedModes={sessionSelectedModes} // Pass the array
+              sessionSelectedModes={sessionSelectedModes}
               selectedMuscle={selectedMuscle}
               selectedChakra={selectedChakra}
               selectedChannel={selectedChannel}
@@ -454,7 +461,7 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
             />
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-4 md:grid-cols-7 lg:grid-cols-8 h-auto flex-wrap"> {/* Adjusted grid-cols */}
+              <TabsList className="grid w-full grid-cols-4 md:grid-cols-7 lg:grid-cols-8 h-auto flex-wrap">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="muscles">Muscles</TabsTrigger>
                 <TabsTrigger value="chakras">Chakras</TabsTrigger>
@@ -462,7 +469,7 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
                 <TabsTrigger value="acupoints">Acupoints</TabsTrigger>
                 <TabsTrigger value="session-log">Session Log</TabsTrigger>
                 <TabsTrigger value="notion-page">Notion Page</TabsTrigger>
-                <TabsTrigger value="mode-details">Mode Details</TabsTrigger> {/* New Tab */}
+                <TabsTrigger value="mode-details">Mode Details</TabsTrigger>
               </TabsList>
 
               {/* Overview Tab */}
@@ -473,6 +480,11 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
                     <CardTitle className="text-2xl font-bold flex items-center gap-2">
                       <User className="w-6 h-6" />
                       {appointment.clientName}
+                      {appointmentIsCached && (
+                        <Badge variant="secondary" className="bg-green-200 text-green-800 ml-2">
+                          Cached
+                        </Badge>
+                      )}
                     </CardTitle>
                     <div className="flex items-center gap-2 text-indigo-100 mt-2">
                       <Star className="w-4 h-4 fill-current" />
@@ -554,11 +566,11 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
                         Select Mode
                       </Label>
                       <ModeSelect
-                        appointmentId={actualAppointmentId || ''} // Use actualAppointmentId
-                        onModesChanged={handleModesChanged} // Pass the new handler
+                        appointmentId={actualAppointmentId || ''}
+                        onModesChanged={handleModesChanged}
                         onOpenNotionPage={handleOpenNotionPage}
                         onLogSuccess={handleLogSuccess}
-                        onOpenModeDetailsPanel={handleOpenModeDetailsPanel} // Pass new handler
+                        onOpenModeDetailsPanel={handleOpenModeDetailsPanel}
                       />
                     </div>
                   </CardContent>
@@ -570,38 +582,38 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
                 <MuscleSelector
                   onMuscleSelected={handleMuscleSelected}
                   onMuscleStrengthLogged={handleMuscleStrengthLogged}
-                  appointmentId={actualAppointmentId || ''} // Use actualAppointmentId
-                  onClearSelection={() => setSelectedMuscle(null)} // Clear selected muscle in parent
-                  onOpenNotionPage={handleOpenNotionPage} // Pass centralized handler
+                  appointmentId={actualAppointmentId || ''}
+                  onClearSelection={() => setSelectedMuscle(null)}
+                  onOpenNotionPage={handleOpenNotionPage}
                 />
               </TabsContent>
 
               {/* Chakras Tab */}
               <TabsContent value="chakras" className="mt-6 space-y-6">
                 <ChakraSelector
-                  appointmentId={actualAppointmentId || ''} // Use actualAppointmentId
+                  appointmentId={actualAppointmentId || ''}
                   onChakraSelected={handleChakraSelected}
-                  onClearSelection={() => setSelectedChakra(null)} // Clear selected chakra in parent
+                  onClearSelection={() => setSelectedChakra(null)}
                   selectedChakra={selectedChakra}
-                  onOpenNotionPage={handleOpenNotionPage} // Pass centralized handler
+                  onOpenNotionPage={handleOpenNotionPage}
                 />
               </TabsContent>
 
               {/* Channels Tab */}
               <TabsContent value="channels" className="mt-6 space-y-6">
                 <ChannelDashboard
-                  appointmentId={actualAppointmentId || ''} // Use actualAppointmentId
+                  appointmentId={actualAppointmentId || ''}
                   onLogSuccess={handleLogSuccess}
-                  onClearSelection={() => setSelectedChannel(null)} // Clear selected channel in parent
-                  onOpenNotionPage={handleOpenNotionPage} // Pass centralized handler
-                  onChannelSelected={handleChannelSelected} // Pass new prop
+                  onClearSelection={() => setSelectedChannel(null)}
+                  onOpenNotionPage={handleOpenNotionPage}
+                  onChannelSelected={handleChannelSelected}
                 />
               </TabsContent>
 
               {/* Acupoints Tab */}
               <TabsContent value="acupoints" className="mt-6 space-y-6">
                 <AcupointSelector
-                  appointmentId={actualAppointmentId || ''} // Use actualAppointmentId
+                  appointmentId={actualAppointmentId || ''}
                   onLogSuccess={handleLogSuccess}
                   onClearSelection={() => setSelectedAcupoint(null)}
                   onOpenNotionPage={handleOpenNotionPage}
@@ -612,7 +624,7 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
               {/* Session Log Tab */}
               <TabsContent value="session-log" className="mt-6 space-y-6">
                 <SessionLogDisplay
-                  appointmentId={actualAppointmentId || ''} // Use actualAppointmentId
+                  appointmentId={actualAppointmentId || ''}
                   sessionLogs={sessionLogs}
                   sessionMuscleLogs={sessionMuscleLogs}
                   onDeleteLog={deleteSessionLog}

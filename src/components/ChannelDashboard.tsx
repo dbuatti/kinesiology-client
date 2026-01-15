@@ -9,17 +9,17 @@ import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
-import { Settings, Loader2, Sparkles, ExternalLink, Waves, Leaf, Flame, Gem, Droplet, Sun, Heart, Hand, Footprints, Bone, FlaskConical, Mic, Tag, XCircle, PlusCircle, Brain, Clock, Volume2, Info, CheckCircle2 } from 'lucide-react'; // Added CheckCircle2
-import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
+import { Settings, Loader2, Sparkles, ExternalLink, Waves, Leaf, Flame, Gem, Droplet, Sun, Heart, Hand, Footprints, Bone, FlaskConical, Mic, Tag, XCircle, PlusCircle, Brain, Clock, Volume2, Info, CheckCircle2 } from 'lucide-react';
+import { useCachedEdgeFunction } from '@/hooks/use-cached-edge-function';
 import { Channel, GetChannelsPayload, GetChannelsResponse, LogSessionEventPayload, LogSessionEventResponse } from '@/types/api';
 import NotionPageViewer from './NotionPageViewer';
 
 interface ChannelDashboardProps {
   appointmentId: string;
   onLogSuccess: () => void;
-  onClearSelection: () => void; // New prop for clearing selection
-  onOpenNotionPage: (pageId: string, pageTitle: string) => void; // Changed prop name and type
-  onChannelSelected: (channel: Channel | null) => void; // New prop
+  onClearSelection: () => void;
+  onOpenNotionPage: (pageId: string, pageTitle: string) => void;
+  onChannelSelected: (channel: Channel | null) => void;
 }
 
 const primaryElements = ['Wood', 'Fire', 'Earth', 'Metal', 'Water'];
@@ -34,13 +34,13 @@ yuanAndFrontMuPoints.set('Heart', { yuan: 'HT7 (Shenmen)', frontMu: 'CV14 (Juque
 yuanAndFrontMuPoints.set('Small Intestine', { yuan: 'SI4 (Wangu)', frontMu: 'CV4 (Guanyuan)' });
 yuanAndFrontMuPoints.set('Bladder', { yuan: 'BL64 (Jinggu)', frontMu: 'CV3 (Zhongji)' });
 yuanAndFrontMuPoints.set('Kidney', { yuan: 'KI3 (Taixi)', frontMu: 'GB25 (Jingmen)' });
-yuanAndFrontMuPoints.set('Pericardium', { yuan: 'PC7 (Daling)', frontMu: 'PC7 (Daling)' }); // Corrected Pericardium Front Mu
+yuanAndFrontMuPoints.set('Pericardium', { yuan: 'PC7 (Daling)', frontMu: 'PC7 (Daling)' });
 yuanAndFrontMuPoints.set('Triple Warmer', { yuan: 'SJ4 (Yangchi)', frontMu: 'CV5 (Shimen)' });
 yuanAndFrontMuPoints.set('Gallbladder', { yuan: 'GB40 (Qiuxu)', frontMu: 'GB24 (Riyue)' });
 yuanAndFrontMuPoints.set('Liver', { yuan: 'LV3 (Taichong)', frontMu: 'LV14 (Qimen)' });
 
 const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLogSuccess, onClearSelection, onOpenNotionPage, onChannelSelected }) => {
-  const [allChannels, setAllChannels] = useState<Channel[]>([]); // Stores all channels fetched
+  const [allChannels, setAllChannels] = useState<Channel[]>([]);
   const [selectedChannelForDisplay, setSelectedChannelForDisplay] = useState<Channel | null>(null);
   const [loggedItems, setLoggedItems] = useState<Set<string>>(new Set());
 
@@ -118,7 +118,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
   };
 
   const onChannelsSuccess = useCallback((data: GetChannelsResponse) => {
-    setAllChannels(data.channels); // Store all fetched channels
+    setAllChannels(data.channels);
   }, []);
 
   const onChannelsError = useCallback((msg: string) => {
@@ -131,11 +131,14 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
     error: channelsError,
     needsConfig,
     execute: fetchChannels,
-  } = useSupabaseEdgeFunction<GetChannelsPayload, GetChannelsResponse>(
+    isCached: channelsIsCached,
+  } = useCachedEdgeFunction<GetChannelsPayload, GetChannelsResponse>(
     'get-channels',
     {
       requiresAuth: true,
       requiresNotionConfig: true,
+      cacheKey: 'all-channels',
+      cacheTtl: 120, // 2 hours cache
       onSuccess: onChannelsSuccess,
       onError: onChannelsError,
     }
@@ -145,7 +148,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
   const {
     loading: loggingSessionEvent,
     execute: logSessionEvent,
-  } = useSupabaseEdgeFunction<LogSessionEventPayload, LogSessionEventResponse>(
+  } = useCachedEdgeFunction<LogSessionEventPayload, LogSessionEventResponse>(
     'log-session-event',
     {
       requiresAuth: true,
@@ -171,7 +174,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
     const meridian: Channel[] = [];
     const nonMeridian: Channel[] = [];
 
-    allChannels.forEach(channel => { // Filter from allChannels
+    allChannels.forEach(channel => {
       const hasPrimaryElement = channel.elements.some(element => primaryElements.includes(element));
       if (hasPrimaryElement) {
         meridian.push(channel);
@@ -189,22 +192,22 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
       return a.name.localeCompare(b.name);
     });
 
-    nonMeridian.sort((a, b) => a.name.localeCompare(b.name)); // Corrected sort order
+    nonMeridian.sort((a, b) => a.name.localeCompare(b.name));
 
     return { meridianChannels: meridian, nonMeridianChannels: nonMeridian };
-  }, [allChannels]); // Depend on allChannels
+  }, [allChannels]);
 
   const handleSelectChannel = (channel: Channel) => {
     setSelectedChannelForDisplay(channel);
     setLoggedItems(new Set());
-    onChannelSelected(channel); // Notify parent
+    onChannelSelected(channel);
   };
 
   const handleClearAll = () => {
     setSelectedChannelForDisplay(null);
     setLoggedItems(new Set());
     onClearSelection();
-    onChannelSelected(null); // Notify parent of clear
+    onChannelSelected(null);
   };
 
   const handleConfigureNotion = () => {
@@ -231,8 +234,6 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
       currentLoggedItems.delete(logIdentifier);
       setLoggedItems(currentLoggedItems);
       showSuccess(`"${itemValue}" log removed from session.`);
-      // In a real scenario, you might also want to delete the log from the database
-      // For this exercise, we'll just update the local state and show a message.
     } else {
       // Item is not logged, so log it
       await logSessionEvent({
@@ -294,6 +295,11 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
         <CardTitle className="text-xl font-bold text-indigo-800 flex items-center gap-2">
           <Waves className="w-5 h-5" />
           Channel Dashboard
+          {channelsIsCached && (
+            <Badge variant="secondary" className="bg-green-200 text-green-800 ml-2">
+              Cached
+            </Badge>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-6 space-y-6">
@@ -405,9 +411,9 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
 
               {/* Emotional Themes - Full Width */}
               {selectedChannelForDisplay.emotions.length > 0 && (
-                <div className="flex items-start gap-2 mb-4"> {/* Added mb-4 for spacing */}
+                <div className="flex items-start gap-2 mb-4">
                   <Heart className={cn("w-4 h-4 flex-shrink-0 mt-0.5", colors.icon)} />
-                  <div className="flex items-center flex-wrap"> {/* Use flex-wrap for badges */}
+                  <div className="flex items-center flex-wrap">
                     <span className={cn("font-semibold mr-2", colors.icon)}>Emotional Themes:</span>
                     <div className="flex flex-wrap gap-1">
                       {selectedChannelForDisplay.emotions.map((emotion, i) => (

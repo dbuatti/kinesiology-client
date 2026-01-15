@@ -8,39 +8,39 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
 import { Badge } from '@/components/ui/badge';
-import { Textarea } from '@/components/ui/textarea'; // Import Textarea
-import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
+import { Textarea } from '@/components/ui/textarea';
+import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 import { Search, Check, ChevronsUpDown, Hand, Info, Image, Settings, Loader2, Trash2, ExternalLink, XCircle, Clock, Brain, FlaskConical, Footprints, Heart, Gem, Leaf, Flame, Droplet, Sun, Bone, Mic, Tag, RefreshCw, Shield, Eye, Sparkles, Waves } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
+import { useCachedEdgeFunction } from '@/hooks/use-cached-edge-function';
 import { Muscle, GetMusclesPayload, GetMusclesResponse } from '@/types/api';
-import { useDebounce } from '@/hooks/use-debounce'; // Import useDebounce
+import { useDebounce } from '@/hooks/use-debounce';
 
 interface MuscleSelectorProps {
-  onMuscleSelected: (muscle: Muscle | null) => void; // Updated to allow null for clearing
-  onMuscleStrengthLogged: (muscle: Muscle, isStrong: boolean, notes: string) => void; // Updated signature
+  onMuscleSelected: (muscle: Muscle | null) => void;
+  onMuscleStrengthLogged: (muscle: Muscle, isStrong: boolean, notes: string) => void;
   appointmentId: string;
-  onClearSelection: () => void; // New prop for clearing selection
-  onOpenNotionPage: (pageId: string, pageTitle: string) => void; // Changed prop name and type
+  onClearSelection: () => void;
+  onOpenNotionPage: (pageId: string, pageTitle: string) => void;
 }
 
 const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMuscleStrengthLogged, appointmentId, onClearSelection, onOpenNotionPage }) => {
-  const [allMuscles, setAllMuscles] = useState<Muscle[]>([]); // Stores all muscles fetched
-  const [filteredMuscles, setFilteredMuscles] = useState<Muscle[]>([]); // Displays filtered muscles
+  const [allMuscles, setAllMuscles] = useState<Muscle[]>([]);
+  const [filteredMuscles, setFilteredMuscles] = useState<Muscle[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchType, setSearchType] = useState<'muscle' | 'meridian' | 'organ' | 'emotion'>('muscle');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [selectedMuscle, setSelectedMuscle] = useState<Muscle | null>(null);
   const [showWeaknessChecklist, setShowWeaknessChecklist] = useState(false);
-  const [notes, setNotes] = useState(''); // New state for notes
+  const [notes, setNotes] = useState('');
 
   const navigate = useNavigate();
-  const debouncedSearchTerm = useDebounce(searchTerm, 500); // Debounce search term
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
   const onMusclesSuccess = useCallback((data: GetMusclesResponse) => {
-    setAllMuscles(data.muscles); // Store all fetched muscles
-    setFilteredMuscles(data.muscles); // Initially, filtered is all
+    setAllMuscles(data.muscles);
+    setFilteredMuscles(data.muscles);
   }, []);
 
   const onMusclesError = useCallback((msg: string) => {
@@ -54,11 +54,14 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
     error: musclesError,
     needsConfig,
     execute: fetchMuscles,
-  } = useSupabaseEdgeFunction<GetMusclesPayload, GetMusclesResponse>(
+    isCached: musclesIsCached,
+  } = useCachedEdgeFunction<GetMusclesPayload, GetMusclesResponse>(
     'get-muscles',
     {
       requiresAuth: true,
       requiresNotionConfig: true,
+      cacheKey: 'all-muscles',
+      cacheTtl: 120, // 2 hours cache
       onSuccess: onMusclesSuccess,
       onError: onMusclesError,
     }
@@ -77,7 +80,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
     let currentFiltered: Muscle[] = [];
 
     if (lowerCaseSearchTerm.trim() === '') {
-      currentFiltered = allMuscles; // If search term is empty, show all
+      currentFiltered = allMuscles;
     } else {
       currentFiltered = allMuscles.filter(muscle => {
         if (searchType === 'muscle') {
@@ -93,35 +96,31 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
       });
     }
     setFilteredMuscles(currentFiltered);
-  }, [debouncedSearchTerm, searchType, allMuscles]); // Depend on allMuscles for filtering
+  }, [debouncedSearchTerm, searchType, allMuscles]);
 
   const handleClearAll = useCallback(() => {
     setSelectedMuscle(null);
-    onMuscleSelected(null); // Notify parent of clear
-    setSearchTerm(''); // Clear search term in the trigger
+    onMuscleSelected(null);
+    setSearchTerm('');
     setFilteredMuscles(allMuscles);
     setShowWeaknessChecklist(false);
-    setNotes(''); // Clear notes
-    onClearSelection(); // Notify parent of clear action
+    setNotes('');
+    onClearSelection();
   }, [onMuscleSelected, allMuscles, onClearSelection]);
 
   const handleLogStrength = useCallback((isStrong: boolean) => {
     if (selectedMuscle) {
-      // 1. Trigger API call in parent
-      onMuscleStrengthLogged(selectedMuscle, isStrong, notes); // This triggers API call in parent
+      onMuscleStrengthLogged(selectedMuscle, isStrong, notes);
 
-      // 2. Handle UI flow based on strength
       if (!isStrong) {
-        // If weak, show checklist and keep muscle selected for review
         setShowWeaknessChecklist(true);
         showSuccess(`Muscle strength for ${selectedMuscle.name} logged as WEAK. Review checklist.`);
       } else {
-        // If strong, clear immediately for momentum
         setShowWeaknessChecklist(false);
         showSuccess(`Muscle strength for ${selectedMuscle.name} logged as STRONG.`);
-        handleClearAll(); // Clear selection immediately
+        handleClearAll();
       }
-      setNotes(''); // Clear notes after logging, regardless of strength
+      setNotes('');
     }
   }, [selectedMuscle, onMuscleStrengthLogged, notes, handleClearAll]);
 
@@ -129,16 +128,16 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
     setSelectedMuscle(muscle);
     onMuscleSelected(muscle);
     setIsSearchOpen(false);
-    setSearchTerm(muscle.name); // Pre-fill search with selected muscle name
-    setShowWeaknessChecklist(false); // Reset checklist visibility
-    setNotes(''); // Clear notes when selecting a new muscle
+    setSearchTerm(muscle.name);
+    setShowWeaknessChecklist(false);
+    setNotes('');
   }, [onMuscleSelected]);
 
   const handleSearchTypeChange = (type: 'muscle' | 'meridian' | 'organ' | 'emotion') => {
     setSearchType(type);
-    setSearchTerm(''); // Clear search term when type changes
-    setFilteredMuscles(allMuscles); // Reset filtered muscles
-    setIsSearchOpen(true); // Open popover for new search
+    setSearchTerm('');
+    setFilteredMuscles(allMuscles);
+    setIsSearchOpen(true);
   };
 
   const handleClearSearch = () => {
@@ -177,6 +176,11 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
         <CardTitle className="text-xl font-bold text-indigo-800 flex items-center gap-2">
           <Hand className="w-5 h-5" />
           Muscle Testing & Insights
+          {musclesIsCached && (
+            <Badge variant="secondary" className="bg-green-200 text-green-800 ml-2">
+              Cached
+            </Badge>
+          )}
           {selectedMuscle && (
             <Button variant="ghost" size="icon" className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100" onClick={() => onOpenNotionPage(selectedMuscle.id, selectedMuscle.name)}>
               <Info className="h-4 w-4" />
@@ -241,7 +245,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
                   }}
                 />
                 <CommandEmpty>No muscles found.</CommandEmpty>
-                <CommandGroup className="max-h-[300px] overflow-y-auto"> {/* Added scrolling */}
+                <CommandGroup className="max-h-[300px] overflow-y-auto">
                   {filteredMuscles.map((muscle) => (
                     <CommandItem
                       key={muscle.id}
@@ -260,7 +264,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
                         size="icon"
                         className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
                         onClick={(e) => {
-                          e.stopPropagation(); // Prevent selecting the muscle when clicking the info button
+                          e.stopPropagation();
                           onOpenNotionPage(muscle.id, muscle.name);
                         }}
                       >

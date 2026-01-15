@@ -12,7 +12,7 @@ import { Calendar as CalendarIcon, User, Target, Lightbulb, Check, ChevronsUpDow
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
+import { useCachedEdgeFunction } from '@/hooks/use-cached-edge-function';
 import { Client, GetAllClientsResponse, CreateNotionAppointmentPayload, CreateNotionAppointmentResponse } from '@/types/api';
 import { showSuccess, showError } from '@/utils/toast';
 
@@ -29,8 +29,6 @@ const CreateAppointmentDialog: React.FC<CreateAppointmentDialogProps> = ({ onApp
   const [sessionNorthStar, setSessionNorthStar] = useState('');
   const [allClients, setAllClients] = useState<Client[]>([]);
 
-  // --- Data Fetching Hooks ---
-
   const handleFetchClientsSuccess = useCallback((data: GetAllClientsResponse) => {
     setAllClients(data.clients);
   }, []);
@@ -43,11 +41,14 @@ const CreateAppointmentDialog: React.FC<CreateAppointmentDialogProps> = ({ onApp
     loading: loadingClients,
     needsConfig: clientsNeedsConfig,
     execute: fetchAllClients,
-  } = useSupabaseEdgeFunction<void, GetAllClientsResponse>(
+    isCached: clientsIsCached,
+  } = useCachedEdgeFunction<void, GetAllClientsResponse>(
     'get-all-clients',
     {
       requiresAuth: true,
       requiresNotionConfig: true,
+      cacheKey: 'all-clients',
+      cacheTtl: 60, // 1 hour cache
       onSuccess: handleFetchClientsSuccess,
       onError: handleFetchClientsError,
     }
@@ -56,7 +57,7 @@ const CreateAppointmentDialog: React.FC<CreateAppointmentDialogProps> = ({ onApp
   const {
     loading: creatingAppointment,
     execute: createNotionAppointment,
-  } = useSupabaseEdgeFunction<CreateNotionAppointmentPayload, CreateNotionAppointmentResponse>(
+  } = useCachedEdgeFunction<CreateNotionAppointmentPayload, CreateNotionAppointmentResponse>(
     'create-notion-appointment',
     {
       requiresAuth: true,
@@ -68,7 +69,7 @@ const CreateAppointmentDialog: React.FC<CreateAppointmentDialogProps> = ({ onApp
         setDate(new Date());
         setGoal('');
         setSessionNorthStar('');
-        onAppointmentCreated(); // Notify parent to refresh appointment list
+        onAppointmentCreated();
       },
       onError: (msg) => {
         showError(`Creation Failed: ${msg}`);
@@ -81,8 +82,6 @@ const CreateAppointmentDialog: React.FC<CreateAppointmentDialogProps> = ({ onApp
       fetchAllClients();
     }
   }, [isDialogOpen, allClients.length, loadingClients, fetchAllClients]);
-
-  // --- Handlers ---
 
   const handleClientSelect = (client: Client) => {
     setSelectedClient(client);

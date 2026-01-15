@@ -13,7 +13,7 @@ import {
   SessionLog,
   SessionMuscleLog,
 } from '@/types/api';
-import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
+import { useCachedEdgeFunction } from '@/hooks/use-cached-edge-function';
 import { showError } from '@/utils/toast';
 import { Badge } from './ui/badge';
 
@@ -23,8 +23,8 @@ interface SessionLogDisplayProps {
   sessionMuscleLogs: GetSessionLogsResponse['sessionMuscleLogs'];
   onDeleteLog: (payload: DeleteSessionLogPayload) => Promise<void>;
   deletingLog: boolean;
-  onClearAllLogs: (payload: { appointmentId: string }) => Promise<void>; // New prop
-  clearingAllLogs: boolean; // New prop
+  onClearAllLogs: (payload: { appointmentId: string }) => Promise<void>;
+  clearingAllLogs: boolean;
 }
 
 const SessionLogDisplay: React.FC<SessionLogDisplayProps> = ({
@@ -41,7 +41,6 @@ const SessionLogDisplay: React.FC<SessionLogDisplayProps> = ({
   );
 
   const renderLogDetails = (log: SessionLog | SessionMuscleLog) => {
-    // Type guard to differentiate between SessionLog and SessionMuscleLog
     if ('muscle_id' in log) {
       const muscleLog = log as SessionMuscleLog;
       return (

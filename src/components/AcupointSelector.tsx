@@ -10,23 +10,23 @@ import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from '
 import { Badge } from '@/components/ui/badge';
 import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
-import { Search, Check, ChevronsUpDown, Lightbulb, PlusCircle, Trash2, Info, Loader2, XCircle, Settings } from 'lucide-react'; // Fixed: Added Settings import
+import { Search, Check, ChevronsUpDown, Lightbulb, PlusCircle, Trash2, Info, Loader2, XCircle, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
+import { useCachedEdgeFunction } from '@/hooks/use-cached-edge-function';
 import { Acupoint, GetAcupointsPayload, GetAcupointsResponse, LogSessionEventPayload, LogSessionEventResponse } from '@/types/api';
-import { useDebounce } from '@/hooks/use-debounce'; // Import useDebounce
+import { useDebounce } from '@/hooks/use-debounce';
 
 interface AcupointSelectorProps {
   appointmentId: string;
   onLogSuccess: () => void;
   onClearSelection: () => void;
   onOpenNotionPage: (pageId: string, pageTitle: string) => void;
-  onAcupointSelected: (acupoint: Acupoint | null) => void; // New prop
+  onAcupointSelected: (acupoint: Acupoint | null) => void;
 }
 
 const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLogSuccess, onClearSelection, onOpenNotionPage, onAcupointSelected }) => {
-  const [allAcupoints, setAllAcupoints] = useState<Acupoint[]>([]); // Stores all acupoints fetched
-  const [foundAcupoints, setFoundAcupoints] = useState<Acupoint[]>([]); // Displays filtered acupoints
+  const [allAcupoints, setAllAcupoints] = useState<Acupoint[]>([]);
+  const [foundAcupoints, setFoundAcupoints] = useState<Acupoint[]>([]);
   const [acupointSearchTerm, setAcupointSearchTerm] = useState('');
   const [symptomSearchTerm, setSymptomSearchTerm] = useState('');
   const [selectedAcupoint, setSelectedAcupoint] = useState<Acupoint | null>(null);
@@ -35,12 +35,12 @@ const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLo
 
   const navigate = useNavigate();
 
-  const debouncedAcupointSearchTerm = useDebounce(acupointSearchTerm, 500); // Debounce acupoint search
-  const debouncedSymptomSearchTerm = useDebounce(symptomSearchTerm, 500);   // Debounce symptom search
+  const debouncedAcupointSearchTerm = useDebounce(acupointSearchTerm, 500);
+  const debouncedSymptomSearchTerm = useDebounce(symptomSearchTerm, 500);
 
   const onAcupointsSuccess = useCallback((data: GetAcupointsResponse) => {
-    setAllAcupoints(data.acupoints); // Store all fetched acupoints
-    setFoundAcupoints(data.acupoints); // Initially, filtered is all
+    setAllAcupoints(data.acupoints);
+    setFoundAcupoints(data.acupoints);
   }, []);
 
   const onAcupointsError = useCallback((msg: string) => {
@@ -54,11 +54,14 @@ const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLo
     error: acupointsError,
     needsConfig,
     execute: fetchAcupoints,
-  } = useSupabaseEdgeFunction<GetAcupointsPayload, GetAcupointsResponse>(
+    isCached: acupointsIsCached,
+  } = useCachedEdgeFunction<GetAcupointsPayload, GetAcupointsResponse>(
     'get-acupoints',
     {
       requiresAuth: true,
       requiresNotionConfig: true,
+      cacheKey: 'all-acupoints',
+      cacheTtl: 120, // 2 hours cache
       onSuccess: onAcupointsSuccess,
       onError: onAcupointsError,
     }
@@ -67,14 +70,14 @@ const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLo
   const {
     loading: loggingSessionEvent,
     execute: logSessionEvent,
-  } = useSupabaseEdgeFunction<LogSessionEventPayload, LogSessionEventResponse>(
+  } = useCachedEdgeFunction<LogSessionEventPayload, LogSessionEventResponse>(
     'log-session-event',
     {
       requiresAuth: true,
       onSuccess: (data) => {
         console.log('Acupoint added to Supabase:', data.logId);
         showSuccess('Acupoint added to session.');
-        onLogSuccess(); // Notify parent to refresh logs
+        onLogSuccess();
       },
       onError: (msg) => {
         console.error('Failed to add acupoint to Supabase:', msg);
@@ -111,61 +114,60 @@ const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLo
         point.time.some(time => time.toLowerCase().includes(lowerCaseSymptomSearchTerm))
       );
     } else {
-      currentFiltered = allAcupoints; // If no active search, show all
+      currentFiltered = allAcupoints;
     }
     setFoundAcupoints(currentFiltered);
   }, [debouncedAcupointSearchTerm, debouncedSymptomSearchTerm, isAcupointSearchOpen, isSymptomSearchOpen, allAcupoints]);
 
-
   const handleAcupointSearchChange = (value: string) => {
     setAcupointSearchTerm(value);
-    setSymptomSearchTerm(''); // Clear symptom search when point search is active
-    setSelectedAcupoint(null); // Clear selected acupoint
-    onAcupointSelected(null); // Notify parent
-    setIsSymptomSearchOpen(false); // Close symptom search popover
+    setSymptomSearchTerm('');
+    setSelectedAcupoint(null);
+    onAcupointSelected(null);
+    setIsSymptomSearchOpen(false);
   };
 
   const handleClearAcupointSearch = useCallback(() => {
     setAcupointSearchTerm('');
-    setFoundAcupoints(allAcupoints); // Reset to all
+    setFoundAcupoints(allAcupoints);
     setSelectedAcupoint(null);
-    onAcupointSelected(null); // Notify parent
-    onClearSelection(); // Notify parent to clear Notion page viewer
+    onAcupointSelected(null);
+    onClearSelection();
   }, [allAcupoints, onClearSelection, onAcupointSelected]);
 
   const handleSymptomSearchChange = (value: string) => {
     setSymptomSearchTerm(value);
-    setAcupointSearchTerm(''); // Clear point search when symptom search is active
-    setSelectedAcupoint(null); // Clear selected acupoint
-    onAcupointSelected(null); // Notify parent
-    setIsAcupointSearchOpen(false); // Close point search popover
+    setAcupointSearchTerm('');
+    setSelectedAcupoint(null);
+    onAcupointSelected(null);
+    setIsAcupointSearchOpen(false);
   };
 
   const handleClearSymptomSearch = useCallback(() => {
     setSymptomSearchTerm('');
-    setFoundAcupoints(allAcupoints); // Reset to all
+    setFoundAcupoints(allAcupoints);
     setSelectedAcupoint(null);
-    onAcupointSelected(null); // Notify parent
-    onClearSelection(); // Notify parent to clear Notion page viewer
+    onAcupointSelected(null);
+    onClearSelection();
   }, [allAcupoints, onClearSelection, onAcupointSelected]);
 
   const handleSelectAcupoint = useCallback((acupoint: Acupoint) => {
     setSelectedAcupoint(acupoint);
-    onAcupointSelected(acupoint); // Notify parent
+    onAcupointSelected(acupoint);
     setIsAcupointSearchOpen(false);
     setIsSymptomSearchOpen(false);
-    setAcupointSearchTerm(acupoint.name); // Display selected acupoint name in the point search trigger
-    setSymptomSearchTerm(''); // Clear symptom search when a point is selected
-    setFoundAcupoints(allAcupoints); // Reset found acupoints to all after selection
+    setAcupointSearchTerm(acupoint.name);
+    setSymptomSearchTerm('');
+    setFoundAcupoints(allAcupoints);
   }, [allAcupoints, onAcupointSelected]);
 
   const handleClearSelectedAcupoint = useCallback(() => {
     setSelectedAcupoint(null);
-    onAcupointSelected(null); // Notify parent
+    onAcupointSelected(null);
     setAcupointSearchTerm('');
     setSymptomSearchTerm('');
-    setFoundAcupoints(allAcupoints); // Reset any previous search results to all
-    onClearSelection(); // Notify parent to clear Notion page viewer
+    setFoundAcupoints(allAcupoints);
+    onClearSelection();
   }, [allAcupoints, onClearSelection, onAcupointSelected]);
 
   const handleAddAcupointToSession = useCallback(async () => {
@@ -180,7 +182,7 @@ const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLo
         }
       });
       if (!loggingSessionEvent) {
-        handleClearSelectedAcupoint(); // Clear selected acupoint after logging
+        handleClearSelectedAcupoint();
       }
     } else {
       showError('No acupoint selected to add to session.');
@@ -217,6 +219,11 @@ const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLo
         <CardTitle className="text-xl font-bold text-indigo-800 flex items-center gap-2">
           <Search className="w-5 h-5" />
           Acupoint Insight Engine
+          {acupointsIsCached && (
+            <Badge variant="secondary" className="bg-green-200 text-green-800 ml-2">
+              Cached
+            </Badge>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-6 space-y-6">
@@ -262,7 +269,7 @@ const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLo
                   )}
                 </div>
                 <CommandEmpty>No acupoint found.</CommandEmpty>
-                <CommandGroup className="max-h-[300px] overflow-y-auto"> {/* Added scrolling */}
+                <CommandGroup className="max-h-[300px] overflow-y-auto">
                   {foundAcupoints.map((point) => (
                     <CommandItem
                       key={point.id}
@@ -281,7 +288,7 @@ const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLo
                         size="icon"
                         className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
                         onClick={(e) => {
-                          e.stopPropagation(); // Prevent selecting the acupoint when clicking the info button
+                          e.stopPropagation();
                           onOpenNotionPage(point.id, point.name);
                         }}
                       >
@@ -337,7 +344,7 @@ const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLo
                   )}
                 </div>
                 <CommandEmpty>No suggestions found.</CommandEmpty>
-                <CommandGroup className="max-h-[300px] overflow-y-auto"> {/* Added scrolling */}
+                <CommandGroup className="max-h-[300px] overflow-y-auto">
                   {foundAcupoints.map((point) => (
                     <CommandItem
                       key={point.id}
@@ -356,7 +363,7 @@ const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLo
                         size="icon"
                         className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
                         onClick={(e) => {
-                          e.stopPropagation(); // Prevent selecting the acupoint when clicking the info button
+                          e.stopPropagation();
                           onOpenNotionPage(point.id, point.name);
                         }}
                       >

@@ -1,8 +1,8 @@
 "use client";
 
-import React, { Fragment, useEffect, useMemo, useState } from 'react'; // Import useState
+import React, { Fragment, useEffect, useMemo, useState } from 'react';
 import { Loader2, AlertCircle, CheckSquare, Square, ChevronRight, Image as ImageIcon, Info } from 'lucide-react';
-import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
+import { useCachedEdgeFunction } from '@/hooks/use-cached-edge-function';
 import { NotionBlock, NotionRichText, GetNotionPageContentPayload, GetNotionPageContentResponse } from '@/types/api';
 import { cn } from '@/lib/utils';
 
@@ -35,35 +35,38 @@ const renderRichText = (richText: NotionRichText[]) => {
 };
 
 const NotionPageViewer: React.FC<NotionPageViewerProps> = ({ pageId }) => {
-  const [internalPageTitle, setInternalPageTitle] = useState<string | null>(null); // Internal state for title
+  const [internalPageTitle, setInternalPageTitle] = useState<string | null>(null);
 
   const {
     data: pageContent,
     loading,
     error,
     execute: fetchPageContent,
-  } = useSupabaseEdgeFunction<GetNotionPageContentPayload, GetNotionPageContentResponse>(
+    isCached,
+  } = useCachedEdgeFunction<GetNotionPageContentPayload, GetNotionPageContentResponse>(
     'get-notion-page-content',
     {
       requiresAuth: true,
       requiresNotionConfig: true,
+      cacheKey: pageId ? `page:${pageId}` : undefined,
+      cacheTtl: 120, // 2 hours cache for page content
       onSuccess: (data) => {
         console.log('[NotionPageViewer] Fetched page content:', data.title);
-        setInternalPageTitle(data.title); // Set internal title on success
+        setInternalPageTitle(data.title);
       },
       onError: (msg) => {
         console.error('[NotionPageViewer] Error fetching page content:', msg);
-        setInternalPageTitle(null); // Clear title on error
+        setInternalPageTitle(null);
       },
     }
   );
 
   useEffect(() => {
     if (pageId) {
-      setInternalPageTitle(null); // Clear title immediately when pageId changes
+      setInternalPageTitle(null);
       fetchPageContent({ pageId });
     } else {
-      setInternalPageTitle(null); // Clear title if no pageId
+      setInternalPageTitle(null);
     }
   }, [pageId, fetchPageContent]);
 
@@ -74,7 +77,7 @@ const NotionPageViewer: React.FC<NotionPageViewerProps> = ({ pageId }) => {
           <p key={block.id} className="mb-2 text-gray-800 leading-relaxed">
             {renderRichText(block.text)}
           </p>
-        ) : <p key={block.id} className="mb-2">&nbsp;</p>; // Render empty paragraph for Notion empty lines
+        ) : <p key={block.id} className="mb-2">&nbsp;</p>;
       case 'heading_1':
         return (
           <h1 key={block.id} className="text-3xl font-bold mt-6 mb-3 text-gray-900">

@@ -8,10 +8,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { User, Settings, Loader2, Search, AlertCircle, XCircle } from 'lucide-react'; // Added XCircle
-import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
-import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
+import { User, Settings, Loader2, Search, AlertCircle, XCircle } from 'lucide-react';
+import { showSuccess, showError } from '@/utils/toast';
+import { useCachedEdgeFunction } from '@/hooks/use-cached-edge-function';
 import { Client, GetAllClientsResponse, UpdateNotionClientPayload, UpdateNotionClientResponse } from '@/types/api';
+import SyncStatusIndicator from '@/components/SyncStatusIndicator';
 
 const AllClients = () => {
   const [clients, setClients] = useState<Client[]>([]);
@@ -43,11 +44,14 @@ const AllClients = () => {
     error: clientsError,
     needsConfig,
     execute: fetchAllClients,
-  } = useSupabaseEdgeFunction<void, GetAllClientsResponse>(
+    isCached: clientsIsCached,
+  } = useCachedEdgeFunction<void, GetAllClientsResponse>(
     'get-all-clients',
     {
       requiresAuth: true,
       requiresNotionConfig: true,
+      cacheKey: 'all-clients',
+      cacheTtl: 60, // 1 hour cache
       onSuccess: handleFetchAllClientsSuccess,
       onError: handleFetchAllClientsError,
     }
@@ -56,7 +60,7 @@ const AllClients = () => {
   const {
     loading: updatingClient,
     execute: updateNotionClient,
-  } = useSupabaseEdgeFunction<UpdateNotionClientPayload, UpdateNotionClientResponse>(
+  } = useCachedEdgeFunction<UpdateNotionClientPayload, UpdateNotionClientResponse>(
     'update-notion-client',
     {
       requiresAuth: true,
@@ -140,7 +144,7 @@ const AllClients = () => {
             <div className="text-red-500 mb-4">
               <AlertCircle className="w-12 h-12 mx-auto" />
             </div>
-            <h2 className="text-xl font-bold mb-2">Error Loading Clients</h2>
+            <h2 className="xl font-bold mb-2">Error Loading Clients</h2>
             <p className="text-gray-600 mb-4">{clientsError}</p>
             <div className="space-y-2">
               <Button onClick={() => fetchAllClients()}>Try Again</Button>
@@ -190,6 +194,13 @@ const AllClients = () => {
                 {loadingClients ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 {loadingClients ? 'Refreshing...' : 'Refresh'}
               </Button>
+            </div>
+
+            <div className="flex justify-center mb-4">
+              <SyncStatusIndicator onSyncComplete={() => {
+                // Refresh data after sync
+                fetchAllClients();
+              }} />
             </div>
 
             {filteredClients.length === 0 && searchTerm !== '' ? (

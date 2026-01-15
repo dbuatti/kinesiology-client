@@ -8,20 +8,20 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
 import { Badge } from '@/components/ui/badge';
-import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
+import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 import { Search, Check, ChevronsUpDown, Settings, Loader2, Sparkles, PlusCircle, Trash2, ExternalLink, Info } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
+import { useCachedEdgeFunction } from '@/hooks/use-cached-edge-function';
 import { Chakra, GetChakrasPayload, GetChakrasResponse, LogSessionEventPayload, LogSessionEventResponse } from '@/types/api';
-import { useDebounce } from '@/hooks/use-debounce'; // Import useDebounce
+import { useDebounce } from '@/hooks/use-debounce';
 
 interface ChakraSelectorProps {
   appointmentId: string;
-  onChakraSelected: (chakra: Chakra | null) => void; // Updated to allow null for clearing
-  onClearSelection: () => void; // New prop for clearing selection
-  selectedChakra: Chakra | null; // New prop to receive selected chakra from parent
-  onOpenNotionPage: (pageId: string, pageTitle: string) => void; // Changed prop name and type
+  onChakraSelected: (chakra: Chakra | null) => void;
+  onClearSelection: () => void;
+  selectedChakra: Chakra | null;
+  onOpenNotionPage: (pageId: string, pageTitle: string) => void;
 }
 
 const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakraSelected, onClearSelection, selectedChakra, onOpenNotionPage }) => {
@@ -32,9 +32,8 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const navigate = useNavigate();
-  const debouncedSearchTerm = useDebounce(searchTerm, 500); // Debounce search term
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
-  // Memoized callbacks for fetchChakras
   const onChakrasSuccess = useCallback((data: GetChakrasResponse) => {
     setAllChakras(data.chakras);
     setFilteredChakras(data.chakras);
@@ -52,11 +51,14 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
     error: chakrasError,
     needsConfig,
     execute: fetchChakras,
-  } = useSupabaseEdgeFunction<GetChakrasPayload, GetChakrasResponse>(
+    isCached: chakrasIsCached,
+  } = useCachedEdgeFunction<GetChakrasPayload, GetChakrasResponse>(
     'get-chakras',
     {
       requiresAuth: true,
       requiresNotionConfig: true,
+      cacheKey: 'all-chakras',
+      cacheTtl: 120, // 2 hours cache
       onSuccess: onChakrasSuccess,
       onError: onChakrasError,
     }
@@ -66,7 +68,7 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
   const {
     loading: loggingSessionEvent,
     execute: logSessionEvent,
-  } = useSupabaseEdgeFunction<LogSessionEventPayload, LogSessionEventResponse>(
+  } = useCachedEdgeFunction<LogSessionEventPayload, LogSessionEventResponse>(
     'log-session-event',
     {
       requiresAuth: true,
@@ -112,16 +114,16 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
   }, [debouncedSearchTerm, searchType, allChakras]);
 
   const handleSelectChakra = (chakra: Chakra) => {
-    onChakraSelected(chakra); // Notify parent of selection
+    onChakraSelected(chakra);
     setIsSearchOpen(false);
-    setSearchTerm(chakra.name); // Pre-fill search with selected chakra name
+    setSearchTerm(chakra.name);
   };
 
   const handleSearchTypeChange = (type: 'name' | 'element' | 'emotion' | 'organ') => {
     setSearchType(type);
-    setSearchTerm(''); // Clear search term when type changes
-    setFilteredChakras(allChakras); // Reset filtered chakras
-    setIsSearchOpen(true); // Open popover for new search
+    setSearchTerm('');
+    setFilteredChakras(allChakras);
+    setIsSearchOpen(true);
   };
 
   const handleAddChakraToSession = async () => {
@@ -141,7 +143,7 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
 
       if (!loggingSessionEvent) {
         showSuccess(`${selectedChakra.name} logged to the current session.`);
-        handleClearAll(); // Clear selected chakra after logging
+        handleClearAll();
       }
     } else {
       showError('Please select a chakra to add to the session.');
@@ -149,11 +151,11 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
   };
 
   const handleClearAll = () => {
-    onChakraSelected(null); // Clear selected chakra in parent
-    setSearchTerm(''); // Clear local search term
-    setFilteredChakras(allChakras); // Reset filtered chakras to all
-    setIsSearchOpen(false); // Close search popover
-    onClearSelection(); // Notify parent of clear action
+    onChakraSelected(null);
+    setSearchTerm('');
+    setFilteredChakras(allChakras);
+    setIsSearchOpen(false);
+    onClearSelection();
   };
 
   if (needsConfig) {
@@ -186,6 +188,11 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
         <CardTitle className="text-xl font-bold text-indigo-800 flex items-center gap-2">
           <Sparkles className="w-5 h-5" />
           Chakra Insight Engine
+          {chakrasIsCached && (
+            <Badge variant="secondary" className="bg-green-200 text-green-800 ml-2">
+              Cached
+            </Badge>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-6 space-y-6">
@@ -254,7 +261,7 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
                   disabled={loadingChakras}
                 />
                 <CommandEmpty>No chakras found.</CommandEmpty>
-                <CommandGroup className="max-h-[300px] overflow-y-auto"> {/* Added scrolling */}
+                <CommandGroup className="max-h-[300px] overflow-y-auto">
                   {filteredChakras.map((chakra) => (
                     <CommandItem
                       key={chakra.id}
@@ -273,8 +280,8 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
                         size="icon"
                         className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
                         onClick={(e) => {
-                          e.stopPropagation(); // Prevent selecting the chakra when clicking the info button
-                          onOpenNotionPage(chakra.id, chakra.name); // Use centralized handler
+                          e.stopPropagation();
+                          onOpenNotionPage(chakra.id, chakra.name);
                         }}
                       >
                         <Info className="h-4 w-4" />
@@ -298,7 +305,7 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
                   size="icon"
                   className="ml-2 h-6 w-6 rounded-full text-gray-500 hover:bg-gray-100"
                   onClick={() => {
-                    onOpenNotionPage(selectedChakra.id, selectedChakra.name); // Use centralized handler
+                    onOpenNotionPage(selectedChakra.id, selectedChakra.name);
                   }}
                 >
                   <ExternalLink className="w-4 h-4" />

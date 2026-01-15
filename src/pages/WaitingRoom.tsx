@@ -8,9 +8,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Calendar, Settings, AlertCircle, PlayCircle, User, Star, Target, Lightbulb, Loader2, RefreshCw } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import { format } from 'date-fns';
-import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
+import { useCachedEdgeFunction } from '@/hooks/use-cached-edge-function';
 import { Appointment, GetTodaysAppointmentsResponse, UpdateNotionAppointmentPayload, UpdateNotionAppointmentResponse, GetTodaysAppointmentsPayload } from '@/types/api';
 import CreateAppointmentDialog from '@/components/CreateAppointmentDialog';
+import SyncStatusIndicator from '@/components/SyncStatusIndicator';
 
 const WaitingRoom = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -30,7 +31,7 @@ const WaitingRoom = () => {
   }, []);
 
   const handleNotionConfigNeeded = useCallback(() => {
-    // This callback is now stable and can be passed to useSupabaseEdgeFunction
+    // This callback is now stable and can be passed to useCachedEdgeFunction
     // The needsConfig state will handle the UI redirect.
   }, []);
 
@@ -40,11 +41,14 @@ const WaitingRoom = () => {
     error: appointmentsError,
     needsConfig,
     execute: fetchTodaysAppointments,
-  } = useSupabaseEdgeFunction<GetTodaysAppointmentsPayload, GetTodaysAppointmentsResponse>(
+    isCached: appointmentsIsCached,
+  } = useCachedEdgeFunction<GetTodaysAppointmentsPayload, GetTodaysAppointmentsResponse>(
     'get-todays-appointments',
     {
       requiresAuth: true,
       requiresNotionConfig: true,
+      cacheKey: 'todays-appointments',
+      cacheTtl: 15, // 15 minutes cache
       onSuccess: handleSuccess,
       onError: handleError,
       onNotionConfigNeeded: handleNotionConfigNeeded,
@@ -68,7 +72,7 @@ const WaitingRoom = () => {
   const {
     loading: updatingAppointment,
     execute: updateNotionAppointment,
-  } = useSupabaseEdgeFunction<UpdateNotionAppointmentPayload, UpdateNotionAppointmentResponse>(
+  } = useCachedEdgeFunction<UpdateNotionAppointmentPayload, UpdateNotionAppointmentResponse>(
     'update-notion-appointment',
     {
       requiresAuth: true,
@@ -179,6 +183,13 @@ const WaitingRoom = () => {
         <p className="text-gray-600 text-center mb-8">
           {format(new Date(), 'EEEE, MMMM d, yyyy')}
         </p>
+        <div className="flex justify-center mb-4">
+          <SyncStatusIndicator onSyncComplete={() => {
+            // Refresh data after sync
+            const todayDate = format(new Date(), 'yyyy-MM-dd');
+            fetchTodaysAppointments({ todayDate });
+          }} />
+        </div>
 
         {appointments.length === 0 ? (
           <Card className="shadow-lg">
@@ -202,6 +213,11 @@ const WaitingRoom = () => {
                   <CardTitle className="text-xl font-bold text-indigo-800 flex items-center gap-2">
                     <User className="w-5 h-5" />
                     {appointment.clientName}
+                    {appointmentsIsCached && (
+                      <Badge variant="secondary" className="bg-green-200 text-green-800 ml-2">
+                        Cached
+                      </Badge>
+                    )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-4 space-y-3">

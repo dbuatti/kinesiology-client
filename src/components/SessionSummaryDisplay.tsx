@@ -4,7 +4,7 @@ import React, { useMemo, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Button } from '@/components/ui/button'; // Added missing import
+import { Button } from '@/components/ui/button';
 import { Lightbulb, Hand, Sparkles, Waves, Search, Target, XCircle, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -17,7 +17,7 @@ import {
   SessionLog,
   SessionMuscleLog,
 } from '@/types/api';
-import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
+import { useCachedEdgeFunction } from '@/hooks/use-cached-edge-function';
 import { showSuccess, showError } from '@/utils/toast';
 
 interface SessionSummaryDisplayProps {
@@ -73,14 +73,14 @@ const SessionSummaryDisplay: React.FC<SessionSummaryDisplayProps> = ({
   const {
     loading: loggingSessionEvent,
     execute: logSessionEvent,
-  } = useSupabaseEdgeFunction<any, any>(
+  } = useCachedEdgeFunction<any, any>(
     'log-session-event',
     {
       requiresAuth: true,
       onSuccess: (data) => {
         console.log('Session summary item logged to Supabase:', data.logId);
         showSuccess('Item logged to session.');
-        onLogSuccess(); // Notify parent to refresh logs
+        onLogSuccess();
       },
       onError: (msg) => {
         console.error('Failed to log session summary item to Supabase:', msg);
@@ -107,21 +107,20 @@ const SessionSummaryDisplay: React.FC<SessionSummaryDisplayProps> = ({
     });
 
     // Add latest logged events (up to a few, to keep it concise)
-    const recentLogs = allLogs.slice(-3).reverse(); // Get last 3 logs, most recent first
+    const recentLogs = allLogs.slice(-3).reverse();
     recentLogs.forEach(log => {
-      if ('log_type' in log) { // General session log
-        // Only add if not already covered by selected modes
+      if ('log_type' in log) {
         if (log.log_type === 'mode_selected' && log.details?.modeName && !sessionSelectedModes.some(m => m.name === log.details.modeName)) {
           items.push({ type: 'Logged Mode', name: log.details.modeName, icon: <Lightbulb className="w-3 h-3" />, id: log.id });
         } else if (log.log_type === 'chakra_selected' && log.details?.chakraName) {
           items.push({ type: 'Logged Chakra', name: log.details.chakraName, icon: <Sparkles className="w-3 h-3" />, id: log.id });
         } else if (log.log_type.startsWith('channel_') && log.details?.channelName) {
-          const { bg, text } = getElementColorClasses(log.details.elements || []); // Assuming elements might be in details
+          const { bg, text } = getElementColorClasses(log.details.elements || []);
           items.push({ type: 'Logged Channel Item', name: `${log.details.channelName} (${log.details.itemValue})`, colorClass: cn(bg, text), icon: <Waves className="w-3 h-3" />, id: log.id });
         } else if (log.log_type === 'acupoint_added' && log.details?.acupointName) {
           items.push({ type: 'Logged Acupoint', name: log.details.acupointName, icon: <Search className="w-3 h-3" />, id: log.id });
         }
-      } else { // Muscle strength log
+      } else {
         items.push({
           type: 'Logged Muscle',
           name: `${log.muscle_name} (${log.is_strong ? 'Strong' : 'Weak'})`,
@@ -163,7 +162,7 @@ const SessionSummaryDisplay: React.FC<SessionSummaryDisplayProps> = ({
   const hasContent = sessionNorthStar || sessionAnchor || latestLoggedItems.length > 0;
 
   if (!hasContent) {
-    return null; // Don't render if there's no content to display
+    return null;
   }
 
   return (
