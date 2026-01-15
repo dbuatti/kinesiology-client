@@ -16,20 +16,31 @@ export const cacheService = {
   // Get cached data by key
   async get(userId: string, resourceKey: string): Promise<any | null> {
     const key = buildKey(userId, resourceKey);
+    
+    // Use .maybeSingle() to handle cases where no row is found without throwing an error
     const { data, error } = await supabase
       .from('notion_cache')
       .select('data, expires_at')
       .eq('id', key)
-      .single();
+      .maybeSingle(); // Use maybeSingle to gracefully handle 0 results
 
-    if (error || !data) {
+    if (error) {
+      console.error('Cache get error:', error);
       return null;
+    }
+    
+    if (!data) {
+        return null;
     }
 
     // Check if cache is expired
     if (new Date(data.expires_at) < new Date()) {
-      // Delete expired cache entry
-      await supabase.from('notion_cache').delete().eq('id', key);
+      // Delete expired cache entry (fire and forget)
+      supabase.from('notion_cache').delete().eq('id', key).then(() => {
+          console.log(`Expired cache entry deleted: ${key}`);
+      }).catch(err => {
+          console.error('Failed to delete expired cache entry:', err);
+      });
       return null;
     }
 
@@ -84,7 +95,7 @@ export const cacheService = {
       .select('*')
       .order('updated_at', { ascending: false });
 
-    return error ? [] : data;
+    return error ? [] : data as CacheEntry[];
   },
 
   // Clear all cache entries
