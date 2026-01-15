@@ -95,27 +95,44 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
     setFilteredMuscles(currentFiltered);
   }, [debouncedSearchTerm, searchType, allMuscles]); // Depend on allMuscles for filtering
 
-  const handleSelectMuscle = (muscle: Muscle) => {
+  const handleClearAll = useCallback(() => {
+    setSelectedMuscle(null);
+    onMuscleSelected(null); // Notify parent of clear
+    setSearchTerm(''); // Clear search term in the trigger
+    setFilteredMuscles(allMuscles);
+    setShowWeaknessChecklist(false);
+    setNotes(''); // Clear notes
+    onClearSelection(); // Notify parent of clear action
+  }, [onMuscleSelected, allMuscles, onClearSelection]);
+
+  const handleLogStrength = useCallback((isStrong: boolean) => {
+    if (selectedMuscle) {
+      // 1. Trigger API call in parent
+      onMuscleStrengthLogged(selectedMuscle, isStrong, notes); // This triggers API call in parent
+
+      // 2. Handle UI flow based on strength
+      if (!isStrong) {
+        // If weak, show checklist and keep muscle selected for review
+        setShowWeaknessChecklist(true);
+        showSuccess(`Muscle strength for ${selectedMuscle.name} logged as WEAK. Review checklist.`);
+      } else {
+        // If strong, clear immediately for momentum
+        setShowWeaknessChecklist(false);
+        showSuccess(`Muscle strength for ${selectedMuscle.name} logged as STRONG.`);
+        handleClearAll(); // Clear selection immediately
+      }
+      setNotes(''); // Clear notes after logging, regardless of strength
+    }
+  }, [selectedMuscle, onMuscleStrengthLogged, notes, handleClearAll]);
+
+  const handleSelectMuscle = useCallback((muscle: Muscle) => {
     setSelectedMuscle(muscle);
     onMuscleSelected(muscle);
     setIsSearchOpen(false);
     setSearchTerm(muscle.name); // Pre-fill search with selected muscle name
     setShowWeaknessChecklist(false); // Reset checklist visibility
     setNotes(''); // Clear notes when selecting a new muscle
-  };
-
-  const handleLogStrength = (isStrong: boolean) => {
-    if (selectedMuscle) {
-      onMuscleStrengthLogged(selectedMuscle, isStrong, notes); // Pass notes
-      if (!isStrong) {
-        setShowWeaknessChecklist(true);
-      } else {
-        setShowWeaknessChecklist(false);
-      }
-      showSuccess(`Muscle strength for ${selectedMuscle.name} logged as ${isStrong ? 'Strong' : 'Weak'}.`);
-      setNotes(''); // Clear notes after logging
-    }
-  };
+  }, [onMuscleSelected]);
 
   const handleSearchTypeChange = (type: 'muscle' | 'meridian' | 'organ' | 'emotion') => {
     setSearchType(type);
@@ -128,16 +145,6 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
     setSearchTerm('');
     setFilteredMuscles(allMuscles);
     setIsSearchOpen(false);
-  };
-
-  const handleClearAll = () => {
-    setSelectedMuscle(null);
-    onMuscleSelected(null); // Notify parent of clear
-    setSearchTerm(''); // Clear search term in the trigger
-    setFilteredMuscles(allMuscles);
-    setShowWeaknessChecklist(false);
-    setNotes(''); // Clear notes
-    onClearSelection(); // Notify parent of clear action
   };
 
   if (needsConfig) {
