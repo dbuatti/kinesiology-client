@@ -59,7 +59,7 @@ serve(async (req) => {
         muscle_id: muscleId,
         muscle_name: muscleName,
         is_strong: isStrong,
-        notes: notes || null,
+        notes: notes || null, // Use the received notes, defaulting to null if empty
       })
       .select()
       .single()
