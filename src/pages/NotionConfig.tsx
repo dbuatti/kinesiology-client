@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Settings, Key, Database, Shield, Loader2, Info } from 'lucide-react'; // Added Info import
 import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
-import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
+import { useCachedEdgeFunction } from '@/hooks/use-supabase-edge-function';
 import { SetNotionSecretsPayload, SetNotionSecretsResponse, NotionSecrets } from '@/types/api';
 
 import { useForm } from 'react-hook-form';
@@ -94,7 +94,7 @@ const NotionConfig = () => {
   const {
     loading: savingConfig,
     execute: setNotionSecrets,
-  } = useSupabaseEdgeFunction<SetNotionSecretsPayload, SetNotionSecretsResponse>(
+  } = useCachedEdgeFunction<SetNotionSecretsPayload, SetNotionSecretsResponse>(
     'set-notion-secrets',
     {
       requiresAuth: true,
@@ -108,7 +108,7 @@ const NotionConfig = () => {
     loading: loadingInitialFetch,
     error: fetchError,
     execute: fetchNotionSecrets,
-  } = useSupabaseEdgeFunction<void, GetNotionSecretsResponse>(
+  } = useCachedEdgeFunction<void, GetNotionSecretsResponse>(
     'get-notion-secrets',
     {
       requiresAuth: true,
