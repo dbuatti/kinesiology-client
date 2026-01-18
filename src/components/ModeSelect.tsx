@@ -63,6 +63,7 @@ const ModeSelect: React.FC<ModeSelectProps> = ({
       cacheTtl: 120, // 2 hours cache
       onSuccess: onModesSuccess,
       onError: onModesError,
+      preventAutoInvalidate: true, // NEW: Prevent automatic cache invalidation on mount
     }
   );
 

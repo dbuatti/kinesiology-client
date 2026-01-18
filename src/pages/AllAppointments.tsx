@@ -62,6 +62,7 @@ const AllAppointments = () => {
       cacheTtl: 60, // 1 hour cache
       onSuccess: handleFetchAllAppointmentsSuccess,
       onError: handleFetchAllAppointmentsError,
+      preventAutoInvalidate: true, // NEW: Prevent automatic cache invalidation on mount
     }
   );
 

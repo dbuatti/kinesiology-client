@@ -65,6 +65,7 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
       cacheTtl: 120, // 2 hours cache
       onSuccess: onChakrasSuccess,
       onError: onChakrasError,
+      preventAutoInvalidate: true, // NEW: Prevent automatic cache invalidation on mount
     }
   );
 
@@ -79,24 +80,6 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
       fetchChakras({ searchTerm: '', searchType: 'name' });
     }
   }, [initialChakras, loadingInitial, allChakras.length, chakrasError, needsConfig, fetchChakras]);
-
-  // Hook for logging general session events
-  const {
-    loading: loggingSessionEvent,
-    execute: logSessionEvent,
-  } = useCachedEdgeFunction<LogSessionEventPayload, LogSessionEventResponse>(
-    'log-session-event',
-    {
-      requiresAuth: true,
-      onSuccess: (data) => {
-        console.log('Chakra selection logged to Supabase:', data.logId);
-      },
-      onError: (msg) => {
-        console.error('Failed to log chakra selection to Supabase:', msg);
-        showError(`Logging Failed: ${msg}`);
-      }
-    }
-  );
 
   // Effect to filter chakras based on search term and type (client-side)
   useEffect(() => {

@@ -14,6 +14,8 @@ interface UseCachedEdgeFunctionOptions {
   onSuccess?: (data: any, isCached: boolean) => void;
   onError?: (error: string, errorCode?: string) => void;
   onNotionConfigNeeded?: () => void;
+  // NEW: Prevent automatic cache invalidation on mount
+  preventAutoInvalidate?: boolean;
 }
 
 export const useCachedEdgeFunction = <TRequest, TResponse>(
@@ -28,6 +30,7 @@ export const useCachedEdgeFunction = <TRequest, TResponse>(
     onSuccess,
     onError,
     onNotionConfigNeeded,
+    preventAutoInvalidate = false,
   } = options || {};
 
   const [data, setData] = useState<TResponse | null>(null);

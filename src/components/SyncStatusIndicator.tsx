@@ -64,6 +64,7 @@ const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({ onSyncComplet
     requiresAuth: true,
     onSuccess: handleSyncSuccess,
     onError: handleSyncError,
+    preventAutoInvalidate: true, // NEW: Prevent automatic cache invalidation on mount
   });
 
   const handleSync = async () => {

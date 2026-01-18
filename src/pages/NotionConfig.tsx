@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Settings, Key, Database, Shield, Loader2, Info } from 'lucide-react'; // Added Info import
-import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
+import { Settings, Key, Database, Shield, Loader2, Info, RefreshCw } from 'lucide-react';
+import { showSuccess, showError } from '@/utils/toast';
 import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
 import { SetNotionSecretsPayload, SetNotionSecretsResponse, NotionSecrets } from '@/types/api';
 
@@ -22,6 +22,8 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { cacheService } from '@/integrations/supabase/cache';
+import { supabase } from '@/integrations/supabase/client';
 
 // Define a new response type for the get-notion-secrets edge function
 interface GetNotionSecretsResponse {
@@ -36,15 +38,16 @@ const notionConfigFormSchema = z.object({
   modesDbId: z.string().nullable(),
   acupointsDbId: z.string().nullable(),
   musclesDbId: z.string().nullable(),
-  channelsDbId: z.string().nullable(), // Added new field
-  chakrasDbId: z.string().nullable(),  // Added new field
-  tagsDbId: z.string().nullable(), // Added new field
+  channelsDbId: z.string().nullable(),
+  chakrasDbId: z.string().nullable(),
+  tagsDbId: z.string().nullable(),
 });
 
 type NotionConfigFormValues = z.infer<typeof notionConfigFormSchema>;
 
 const NotionConfig = () => {
   const navigate = useNavigate();
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const form = useForm<NotionConfigFormValues>({
     resolver: zodResolver(notionConfigFormSchema),
@@ -55,9 +58,9 @@ const NotionConfig = () => {
       modesDbId: '',
       acupointsDbId: '',
       musclesDbId: '',
-      channelsDbId: '', // Default value for new field
-      chakrasDbId: '',  // Default value for new field
-      tagsDbId: '', // Default value for new field
+      channelsDbId: '',
+      chakrasDbId: '',
+      tagsDbId: '',
     },
   });
 
@@ -71,9 +74,9 @@ const NotionConfig = () => {
       modesDbId: secrets.modes_database_id || '',
       acupointsDbId: secrets.acupoints_database_id || '',
       musclesDbId: secrets.muscles_database_id || '',
-      channelsDbId: secrets.channels_database_id || '', // Set new field
-      chakrasDbId: secrets.chakras_database_id || '',  // Set new field
-      tagsDbId: secrets.tags_database_id || '', // Set new field
+      channelsDbId: secrets.channels_database_id || '',
+      chakrasDbId: secrets.chakras_database_id || '',
+      tagsDbId: secrets.tags_database_id || '',
     });
   }, [form]);
 
@@ -118,14 +121,14 @@ const NotionConfig = () => {
     'get-notion-secrets',
     {
       requiresAuth: true,
-      onSuccess: handleFetchSuccess, // Use the memoized callback
-      onError: handleFetchError,     // Use the memoized callback
+      onSuccess: handleFetchSuccess,
+      onError: handleFetchError,
     }
   );
 
   useEffect(() => {
     fetchNotionSecrets();
-  }, [fetchNotionSecrets]); // fetchNotionSecrets is now stable due to useCallback dependencies
+  }, [fetchNotionSecrets]);
 
   const onSubmit = async (values: NotionConfigFormValues) => {
     await setNotionSecrets({
@@ -135,10 +138,46 @@ const NotionConfig = () => {
       modesDbId: values.modesDbId?.trim() || null,
       acupointsDbId: values.acupointsDbId?.trim() || null,
       musclesDbId: values.musclesDbId?.trim() || null,
-      channelsDbId: values.channelsDbId?.trim() || null, // Pass new field
-      chakrasDbId: values.chakrasDbId?.trim() || null,  // Pass new field
-      tagsDbId: values.tagsDbId?.trim() || null, // Pass new field
+      channelsDbId: values.channelsDbId?.trim() || null,
+      chakrasDbId: values.chakrasDbId?.trim() || null,
+      tagsDbId: values.tagsDbId?.trim() || null,
     });
+  };
+
+  const handleManualSync = async () => {
+    setIsSyncing(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        showError('Not authenticated');
+        return;
+      }
+
+      // Clear all cached reference data
+      const cacheKeys = [
+        'all-modes',
+        'all-acupoints',
+        'all-muscles',
+        'all-chakras',
+        'all-channels',
+        'all-clients',
+        'all-appointments',
+        'todays-appointments',
+      ];
+
+      for (const key of cacheKeys) {
+        await cacheService.invalidate(user.id, key);
+      }
+
+      // Also clear any individual page caches
+      await cacheService.invalidateByPattern(user.id, 'page');
+
+      showSuccess('All cached data cleared. Data will be refreshed on next load.');
+    } catch (error: any) {
+      showError(`Failed to clear cache: ${error.message}`);
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   return (
@@ -168,6 +207,24 @@ const NotionConfig = () => {
                   <Shield className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
                   <div className="text-sm text-green-800">
                     <strong>Secure Storage:</strong> Your credentials are stored as encrypted secrets in Supabase, not in the database. This is much more secure.
+                  </div>
+                </div>
+
+                {/* Manual Sync Section */}
+                <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-3">
+                  <RefreshCw className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-blue-800 flex-1">
+                    <strong>Manual Data Sync:</strong> Clear all cached Notion data and force a fresh pull on next load.
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="ml-4 mt-2 bg-blue-600 text-white hover:bg-blue-700"
+                      onClick={handleManualSync}
+                      disabled={isSyncing}
+                    >
+                      {isSyncing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                      {isSyncing ? 'Clearing...' : 'Clear Cache & Sync'}
+                    </Button>
                   </div>
                 </div>
 
