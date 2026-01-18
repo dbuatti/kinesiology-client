@@ -154,7 +154,7 @@ export interface NotionBlock {
 export interface NotionSecrets {
   id: string; // This is now the user_id and primary key
   notion_integration_token: string;
-  appointments_database_id: string;
+  appointments_database_id: string | null; // Made nullable
   crm_database_id: string | null;
   modes_database_id: string | null;
   acupoints_database_id: string | null;
@@ -170,7 +170,7 @@ export interface GetTodaysAppointmentsPayload {
 }
 
 export interface GetTodaysAppointmentsResponse {
-  appointments: Appointment[];
+  appointments: MinimalAppointment[];
 }
 
 export interface GetAllClientsResponse {
@@ -321,7 +321,7 @@ export interface DeleteSessionLogResponse {
 
 export interface SetNotionSecretsPayload {
   notionToken: string;
-  appointmentsDbId: string;
+  appointmentsDbId: string | null; // Made nullable
   crmDbId: string | null;
   modesDbId: string | null;
   acupointsDbId: string | null;
@@ -331,12 +331,6 @@ export interface SetNotionSecretsPayload {
   tagsDbId: string | null; // New: Tags Database ID
 }
 
-export interface SetNotionSecretsResponse {
-  success: boolean;
-  message: string;
-}
-
-// NEW: Create Appointment Types
 export interface CreateNotionAppointmentPayload {
   clientCrmId: string;
   clientName: string; // For logging/display purposes
