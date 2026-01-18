@@ -241,6 +241,15 @@ const AllClients = () => {
                   </Button>
                 )}
               </div>
+              <Button 
+                onClick={handleManualSync} 
+                variant="default" 
+                disabled={syncingClients}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                {syncingClients ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                {syncingClients ? 'Syncing...' : 'Sync Clients'}
+              </Button>
               <Button onClick={() => fetchAllClients()} variant="outline" disabled={loadingClients || syncingClients}>
                 {loadingClients ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
                 {loadingClients ? 'Refreshing...' : 'Refresh'}
