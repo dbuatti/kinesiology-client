@@ -32,6 +32,7 @@ import { useCachedEdgeFunction } from '@/hooks/use-cached-edge-function';
 import { useNotionConfig } from '@/hooks/use-notion-config';
 import {
   Appointment,
+  MinimalAppointment,
   Mode,
   Acupoint,
   Muscle,
@@ -65,7 +66,7 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
 
   const { isConfigured: notionConfigured, isLoading: configLoading } = useNotionConfig();
 
-  const [appointment, setAppointment] = useState<Appointment | null>(null);
+  const [appointment, setAppointment] = useState<MinimalAppointment | null>(null);
   const [sessionAnchorText, setSessionAnchorText] = useState('');
   const [sessionNorthStarText, setSessionNorthStarText] = useState('');
   const [sessionSelectedModes, setSessionSelectedModes] = useState<Mode[]>([]);

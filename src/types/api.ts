@@ -16,6 +16,16 @@ export interface Appointment {
   acupointId: string | null; // Added to resolve TS2353
 }
 
+export interface MinimalAppointment {
+  id: string;
+  clientName: string;
+  starSign: string;
+  sessionNorthStar: string;
+  goal: string;
+  sessionAnchor: string;
+  status: string;
+}
+
 export interface Client {
   id: string;
   name: string;
@@ -196,7 +206,7 @@ export interface GetSingleAppointmentPayload {
 }
 
 export interface GetSingleAppointmentResponse {
-  appointment: Appointment;
+  appointment: MinimalAppointment;
 }
 
 export interface GetNotionModesResponse {
