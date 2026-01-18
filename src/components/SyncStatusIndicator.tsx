@@ -67,10 +67,15 @@ const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({ onSyncComplet
   });
 
   const handleSync = async () => {
+    if (isSyncing) return; // Prevent multiple sync triggers
+    
     setSyncStatus('syncing');
     setIsSyncing(true);
-    await syncNotionData({ syncType: 'all' });
-    setIsSyncing(false);
+    try {
+      await syncNotionData({ syncType: 'all' });
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   // New effect to check cache status on mount and trigger background sync if needed
@@ -95,8 +100,11 @@ const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({ onSyncComplet
         // Trigger sync in the background without blocking the UI
         setSyncStatus('syncing');
         setIsSyncing(true);
-        await syncNotionData({ syncType: 'all' });
-        setIsSyncing(false);
+        try {
+          await syncNotionData({ syncType: 'all' });
+        } finally {
+          setIsSyncing(false);
+        }
       } else {
         // If cache is present, try to determine the last sync time from one of the keys
         const firstKeyData = await cacheService.getRaw(userId, REFERENCE_CACHE_KEYS[0]);
