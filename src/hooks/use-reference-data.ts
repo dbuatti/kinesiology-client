@@ -39,7 +39,7 @@ const defaultReferenceData: ReferenceData = {
   acupoints: [],
 };
 
-const ReferenceDataContext = createContext<ReferenceDataContextType>({
+export const ReferenceDataContext = createContext<ReferenceDataContextType>({
   data: defaultReferenceData,
   loading: true,
   error: null,

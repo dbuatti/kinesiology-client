@@ -5,11 +5,11 @@ import { useReferenceDataFetcher, ReferenceDataContext } from '@/hooks/use-refer
 import { Loader2 } from 'lucide-react';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Outlet } from 'react-router-dom';
 import { Settings } from 'lucide-react';
 
 interface ReferenceDataProviderProps {
-  children: React.ReactNode;
+  children?: React.ReactNode; // Made optional
 }
 
 const ReferenceDataProvider: React.FC<ReferenceDataProviderProps> = ({ children }) => {
@@ -57,6 +57,8 @@ const ReferenceDataProvider: React.FC<ReferenceDataProviderProps> = ({ children 
   return (
     <ReferenceDataContext.Provider value={{ data, loading, error, needsConfig, refetchAll }}>
       {children}
+      {/* Render Outlet if used as a route element */}
+      {!children && <Outlet />}
     </ReferenceDataContext.Provider>
   );
 };
