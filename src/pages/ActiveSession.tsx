@@ -99,7 +99,7 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
     'get-single-appointment',
     {
       requiresAuth: true,
-      requiresNotionConfig: true,
+      requiresNotionConfig: false, // Appointments are now local
       cacheKey: actualAppointmentId ? `${actualAppointmentId}:appointment` : undefined,
       cacheTtl: 60, // 1 hour cache
       onSuccess: useCallback((data: GetSingleAppointmentResponse) => {
@@ -138,16 +138,16 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
     }
   );
 
-  // 3. Update Notion appointment
+  // 3. Update Appointment
   const {
     loading: updatingAppointment,
-    execute: updateNotionAppointment,
+    execute: updateAppointment, // Renamed to updateAppointment
   } = useCachedEdgeFunction<UpdateNotionAppointmentPayload, UpdateNotionAppointmentResponse>(
-    'update-notion-appointment',
+    'update-appointment', // New function name
     {
       requiresAuth: true,
       onSuccess: useCallback(() => {
-        showSuccess('Appointment updated in Notion.');
+        showSuccess('Appointment updated.');
         // Invalidate cache after update
         if (actualAppointmentId) {
           fetchSingleAppointment({ appointmentId: actualAppointmentId });
@@ -225,14 +225,13 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
 
   // 1. Initial load of core data (Appointment and Logs)
   useEffect(() => {
-    if (actualAppointmentId && notionConfigured && !loadingReferenceData) {
+    if (actualAppointmentId && !loadingReferenceData) {
       console.log('[ActiveSession] Initializing core data fetch: Appointment and Logs.');
       fetchSingleAppointment({ appointmentId: actualAppointmentId });
       fetchSessionLogs({ appointmentId: actualAppointmentId });
     }
   }, [
     actualAppointmentId, 
-    notionConfigured, 
     loadingReferenceData, // Wait for reference data to load/check config
     fetchSingleAppointment, 
     fetchSessionLogs, 
@@ -263,7 +262,7 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
 
   const handleSessionAnchorBlur = () => {
     if (appointment && sessionAnchorText !== appointment.sessionAnchor) {
-      updateNotionAppointment({ appointmentId: appointment.id, updates: { sessionAnchor: sessionAnchorText } });
+      updateAppointment({ appointmentId: appointment.id, updates: { sessionAnchor: sessionAnchorText } });
     }
   };
 
@@ -274,13 +273,13 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
 
   const handleSessionNorthStarBlur = () => {
     if (appointment && sessionNorthStarText !== appointment.sessionNorthStar) {
-      updateNotionAppointment({ appointmentId: appointment.id, updates: { sessionNorthStar: sessionNorthStarText } });
+      updateAppointment({ appointmentId: appointment.id, updates: { sessionNorthStar: sessionNorthStarText } });
     }
   };
 
   const handleCompleteSession = async () => {
     if (appointment) {
-      await updateNotionAppointment({ appointmentId: appointment.id, updates: { status: 'CH' } });
+      await updateAppointment({ appointmentId: appointment.id, updates: { status: 'CH' } });
       if (!updatingAppointment) {
         showSuccess(`${appointment.clientName}'s session marked as complete.`);
         navigate('/');
@@ -405,7 +404,7 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
               Notion Integration Required
             </h2>
             <p className="text-gray-600 mb-6">
-              One or more required Notion databases are not configured or accessible.
+              One or more required Notion databases (Reference Data) are not configured or accessible.
             </p>
             <Button
               className="w-full h-12 text-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
@@ -431,7 +430,7 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
             <p className="text-gray-600 mb-4">{overallError}</p>
             <div className="space-y-2">
               <Button onClick={() => fetchSingleAppointment({ appointmentId: actualAppointmentId! })}>Try Again</Button>
-              <Button variant="outline" onClick={() => navigate('/notion-config')}>
+              <Button variant="outline" onClick={handleConfigureNotion}>
                 Check Configuration
               </Button>
             </div>
@@ -512,7 +511,7 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
                       <span className="font-medium">
                         {appointment.starSign === "Unknown" ? (
                           <span className="text-yellow-300">
-                            Star Sign not found. Check Notion CRM config.
+                            Star Sign not found. Check client record.
                           </span>
                         ) : (
                           appointment.starSign

@@ -42,6 +42,7 @@ serve(async (req) => {
 
     console.log("[set-notion-secrets] User authenticated:", user.id)
 
+    // Note: appointmentsDbId is now optional/nullable
     const { notionToken, appointmentsDbId, crmDbId, modesDbId, acupointsDbId, musclesDbId, channelsDbId, chakrasDbId, tagsDbId } = await req.json() // Destructure new tagsDbId
 
     // Upsert into notion_secrets table using service role
@@ -50,7 +51,7 @@ serve(async (req) => {
       .upsert({
         id: user.id, // Use 'id' as the primary key for the user's secrets
         notion_integration_token: notionToken,
-        appointments_database_id: appointmentsDbId,
+        appointments_database_id: appointmentsDbId || null, // Allow null
         crm_database_id: crmDbId || null,
         modes_database_id: modesDbId || null,
         acupoints_database_id: acupointsDbId || null,

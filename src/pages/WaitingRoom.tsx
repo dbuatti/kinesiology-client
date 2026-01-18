@@ -47,7 +47,7 @@ const WaitingRoom = () => {
     'get-todays-appointments',
     {
       requiresAuth: true,
-      requiresNotionConfig: true,
+      requiresNotionConfig: false, // Appointments are now local, but reference data still needs Notion
       cacheKey: 'todays-appointments',
       cacheTtl: 15, // 15 minutes cache
       onSuccess: handleSuccess,
@@ -56,13 +56,15 @@ const WaitingRoom = () => {
   );
 
   useEffect(() => {
-    // Wait for both the general config check AND the reference data check to complete
-    if (notionConfigured && !loadingReferenceData) {
+    // We only need to check if reference data is loaded, not necessarily if Notion is configured, 
+    // unless we want to block the whole app if reference data is missing.
+    // Since appointments are local, we can fetch them immediately.
+    if (!loadingReferenceData) {
       console.log('[WaitingRoom] Initial fetch for appointments.');
       const todayDate = format(new Date(), 'yyyy-MM-dd'); // Calculate today's date string
       fetchTodaysAppointments({ todayDate }); // Pass payload
     }
-  }, [fetchTodaysAppointments, notionConfigured, loadingReferenceData]);
+  }, [fetchTodaysAppointments, loadingReferenceData]);
 
   const handleUpdateSuccess = useCallback(() => {
     showSuccess('Navigating to live session dashboard.');
@@ -74,9 +76,9 @@ const WaitingRoom = () => {
 
   const {
     loading: updatingAppointment,
-    execute: updateNotionAppointment,
+    execute: updateAppointment, // Renamed to updateAppointment
   } = useCachedEdgeFunction<UpdateNotionAppointmentPayload, UpdateNotionAppointmentResponse>(
-    'update-notion-appointment',
+    'update-appointment', // New function name
     {
       requiresAuth: true,
       onSuccess: handleUpdateSuccess,
@@ -86,14 +88,14 @@ const WaitingRoom = () => {
 
   const handleStartSession = useCallback(async (appointmentId: string) => {
     console.log('[WaitingRoom] Starting session for appointmentId:', appointmentId);
-    await updateNotionAppointment({
+    await updateAppointment({
       appointmentId: appointmentId,
       updates: { status: 'OPEN' }
     });
     if (!updatingAppointment) { // Only navigate if update was successful and not still loading
       navigate(`/active-session/${appointmentId}`);
     }
-  }, [updateNotionAppointment, updatingAppointment, navigate]); // Added dependencies
+  }, [updateAppointment, updatingAppointment, navigate]); // Added dependencies
 
   const handleRefresh = useCallback(() => {
     const todayDate = format(new Date(), 'yyyy-MM-dd'); // Calculate today's date string
@@ -120,7 +122,8 @@ const WaitingRoom = () => {
     );
   }
 
-  if (!notionConfigured || referenceNeedsConfig) {
+  // We only block if reference data is needed AND not configured.
+  if (referenceNeedsConfig) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center p-6">
         <Card className="max-w-md w-full shadow-xl">
@@ -132,7 +135,7 @@ const WaitingRoom = () => {
               Notion Integration Required
             </h2>
             <p className="text-gray-600 mb-6">
-              Connect your Notion account to view today's appointments and manage sessions.
+              Connect your Notion account to load reference data (Muscles, Chakras, etc.) and manage sessions.
             </p>
             <Button
               className="w-full h-12 text-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
@@ -157,7 +160,7 @@ const WaitingRoom = () => {
             <h2 className="xl font-bold mb-2">Error Loading Appointments</h2>
             <p className="text-gray-600 mb-4">{appointmentsError}</p>
             <div className="space-y-2">
-              <Button onClick={() => fetchTodaysAppointments({ todayDate: format(new Date(), 'yyyy-MM-dd') })}>Try Again</Button>
+              <Button onClick={handleRefresh}>Try Again</Button>
             </div>
           </CardContent>
         </Card>
@@ -187,11 +190,7 @@ const WaitingRoom = () => {
           {format(new Date(), 'EEEE, MMMM d, yyyy')}
         </p>
         <div className="flex justify-center mb-4">
-          <SyncStatusIndicator onSyncComplete={() => {
-            // Refresh data after sync
-            const todayDate = format(new Date(), 'yyyy-MM-dd');
-            fetchTodaysAppointments({ todayDate });
-          }} />
+          <SyncStatusIndicator onSyncComplete={handleRefresh} />
         </div>
 
         {appointments.length === 0 ? (

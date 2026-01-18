@@ -19,7 +19,7 @@ import { Appointment, GetAllAppointmentsResponse, UpdateNotionAppointmentPayload
 import SyncStatusIndicator from '@/components/SyncStatusIndicator';
 import { Badge } from '@/components/ui/badge';
 
-const statusOptions = ['OPEN', 'AP', 'CH', 'CXL'];
+const statusOptions = ['AP', 'OPEN', 'CH', 'CXL']; // Status options for Supabase table
 const priorityPatternOptions = ['Pattern A', 'Pattern B', 'Pattern C', 'Pattern D'];
 
 const AllAppointments = () => {
@@ -37,14 +37,14 @@ const AllAppointments = () => {
     showError(msg);
   }, []);
 
-  const handleUpdateNotionAppointmentSuccess = useCallback(() => {
-    showSuccess('Appointment updated in Notion.');
+  const handleUpdateAppointmentSuccess = useCallback(() => {
+    showSuccess('Appointment updated successfully.');
   }, []);
 
-  const handleUpdateNotionAppointmentError = useCallback((msg: string) => {
+  const handleUpdateAppointmentError = useCallback((msg: string) => {
     showError(`Update Failed: ${msg}`);
     fetchAllAppointments(); // Re-fetch to ensure data consistency if optimistic update failed
-  }, []); // Dependency on fetchAllAppointments
+  }, []);
 
   const {
     data: fetchedAppointmentsData,
@@ -57,7 +57,7 @@ const AllAppointments = () => {
     'get-all-appointments',
     {
       requiresAuth: true,
-      requiresNotionConfig: true,
+      requiresNotionConfig: false, // Appointments are now local, but reference data still needs Notion
       cacheKey: 'all-appointments',
       cacheTtl: 60, // 1 hour cache
       onSuccess: handleFetchAllAppointmentsSuccess,
@@ -67,13 +67,13 @@ const AllAppointments = () => {
 
   const {
     loading: updatingAppointment,
-    execute: updateNotionAppointment,
+    execute: updateAppointment, // Renamed to updateAppointment
   } = useCachedEdgeFunction<UpdateNotionAppointmentPayload, UpdateNotionAppointmentResponse>(
-    'update-notion-appointment',
+    'update-appointment', // New function name
     {
       requiresAuth: true,
-      onSuccess: handleUpdateNotionAppointmentSuccess,
-      onError: handleUpdateNotionAppointmentError,
+      onSuccess: handleUpdateAppointmentSuccess,
+      onError: handleUpdateAppointmentError,
     }
   );
 
@@ -103,13 +103,13 @@ const AllAppointments = () => {
 
   const handleFieldBlur = (id: string, field: keyof Appointment, value: any) => {
     // Trigger API update only on blur
-    updateNotionAppointment({ appointmentId: id, updates: { [field]: value } });
+    updateAppointment({ appointmentId: id, updates: { [field]: value } });
   };
 
   const handleSelectChange = (id: string, field: keyof Appointment, value: any) => {
     // For select components, update immediately
     handleLocalFieldChange(id, field, value);
-    updateNotionAppointment({ appointmentId: id, updates: { [field]: value } });
+    updateAppointment({ appointmentId: id, updates: { [field]: value } });
   };
 
   const handleClearSearch = useCallback(() => {
@@ -131,6 +131,7 @@ const AllAppointments = () => {
   }
 
   if (needsConfig) {
+    // This check remains because reference data still needs Notion config
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center p-6">
         <Card className="max-w-md w-full shadow-xl">
@@ -142,7 +143,7 @@ const AllAppointments = () => {
               Notion Integration Required
             </h2>
             <p className="text-gray-600 mb-6">
-              Connect your Notion account to view and manage all appointments.
+              Connect your Notion account to load reference data (Muscles, Chakras, etc.).
             </p>
             <Button
               className="w-full h-12 text-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
@@ -184,7 +185,7 @@ const AllAppointments = () => {
               <Calendar className="w-7 h-7" />
               All Appointments
             </CardTitle>
-            <p className="text-indigo-100 mt-1">Manage all your client appointments with two-way Notion sync.</p>
+            <p className="text-indigo-100 mt-1">Manage all your client appointments.</p>
           </CardHeader>
 
           <CardContent className="pt-6">

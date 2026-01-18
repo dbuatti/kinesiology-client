@@ -68,13 +68,13 @@ const CreateAppointmentDialog: React.FC<CreateAppointmentDialogProps> = ({ onApp
 
   const {
     loading: creatingAppointment,
-    execute: createNotionAppointment,
+    execute: createAppointment, // Renamed to createAppointment
   } = useCachedEdgeFunction<CreateNotionAppointmentPayload, CreateNotionAppointmentResponse>(
-    'create-notion-appointment',
+    'create-appointment', // New function name
     {
       requiresAuth: true,
       onSuccess: (data) => {
-        showSuccess('Appointment created and synced to Notion!');
+        showSuccess('Appointment created successfully!');
         setIsDialogOpen(false);
         // Reset form state
         setSelectedClient(null);
@@ -109,29 +109,19 @@ const CreateAppointmentDialog: React.FC<CreateAppointmentDialogProps> = ({ onApp
     }
 
     const payload: CreateNotionAppointmentPayload = {
-      clientCrmId: selectedClient.id, // This is the Notion Page ID, still required for the Notion Appointment relation
-      clientName: selectedClient.name,
+      clientCrmId: selectedClient.id, // This is now the Supabase Client ID
+      clientName: selectedClient.name, // Kept for logging/display purposes
       date: format(date, 'yyyy-MM-dd'),
       goal: goal.trim(),
       sessionNorthStar: sessionNorthStar.trim(),
     };
 
-    await createNotionAppointment(payload);
+    await createAppointment(payload);
   };
 
-  if (clientsNeedsConfig) {
-    return (
-      <Button
-        variant="secondary"
-        className="w-full md:w-auto bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
-        onClick={() => showError('Notion configuration required for appointment creation.')}
-        disabled
-      >
-        <Settings className="h-4 w-4 mr-2" />
-        Configure Notion First
-      </Button>
-    );
-  }
+  // Since we are no longer creating appointments in Notion, we only need Notion config for reference data.
+  // We can remove the clientsNeedsConfig check here, but keep the general Notion config check for the app.
+  // For now, we rely on the fact that `get-clients-list` doesn't require Notion config anymore.
 
   return (
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

@@ -31,7 +31,7 @@ interface GetNotionSecretsResponse {
 // Define the form schema using Zod
 const notionConfigFormSchema = z.object({
   integrationToken: z.string().min(1, { message: "Integration Token is required." }),
-  appointmentsDbId: z.string().min(1, { message: "Appointments Database ID is required." }),
+  // appointmentsDbId: z.string().min(1, { message: "Appointments Database ID is required." }), // Removed
   crmDbId: z.string().nullable(),
   modesDbId: z.string().nullable(),
   acupointsDbId: z.string().nullable(),
@@ -50,7 +50,7 @@ const NotionConfig = () => {
     resolver: zodResolver(notionConfigFormSchema),
     defaultValues: {
       integrationToken: '',
-      appointmentsDbId: '',
+      // appointmentsDbId: '', // Removed
       crmDbId: '',
       modesDbId: '',
       acupointsDbId: '',
@@ -66,7 +66,7 @@ const NotionConfig = () => {
     const secrets = data.secrets;
     form.reset({
       integrationToken: secrets.notion_integration_token || '',
-      appointmentsDbId: secrets.appointments_database_id || '',
+      // appointmentsDbId: secrets.appointments_database_id || '', // Removed
       crmDbId: secrets.crm_database_id || '',
       modesDbId: secrets.modes_database_id || '',
       acupointsDbId: secrets.acupoints_database_id || '',
@@ -130,7 +130,7 @@ const NotionConfig = () => {
   const onSubmit = async (values: NotionConfigFormValues) => {
     await setNotionSecrets({
       notionToken: values.integrationToken.trim(),
-      appointmentsDbId: values.appointmentsDbId.trim(),
+      appointmentsDbId: null, // Explicitly set to null as it's no longer required
       crmDbId: values.crmDbId?.trim() || null,
       modesDbId: values.modesDbId?.trim() || null,
       acupointsDbId: values.acupointsDbId?.trim() || null,
@@ -149,11 +149,11 @@ const NotionConfig = () => {
             <div className="flex items-center gap-2">
               <Settings className="w-6 h-6" />
               <CardTitle className="text-2xl font-bold">
-                Notion Integration Setup
+                Notion Integration Setup (Reference Data Only)
               </CardTitle>
             </div>
             <p className="text-indigo-100 mt-2 text-sm">
-              Configure your Notion API credentials (stored securely in Supabase)
+              Configure your Notion API credentials for reference databases (stored securely in Supabase).
             </p>
           </CardHeader>
           
@@ -167,7 +167,7 @@ const NotionConfig = () => {
                 <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-start gap-3">
                   <Shield className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
                   <div className="text-sm text-green-800">
-                    <strong>Secure Storage:</strong> Your credentials are stored as encrypted secrets in Supabase, not in the database. This is much more secure.
+                    <strong>Core Data Decoupled:</strong> Client and Appointment data are now managed entirely within the app's Supabase database. Notion is only used for reference data (Muscles, Chakras, etc.).
                   </div>
                 </div>
 
@@ -200,34 +200,7 @@ const NotionConfig = () => {
                       )}
                     />
 
-                    {/* Appointments Database ID */}
-                    <FormField
-                      control={form.control}
-                      name="appointmentsDbId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="flex items-center gap-2 font-semibold">
-                            <Database className="w-4 h-4 text-indigo-600" />
-                            Appointments Database ID <span className="text-red-500">*</span>
-                          </FormLabel>
-                          <FormControl>
-                            <Input
-                              id="appointments"
-                              type="text"
-                              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                              disabled={savingConfig}
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                          <p className="text-xs text-gray-500">
-                            Copy from Notion: Share → Copy link → Extract the 32-character ID from the URL
-                          </p>
-                        </FormItem>
-                      )}
-                    />
-
-                    {/* CRM Database ID (Optional) */}
+                    {/* CRM Database ID (Optional) - Still useful for initial client migration if needed */}
                     <FormField
                       control={form.control}
                       name="crmDbId"
@@ -235,7 +208,7 @@ const NotionConfig = () => {
                         <FormItem>
                           <FormLabel className="flex items-center gap-2 font-semibold">
                             <Database className="w-4 h-4 text-indigo-600" />
-                            CRM Database ID (Optional)
+                            CRM Database ID (Optional - Legacy Sync)
                           </FormLabel>
                           <FormControl>
                             <Input
@@ -248,7 +221,7 @@ const NotionConfig = () => {
                           </FormControl>
                           <FormMessage />
                           <p className="text-xs text-gray-500">
-                            Used for client management. Can be added later.
+                            Used only if you need to re-sync clients from Notion to the local database.
                           </p>
                         </FormItem>
                       )}
@@ -445,8 +418,7 @@ const NotionConfig = () => {
                     <ol className="space-y-1 list-decimal list-inside">
                       <li>Create a Notion integration at notion.com/my-integrations</li>
                       <li>Copy the "Internal Integration Token"</li>
-                      <li>Share your databases (Appointments, CRM, Modes, Acupoints, Muscles, Channels, Chakras, Tags) with the integration</li>
-                      <li>**Important:** For individual Notion pages (like Muscle details, Chakra details, etc.) to be viewable via direct links in the app, you must also share those specific pages with your integration.</li>
+                      <li>Share your reference databases (Modes, Acupoints, Muscles, Channels, Chakras, Tags) with the integration</li>
                       <li>Copy each database ID from its share link</li>
                       <li>Paste all values above and save</li>
                     </ol>

@@ -1,8 +1,5 @@
-/// <reference path="../_shared/starSignCalculator.ts" />
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
-import { calculateStarSign } from '../_shared/starSignCalculator.ts'; // Import the new utility
-import { retryFetch } from '../_shared/notionUtils.ts'; // Import the shared utility
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -49,37 +46,6 @@ serve(async (req) => {
 
     const serviceRoleSupabase = createClient(supabaseUrl, supabaseServiceRoleKey)
 
-    const { data: secretsData, error: secretsError } = await serviceRoleSupabase
-      .from('notion_secrets')
-      .select('notion_integration_token, appointments_database_id, crm_database_id, modes_database_id, acupoints_database_id, muscles_database_id, channels_database_id, chakras_database_id') // Fetch all new IDs
-      .eq('id', user.id)
-      .limit(1);
-
-    if (secretsError) {
-      console.error("[get-single-appointment] Secrets fetch error:", user.id, secretsError?.message)
-      return new Response(JSON.stringify({
-        error: 'Failed to fetch Notion configuration.',
-        details: secretsError.message
-      }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
-    }
-
-    const secrets = secretsData?.[0]; // Extract the single object from the array
-
-    if (!secrets) {
-      console.error("[get-single-appointment] Secrets not found for user:", user.id)
-      return new Response(JSON.stringify({
-        error: 'Notion configuration not found. Please configure your Notion credentials first.'
-      }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
-    }
-
-    console.log("[get-single-appointment] Secrets loaded successfully for user:", user.id)
-
     const { appointmentId } = await req.json();
 
     if (!appointmentId) {
@@ -90,101 +56,70 @@ serve(async (req) => {
       })
     }
 
-    let page: any;
-    let notionAppointmentResponse: Response;
-
-    // Query Notion API for the specific appointment page
-    try {
-      notionAppointmentResponse = await retryFetch('https://api.notion.com/v1/pages/' + appointmentId, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${secrets.notion_integration_token}`,
-          'Content-Type': 'application/json',
-          'Notion-Version': '2022-06-28'
-        }
+    // Handle the mock ID case gracefully for the Debug Zone
+    if (appointmentId === MOCK_APPOINTMENT_ID) {
+      console.warn("[get-single-appointment] Using mock data for Debug Zone ID.")
+      const mockAppointment = {
+        id: MOCK_APPOINTMENT_ID,
+        clientName: "Debug Client (Mock)",
+        starSign: "♑ Capricorn",
+        sessionNorthStar: "Testing the live session dashboard functionality.",
+        goal: "Ensure all selectors and logging mechanisms work correctly.",
+        sessionAnchor: "Focusing on UI/UX and data flow.",
+        status: "OPEN"
+      };
+      return new Response(JSON.stringify({ appointment: mockAppointment }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
-    } catch (fetchError) {
-      console.error("[get-single-appointment] Retry fetch failed:", fetchError);
-      return new Response(JSON.stringify({ error: 'Failed to communicate with Notion API.', details: fetchError.message }), {
+    }
+
+    // Fetch the appointment, joining with clients table
+    const { data: appointmentData, error: fetchError } = await serviceRoleSupabase
+      .from('appointments')
+      .select(`
+        id,
+        goal,
+        session_north_star,
+        session_anchor,
+        status,
+        clients (
+          name,
+          star_sign
+        )
+      `)
+      .eq('id', appointmentId)
+      .eq('user_id', user.id)
+      .single();
+
+    if (fetchError) {
+      console.error("[get-single-appointment] Database fetch error:", fetchError?.message)
+      return new Response(JSON.stringify({ error: 'Failed to fetch appointment from database', details: fetchError.message }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-
-    if (!notionAppointmentResponse.ok) {
-      const errorText = await notionAppointmentResponse.text()
-      console.error("[get-single-appointment] Notion API (Page) error:", errorText)
-
-      // Handle the mock ID case gracefully for the Debug Zone
-      if (appointmentId === MOCK_APPOINTMENT_ID) {
-        console.warn("[get-single-appointment] Using mock data for Debug Zone ID.")
-        const mockAppointment = {
-          id: MOCK_APPOINTMENT_ID,
-          clientName: "Debug Client (Mock)",
-          starSign: "♑ Capricorn",
-          sessionNorthStar: "Testing the live session dashboard functionality.",
-          goal: "Ensure all selectors and logging mechanisms work correctly.",
-          sessionAnchor: "Focusing on UI/UX and data flow.",
-          status: "OPEN"
-        };
-        return new Response(JSON.stringify({ appointment: mockAppointment }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        })
-      }
-
-      return new Response(JSON.stringify({ error: 'Failed to fetch appointment from Notion', details: errorText }), {
-        status: notionAppointmentResponse.status,
+    if (!appointmentData) {
+      console.error("[get-single-appointment] Appointment not found:", appointmentId)
+      return new Response(JSON.stringify({ error: 'Appointment not found.' }), {
+        status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    page = await notionAppointmentResponse.json()
-    console.log("[get-single-appointment] Found appointment page:", page.id)
+    console.log("[get-single-appointment] Found appointment:", appointmentData.id)
 
-    const properties = page.properties
-
-    let clientName = properties.Name?.title?.[0]?.plain_text || "Unknown Client"
-    let starSign = "Unknown" // Initial value
-
-    // Fetch client details from CRM if relation exists and crm_database_id is available
-    // Use the 'Client' relation property from the appointment page to link to the client in CRM
-    const clientCrmRelation = properties["Client"]?.relation?.[0]?.id
-    if (clientCrmRelation && secrets.crm_database_id) {
-      console.log(`[get-single-appointment] Attempting to fetch CRM details for client ID: ${clientCrmRelation}`)
-      const notionClientResponse = await retryFetch('https://api.notion.com/v1/pages/' + clientCrmRelation, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${secrets.notion_integration_token}`,
-          'Content-Type': 'application/json',
-          'Notion-Version': '2022-06-28'
-        }
-      })
-
-      if (notionClientResponse.ok) {
-        const clientData = await notionClientResponse.json()
-        const clientProperties = clientData.properties
-
-        clientName = clientProperties.Name?.title?.[0]?.plain_text || clientName
-        // Read star sign directly from the rollup property on the appointment page
-        starSign = properties["Star Sign"]?.rollup?.array?.[0]?.formula?.string || "Unknown";
-        console.log(`[get-single-appointment] CRM details fetched for ${clientName}, starSign read from rollup: ${starSign}`)
-      } else {
-        const errorText = await notionClientResponse.text()
-        console.warn(`[get-single-appointment] Failed to fetch CRM details for client ID ${clientCrmRelation}:`, errorText)
-      }
-    } else {
-      console.log("[get-single-appointment] No Client CRM relation or CRM database ID available, or CRM not configured. Star sign remains 'Unknown'.")
-    }
+    // Access client properties directly from the joined object
+    const clientData = appointmentData.clients as { name: string, star_sign: string };
 
     const appointment = {
-      id: page.id,
-      clientName,
-      starSign,
-      sessionNorthStar: properties["Session North Star"]?.rich_text?.[0]?.plain_text || "", // New: Fetch Session North Star from appointment
-      goal: properties.Goal?.rich_text?.[0]?.plain_text || "",
-      sessionAnchor: properties["Today we are really working with..."]?.rich_text?.[0]?.plain_text || "",
-      status: properties.Status?.status?.name || "UNKNOWN" // Get status for display
+      id: appointmentData.id,
+      clientName: clientData.name,
+      starSign: clientData.star_sign || "Unknown",
+      sessionNorthStar: appointmentData.session_north_star || "",
+      goal: appointmentData.goal || "",
+      sessionAnchor: appointmentData.session_anchor || "",
+      status: appointmentData.status || "UNKNOWN"
     }
 
     return new Response(JSON.stringify({ appointment }), {
