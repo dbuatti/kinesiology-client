@@ -31,7 +31,6 @@ interface GetNotionSecretsResponse {
 // Define the form schema using Zod
 const notionConfigFormSchema = z.object({
   integrationToken: z.string().min(1, { message: "Integration Token is required." }),
-  // appointmentsDbId: z.string().min(1, { message: "Appointments Database ID is required." }), // Removed
   crmDbId: z.string().nullable(),
   modesDbId: z.string().nullable(),
   acupointsDbId: z.string().nullable(),
@@ -50,7 +49,6 @@ const NotionConfig = () => {
     resolver: zodResolver(notionConfigFormSchema),
     defaultValues: {
       integrationToken: '',
-      // appointmentsDbId: '', // Removed
       crmDbId: '',
       modesDbId: '',
       acupointsDbId: '',
@@ -66,7 +64,6 @@ const NotionConfig = () => {
     const secrets = data.secrets;
     form.reset({
       integrationToken: secrets.notion_integration_token || '',
-      // appointmentsDbId: secrets.appointments_database_id || '', // Removed
       crmDbId: secrets.crm_database_id || '',
       modesDbId: secrets.modes_database_id || '',
       acupointsDbId: secrets.acupoints_database_id || '',
