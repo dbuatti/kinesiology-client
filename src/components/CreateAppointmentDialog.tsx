@@ -51,6 +51,7 @@ const CreateAppointmentDialog: React.FC<CreateAppointmentDialogProps> = ({ onApp
       cacheTtl: 60, // 1 hour cache
       onSuccess: handleFetchClientsSuccess,
       onError: handleFetchClientsError,
+      preventAutoInvalidate: true, // NEW: Prevent automatic cache invalidation on mount
     }
   );
 

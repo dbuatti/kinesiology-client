@@ -62,6 +62,7 @@ const NotionPageViewer: React.FC<NotionPageViewerProps> = ({ pageId, onClearSele
         console.error('[NotionPageViewer] Error fetching page content:', msg);
         setInternalPageTitle(null);
       },
+      preventAutoInvalidate: true, // NEW: Prevent automatic cache invalidation on mount
     }
   );
 
