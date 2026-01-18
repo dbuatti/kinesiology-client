@@ -13,7 +13,7 @@ interface ReferenceDataProviderProps {
 }
 
 const ReferenceDataProvider: React.FC<ReferenceDataProviderProps> = ({ children }) => {
-  const { data, loading, error, needsConfig, refetchAll } = useReferenceDataFetcher();
+  const { data, loading, error, needsConfig, isCached, refetchAll } = useReferenceDataFetcher();
   const navigate = useNavigate();
 
   if (loading) {
@@ -55,7 +55,7 @@ const ReferenceDataProvider: React.FC<ReferenceDataProviderProps> = ({ children 
   }
 
   return (
-    <ReferenceDataContext.Provider value={{ data, loading, error, needsConfig, refetchAll }}>
+    <ReferenceDataContext.Provider value={{ data, loading, error, needsConfig, isCached, refetchAll }}>
       {children}
       {/* Render Outlet if used as a route element */}
       {!children && <Outlet />}

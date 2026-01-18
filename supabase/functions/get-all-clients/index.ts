@@ -1,8 +1,5 @@
-/// <reference path="../_shared/starSignCalculator.ts" />
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
-import { calculateStarSign } from '../_shared/starSignCalculator.ts'; // Import the new utility
-import { retryFetch } from '../_shared/notionUtils.ts'; // Import the shared utility
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -28,11 +25,11 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')
-    const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
-    const authSupabase = createClient(supabaseUrl, supabaseAnonKey)
+    // Use the client Supabase instance (with RLS)
+    const supabase = createClient(supabaseUrl, supabaseAnonKey)
     const token = authHeader.replace('Bearer ', '')
-    const { data: { user }, error: userError } = await authSupabase.auth.getUser(token)
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token)
 
     if (userError || !user) {
       console.error("[get-all-clients] User authentication failed:", userError?.message)
@@ -44,71 +41,43 @@ serve(async (req) => {
 
     console.log("[get-all-clients] User authenticated:", user.id)
 
-    const serviceRoleSupabase = createClient(supabaseUrl, supabaseServiceRoleKey)
+    // Fetch clients from the clients_mirror table
+    const { data: clientsData, error: fetchError } = await supabase
+      .from('clients_mirror')
+      .select('id, name, focus, email, phone, star_sign')
+      .eq('user_id', user.id) // RLS should handle this, but explicit filter is good practice
+      .order('name', { ascending: true });
 
-    const { data: secrets, error: secretsError } = await serviceRoleSupabase
-      .from('notion_secrets')
-      .select('notion_integration_token, crm_database_id')
-      .eq('id', user.id) // Changed from 'user_id' to 'id'
-      .single()
-
-    if (secretsError || !secrets || !secrets.crm_database_id) {
-      console.error("[get-all-clients] Notion CRM database ID not found for user:", user.id, secretsError?.message)
-      return new Response(JSON.stringify({
-        error: 'Notion CRM database ID not configured. Please configure your Notion credentials first.'
-      }), {
-        status: 404,
+    if (fetchError) {
+      console.error("[get-all-clients] Database fetch error:", fetchError?.message)
+      return new Response(JSON.stringify({ error: 'Failed to fetch clients from database', details: fetchError.message }), {
+        status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    console.log("[get-all-clients] CRM database ID loaded:", secrets.crm_database_id)
+    console.log("[get-all-clients] Found", clientsData.length, "clients in clients_mirror")
 
-    // Query Notion API for all clients
-    const notionClientsResponse = await retryFetch('https://api.notion.com/v1/databases/' + secrets.crm_database_id + '/query', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${secrets.notion_integration_token}`,
-        'Content-Type': 'application/json',
-        'Notion-Version': '2022-06-28'
-      },
-      body: JSON.stringify({
-        sorts: [
-          {
-            property: "Name",
-            direction: "ascending"
-          }
-        ]
-      })
-    })
+    const clients = clientsData.map((client: any) => ({
+      id: client.id,
+      name: client.name,
+      focus: client.focus || "",
+      email: client.email || "",
+      phone: client.phone || "",
+      starSign: client.star_sign || "Unknown",
+    }))
 
-    if (!notionClientsResponse.ok) {
-      const errorText = await notionClientsResponse.text()
-      console.error("[get-all-clients] Notion API (Clients) error:", errorText)
-      return new Response(JSON.stringify({ error: 'Failed to fetch clients from Notion', details: errorText }), {
-        status: notionClientsResponse.status,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
+    if (clients.length === 0) {
+        console.log("[get-all-clients] Clients mirror is empty. Suggesting sync.")
+        return new Response(JSON.stringify({ 
+            error: 'No clients found in local database. Please run a Notion sync.',
+            errorCode: 'CLIENTS_MIRROR_EMPTY',
+            clients: []
+        }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
     }
-
-    const notionClientsData = await notionClientsResponse.json()
-    console.log("[get-all-clients] Found", notionClientsData.results.length, "clients")
-
-    const clients = notionClientsData.results.map((page: any) => {
-      const properties = page.properties
-      const birthDate = properties["Born"]?.date?.start || null; // Fetch 'Born' date
-      console.log(`[get-all-clients] Client: ${properties.Name?.title?.[0]?.plain_text || "Unknown"}, Raw birthDate: ${birthDate}`); // DIAGNOSTIC LOG
-      const starSign = calculateStarSign(birthDate); // Calculate star sign
-
-      return {
-        id: page.id,
-        name: properties.Name?.title?.[0]?.plain_text || "Unknown Client",
-        focus: properties.Focus?.rich_text?.[0]?.plain_text || "",
-        email: properties.Email?.email || "",
-        phone: properties.Phone?.phone_number || "",
-        starSign: starSign, // Use the calculated star sign
-      }
-    })
 
     return new Response(JSON.stringify({ clients }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

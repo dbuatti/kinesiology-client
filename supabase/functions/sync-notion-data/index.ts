@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 import { retryFetch } from '../_shared/notionUtils.ts';
+import { calculateStarSign } from '../_shared/starSignCalculator.ts'; // Import star sign calculator
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -45,7 +46,7 @@ serve(async (req) => {
     // Fetch Notion credentials
     const { data: secrets, error: secretsError } = await supabase
       .from('notion_secrets')
-      .select('notion_integration_token, appointments_database_id, crm_database_id, modes_database_id, acupoints_database_id, muscles_database_id, channels_database_id, chakras_database_id')
+      .select('notion_integration_token, appointments_database_id, crm_database_id, modes_database_id, acupoints_database_id, muscles_database_id, channels_database_id, chakras_database_id, tags_database_id')
       .eq('id', user.id)
       .single()
 
@@ -64,15 +65,16 @@ serve(async (req) => {
     // Sync data based on request type
     const { syncType } = await req.json();
     const results: any = {};
+    const serviceRoleSupabase = createClient(supabaseUrl, supabaseServiceRoleKey) // Use service role for writing to clients_mirror
 
-    // Helper function to sync a database
-    const syncDatabase = async (databaseId: string, databaseName: string) => {
+    // Helper function to sync a database to notion_cache
+    const syncDatabaseToCache = async (databaseId: string, databaseName: string) => {
       if (!databaseId) {
-        console.log(`[sync-notion-data] ${databaseName} database ID not configured, skipping sync.`);
+        console.log(`[sync-notion-data] ${databaseName} database ID not configured, skipping cache sync.`);
         return null;
       }
 
-      console.log(`[sync-notion-data] Syncing ${databaseName} database...`);
+      console.log(`[sync-notion-data] Syncing ${databaseName} database to cache...`);
       
       const response = await retryFetch(`https://api.notion.com/v1/databases/${databaseId}/query`, {
         method: 'POST',
@@ -109,27 +111,98 @@ serve(async (req) => {
       return data.results;
     };
 
+    // Helper function to sync clients to clients_mirror table
+    const syncClientsToMirror = async () => {
+        const databaseId = secrets.crm_database_id;
+        if (!databaseId) {
+            console.log("[sync-notion-data] Clients database ID not configured, skipping clients mirror sync.");
+            return null;
+        }
+
+        console.log("[sync-notion-data] Syncing clients to clients_mirror table...");
+
+        const notionClientsResponse = await retryFetch('https://api.notion.com/v1/databases/' + databaseId + '/query', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${secrets.notion_integration_token}`,
+                'Content-Type': 'application/json',
+                'Notion-Version': '2022-06-28'
+            },
+            body: JSON.stringify({
+                sorts: [
+                    {
+                        property: "Name",
+                        direction: "ascending"
+                    }
+                ]
+            })
+        })
+
+        if (!notionClientsResponse.ok) {
+            const errorText = await notionClientsResponse.text()
+            console.error("[sync-notion-data] Notion API (Clients) error during mirror sync:", errorText)
+            return null;
+        }
+
+        const notionClientsData = await notionClientsResponse.json()
+        console.log("[sync-notion-data] Found", notionClientsData.results.length, "clients in Notion for mirror sync")
+
+        const clientsToUpsert = notionClientsData.results.map((page: any) => {
+            const properties = page.properties
+            const birthDate = properties["Born"]?.date?.start || null;
+            const starSign = calculateStarSign(birthDate);
+
+            return {
+                id: page.id,
+                user_id: user.id,
+                name: properties.Name?.title?.[0]?.plain_text || "Unknown Client",
+                focus: properties.Focus?.rich_text?.[0]?.plain_text || "",
+                email: properties.Email?.email || "",
+                phone: properties.Phone?.phone_number || "",
+                star_sign: starSign,
+                updated_at: new Date().toISOString(),
+            }
+        })
+
+        if (clientsToUpsert.length > 0) {
+            const { error: upsertError } = await serviceRoleSupabase
+                .from('clients_mirror')
+                .upsert(clientsToUpsert, { onConflict: 'id' });
+
+            if (upsertError) {
+                console.error("[sync-notion-data] Supabase upsert error for clients_mirror:", upsertError?.message)
+                return null;
+            }
+            console.log(`[sync-notion-data] Successfully upserted ${clientsToUpsert.length} clients to clients_mirror.`);
+        } else {
+            console.log("[sync-notion-data] No clients to upsert to clients_mirror.");
+        }
+        return clientsToUpsert.length;
+    }
+
+
     // Sync based on type or all if no type specified
     if (!syncType || syncType === 'appointments') {
-      results.appointments = await syncDatabase(secrets.appointments_database_id, 'appointments');
+      results.appointments = await syncDatabaseToCache(secrets.appointments_database_id, 'appointments');
     }
     if (!syncType || syncType === 'clients') {
-      results.clients = await syncDatabase(secrets.crm_database_id, 'clients');
+      // Sync clients to the persistent mirror table
+      results.clients_mirror_count = await syncClientsToMirror();
     }
     if (!syncType || syncType === 'modes') {
-      results.modes = await syncDatabase(secrets.modes_database_id, 'modes');
+      results.modes = await syncDatabaseToCache(secrets.modes_database_id, 'modes');
     }
     if (!syncType || syncType === 'acupoints') {
-      results.acupoints = await syncDatabase(secrets.acupoints_database_id, 'acupoints');
+      results.acupoints = await syncDatabaseToCache(secrets.acupoints_database_id, 'acupoints');
     }
     if (!syncType || syncType === 'muscles') {
-      results.muscles = await syncDatabase(secrets.muscles_database_id, 'muscles');
+      results.muscles = await syncDatabaseToCache(secrets.muscles_database_id, 'muscles');
     }
     if (!syncType || syncType === 'channels') {
-      results.channels = await syncDatabase(secrets.channels_database_id, 'channels');
+      results.channels = await syncDatabaseToCache(secrets.channels_database_id, 'channels');
     }
     if (!syncType || syncType === 'chakras') {
-      results.chakras = await syncDatabase(secrets.chakras_database_id, 'chakras');
+      results.chakras = await syncDatabaseToCache(secrets.chakras_database_id, 'chakras');
     }
 
     console.log("[sync-notion-data] Sync completed successfully")

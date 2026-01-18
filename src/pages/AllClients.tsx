@@ -8,26 +8,37 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { User, Settings, Loader2, Search, AlertCircle, XCircle } from 'lucide-react';
+import { User, Settings, Loader2, Search, AlertCircle, XCircle, RefreshCw, Database } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import { useCachedEdgeFunction } from '@/hooks/use-cached-edge-function';
 import { Client, GetAllClientsResponse, UpdateNotionClientPayload, UpdateNotionClientResponse } from '@/types/api';
 import SyncStatusIndicator from '@/components/SyncStatusIndicator';
 import { Badge } from '@/components/ui/badge';
+import { cacheService } from '@/integrations/supabase/cache';
+import { supabase } from '@/integrations/supabase/client';
 
 const AllClients = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isMirrorEmpty, setIsMirrorEmpty] = useState(false);
   const navigate = useNavigate();
 
   const handleFetchAllClientsSuccess = useCallback((data: GetAllClientsResponse) => {
     setClients(data.clients);
     setFilteredClients(data.clients);
+    setIsMirrorEmpty(false);
   }, []);
 
-  const handleFetchAllClientsError = useCallback((msg: string) => {
-    showError(msg);
+  const handleFetchAllClientsError = useCallback((msg: string, errorCode?: string) => {
+    if (errorCode === 'CLIENTS_MIRROR_EMPTY') {
+        setIsMirrorEmpty(true);
+        setClients([]);
+        setFilteredClients([]);
+        showError('Client database mirror is empty. Please sync from Notion.');
+    } else {
+        showError(msg);
+    }
   }, []);
 
   const handleUpdateNotionClientSuccess = useCallback(() => {
@@ -37,8 +48,9 @@ const AllClients = () => {
   const handleUpdateNotionClientError = useCallback((msg: string) => {
     showError(`Update Failed: ${msg}`);
     fetchAllClients(); // Re-fetch to ensure data consistency if optimistic update failed
-  }, []); // Dependency on fetchAllClients
+  }, []);
 
+  // 1. Fetch Clients (from clients_mirror table)
   const {
     data: fetchedClientsData,
     loading: loadingClients,
@@ -46,6 +58,7 @@ const AllClients = () => {
     needsConfig,
     execute: fetchAllClients,
     isCached: clientsIsCached,
+    invalidateCache: invalidateClientsCache,
   } = useCachedEdgeFunction<void, GetAllClientsResponse>(
     'get-all-clients',
     {
@@ -58,6 +71,28 @@ const AllClients = () => {
     }
   );
 
+  // 2. Sync Clients (Notion -> clients_mirror table)
+  const {
+    loading: syncingClients,
+    execute: syncClients,
+  } = useCachedEdgeFunction<{ syncType: 'clients' }, any>(
+    'sync-notion-data',
+    {
+      requiresAuth: true,
+      requiresNotionConfig: true,
+      onSuccess: async (data) => {
+        showSuccess(`Successfully imported ${data.results.clients_mirror_count} clients from Notion.`);
+        // Invalidate the 'all-clients' cache key to force a fresh fetch from the mirror table
+        await invalidateClientsCache();
+        fetchAllClients();
+      },
+      onError: (msg) => {
+        showError(`Client Sync Failed: ${msg}`);
+      }
+    }
+  );
+
+  // 3. Update Client (Notion API)
   const {
     loading: updatingClient,
     execute: updateNotionClient,
@@ -103,7 +138,11 @@ const AllClients = () => {
     setFilteredClients(clients); // Reset to all clients
   }, [clients]);
 
-  if (loadingClients) {
+  const handleManualSync = () => {
+    syncClients({ syncType: 'clients' });
+  };
+
+  if (loadingClients && !clientsIsCached) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6 flex items-center justify-center">
         <Loader2 className="w-12 h-12 animate-spin text-indigo-600" />
@@ -137,7 +176,7 @@ const AllClients = () => {
     );
   }
 
-  if (clientsError) {
+  if (clientsError && !isMirrorEmpty) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center p-6">
         <Card className="max-w-md w-full shadow-lg">
@@ -177,7 +216,7 @@ const AllClients = () => {
                   placeholder="Search clients by name, focus, email, or phone..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-10 py-2 border rounded-md w-full" // Added pr-10 for clear button
+                  className="pl-10 pr-10 py-2 border rounded-md w-full"
                 />
                 {searchTerm && (
                   <Button
@@ -191,8 +230,8 @@ const AllClients = () => {
                   </Button>
                 )}
               </div>
-              <Button onClick={() => fetchAllClients()} variant="outline" disabled={loadingClients}>
-                {loadingClients ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              <Button onClick={() => fetchAllClients()} variant="outline" disabled={loadingClients || syncingClients}>
+                {loadingClients ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
                 {loadingClients ? 'Refreshing...' : 'Refresh'}
               </Button>
             </div>
@@ -204,13 +243,23 @@ const AllClients = () => {
               }} />
             </div>
 
-            {filteredClients.length === 0 && searchTerm !== '' ? (
+            {isMirrorEmpty || filteredClients.length === 0 ? (
               <div className="text-center py-10 text-gray-600">
-                No clients found matching your search.
-              </div>
-            ) : filteredClients.length === 0 ? (
-              <div className="text-center py-10 text-gray-600">
-                No clients available.
+                <Database className="w-12 h-12 mx-auto mb-4 text-indigo-400" />
+                <h3 className="text-xl font-semibold mb-2">Client Database Empty</h3>
+                <p className="mb-4">
+                  {isMirrorEmpty ? "Your local client mirror is empty. Sync your Notion CRM database now to import clients." : "No clients found matching your search."}
+                </p>
+                {isMirrorEmpty && (
+                    <Button
+                        onClick={handleManualSync}
+                        disabled={syncingClients}
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                    >
+                        {syncingClients ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                        {syncingClients ? 'Syncing Clients...' : 'Sync Clients from Notion'}
+                    </Button>
+                )}
               </div>
             ) : (
               <div className="overflow-x-auto">
