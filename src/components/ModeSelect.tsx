@@ -31,6 +31,7 @@ const ModeSelect: React.FC<ModeSelectProps> = ({
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [currentModeSelection, setCurrentModeSelection] = useState<Mode | null>(null);
   const [sessionSelectedModes, setSessionSelectedModes] = useState<Mode[]>([]);
+  const [modeToLog, setModeToLog] = useState<Mode | null>(null); // State to hold mode during logging
 
   const navigate = useNavigate();
 
@@ -61,6 +62,23 @@ const ModeSelect: React.FC<ModeSelectProps> = ({
     }
   );
 
+  // --- Logging Handlers ---
+  const handleLogSuccess = useCallback((data: LogSessionEventResponse) => {
+    console.log('Mode selection logged to Supabase:', data.logId);
+    if (modeToLog) {
+      setSessionSelectedModes(prevModes => [...prevModes, modeToLog]);
+      showSuccess('Mode logged to session.');
+      onLogSuccess();
+    }
+    setModeToLog(null);
+  }, [modeToLog, onLogSuccess]);
+
+  const handleLogError = useCallback((msg: string) => {
+    console.error('Failed to log mode selection to Supabase:', msg);
+    showError(`Logging Failed: ${msg}`);
+    setModeToLog(null); // Clear temporary state on error
+  }, []);
+
   const {
     loading: loggingSessionEvent,
     execute: logSessionEvent,
@@ -68,17 +86,12 @@ const ModeSelect: React.FC<ModeSelectProps> = ({
     'log-session-event',
     {
       requiresAuth: true,
-      onSuccess: (data) => {
-        console.log('Mode selection logged to Supabase:', data.logId);
-        showSuccess('Mode logged to session.');
-        onLogSuccess();
-      },
-      onError: (msg) => {
-        console.error('Failed to log mode selection to Supabase:', msg);
-        showError(`Logging Failed: ${msg}`);
-      }
+      onSuccess: handleLogSuccess, // Use custom success handler
+      onError: handleLogError,     // Use custom error handler
     }
   );
+  // --- End Logging Handlers ---
+
 
   // Fetch all modes on initial mount
   useEffect(() => {
@@ -92,7 +105,7 @@ const ModeSelect: React.FC<ModeSelectProps> = ({
     onModesChanged(sessionSelectedModes);
   }, [sessionSelectedModes, onModesChanged]);
 
-  const handleSelectModeFromDropdown = async (mode: Mode) => {
+  const handleSelectModeFromDropdown = (mode: Mode) => {
     if (sessionSelectedModes.some(m => m.id === mode.id)) {
       showError(`${mode.name} is already added to the session.`);
       setIsPopoverOpen(false);
@@ -100,10 +113,11 @@ const ModeSelect: React.FC<ModeSelectProps> = ({
       return;
     }
 
-    const newSelectedModes = [...sessionSelectedModes, mode];
-    setSessionSelectedModes(newSelectedModes);
+    // 1. Set temporary state to hold the mode until logging succeeds
+    setModeToLog(mode);
 
-    await logSessionEvent({
+    // 2. Log the event (this is asynchronous and relies on callbacks)
+    logSessionEvent({
       appointmentId: appointmentId,
       logType: 'mode_selected',
       details: {
@@ -158,10 +172,10 @@ const ModeSelect: React.FC<ModeSelectProps> = ({
             role="combobox"
             aria-expanded={isPopoverOpen}
             className="w-full justify-between"
-            disabled={loggingSessionEvent}
+            disabled={loggingSessionEvent || !!modeToLog} // Disable if logging is in progress
           >
-            {loggingSessionEvent ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-            {currentModeSelection ? currentModeSelection.name : "Select mode..."}
+            {(loggingSessionEvent || !!modeToLog) ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            {(loggingSessionEvent || !!modeToLog) ? 'Logging Mode...' : (currentModeSelection ? currentModeSelection.name : "Select mode...")}
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
