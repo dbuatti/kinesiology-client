@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
@@ -25,6 +25,9 @@ const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({ onSyncComplet
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
+  
+  // Ref to ensure the initial check runs only once, even in Strict Mode
+  const hasCheckedRef = useRef(false);
 
   const handleSyncSuccess = useCallback(async (data: any) => {
     setSyncStatus('success');
@@ -39,9 +42,6 @@ const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({ onSyncComplet
       await cacheService.invalidate(userId, 'all-clients');
       await cacheService.invalidate(userId, 'all-appointments');
       await cacheService.invalidate(userId, 'todays-appointments');
-      
-      // Invalidate reference data caches
-      REFERENCE_CACHE_KEYS.forEach(key => cacheService.invalidate(userId, key));
       
       // Invalidate all individual page caches (e.g., page:pageId)
       await cacheService.invalidateByPattern(userId, 'page');
@@ -78,21 +78,32 @@ const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({ onSyncComplet
     }
   };
 
-  // New effect to check cache status on mount and trigger background sync if needed
+  // Effect to check cache status on mount and trigger background sync if needed
   useEffect(() => {
+    if (hasCheckedRef.current) return;
+    hasCheckedRef.current = true; // Mark as checked immediately
+
     const checkAndSyncCache = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
       const userId = user.id;
       let needsSync = false;
+      let latestUpdateTime: Date | null = null;
 
       for (const key of REFERENCE_CACHE_KEYS) {
-        const cachedData = await cacheService.get(userId, key);
+        const cachedData = await cacheService.getRaw(userId, key);
         if (!cachedData) {
           console.log(`[SyncStatusIndicator] Cache miss for key: ${key}. Triggering background sync.`);
           needsSync = true;
           break;
+        }
+        // Track the latest update time among the reference caches
+        if (cachedData.updated_at) {
+            const updateTime = new Date(cachedData.updated_at);
+            if (!latestUpdateTime || updateTime > latestUpdateTime) {
+                latestUpdateTime = updateTime;
+            }
         }
       }
 
@@ -106,10 +117,9 @@ const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({ onSyncComplet
           setIsSyncing(false);
         }
       } else {
-        // If cache is present, try to determine the last sync time from one of the keys
-        const firstKeyData = await cacheService.getRaw(userId, REFERENCE_CACHE_KEYS[0]);
-        if (firstKeyData && firstKeyData.updated_at) {
-            setLastSync(new Date(firstKeyData.updated_at));
+        // If cache is present, set status based on the latest update time
+        if (latestUpdateTime) {
+            setLastSync(latestUpdateTime);
             setSyncStatus('success');
         }
       }
