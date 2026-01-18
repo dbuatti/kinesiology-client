@@ -52,6 +52,8 @@ export const cacheService = {
       })();
       return null;
     }
+    
+    console.log(`[CacheService] Cache hit for key: ${key}. Valid until: ${new Date(data.expires_at).toLocaleTimeString()}`);
 
     return data as CacheEntry;
   },

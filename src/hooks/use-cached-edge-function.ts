@@ -74,35 +74,65 @@ export const useCachedEdgeFunction = <TRequest, TResponse>(
         console.log(`[useCachedEdgeFunction] Session found for ${functionName}. User ID: ${userId}`);
       }
 
-      if (requiresNotionConfig && session) {
+      // --- START: Notion Config Check Optimization ---
+      if (requiresNotionConfig && session && userId) {
         console.log(`[useCachedEdgeFunction] Checking Notion config for ${functionName}.`);
         
-        const secretsResponse = await fetch(
-          `${supabaseUrl}/functions/v1/get-notion-secrets`,
-          {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${session?.access_token}`,
-              'Content-Type': 'application/json'
+        const configCacheKey = 'config-status';
+        let isConfigValid = false;
+
+        const cachedConfig = await cacheService.get(userId, configCacheKey);
+        
+        if (cachedConfig && cachedConfig.validUntil && new Date(cachedConfig.validUntil) > new Date()) {
+          isConfigValid = true;
+          console.log(`[useCachedEdgeFunction] Notion config status cache hit. Skipping network check.`);
+        }
+
+        if (!isConfigValid) {
+          console.log(`[useCachedEdgeFunction] Notion config status cache miss/expired. Fetching secrets status via edge function.`);
+          
+          const secretsResponse = await fetch(
+            `${supabaseUrl}/functions/v1/get-notion-secrets`,
+            {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${session?.access_token}`,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+
+          if (!secretsResponse.ok) {
+            const errorData = await secretsResponse.json();
+            if (errorData.errorCode === 'NOTION_CONFIG_NOT_FOUND') {
+              console.log(`[useCachedEdgeFunction] Notion config missing for ${functionName}.`);
+              setNeedsConfig(true);
+              onNotionConfigNeededRef.current?.();
+              setLoading(false);
+              return;
+            } else {
+              throw new Error(errorData.error || 'Failed to fetch Notion configuration.');
             }
           }
-        );
-
-        if (!secretsResponse.ok) {
-          const errorData = await secretsResponse.json();
-          if (errorData.errorCode === 'NOTION_CONFIG_NOT_FOUND') {
-            console.log(`[useCachedEdgeFunction] Notion config missing for ${functionName}.`);
+          
+          // If successful (200 OK), cache the status for 15 minutes
+          const validUntil = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+          await cacheService.set(userId, configCacheKey, { valid: true, validUntil }, 15);
+          isConfigValid = true;
+          console.log(`[useCachedEdgeFunction] Notion config status successfully fetched and cached.`);
+        }
+        
+        if (!isConfigValid) {
+            // Should be unreachable if logic is correct, but ensures flow stops if config is invalid
             setNeedsConfig(true);
             onNotionConfigNeededRef.current?.();
             setLoading(false);
             return;
-          } else {
-            throw new Error(errorData.error || 'Failed to fetch Notion configuration.');
-          }
         }
       }
+      // --- END: Notion Config Check Optimization ---
 
-      // Check cache first
+      // Check cache for main data
       if (cacheKey && userId) {
         const cachedData = await cacheService.get(userId, cacheKey);
         if (cachedData) {

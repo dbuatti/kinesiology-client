@@ -25,6 +25,8 @@ export const useNotionConfig = (): NotionConfigStatus => {
     {
       requiresAuth: true,
       requiresNotionConfig: false, // We want to check if config exists, not require it
+      cacheKey: 'config-status', // Use the new cache key for configuration status
+      cacheTtl: 15, // 15 minutes TTL for configuration status
       onSuccess: useCallback(() => {
         setIsConfigured(true);
         setError(null);
