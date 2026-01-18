@@ -235,13 +235,15 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
 
   // --- Effects ---
 
-  // 1. Initial load of core data
+  // 1. Initial load of core data (Appointment and Logs)
   useEffect(() => {
     if (actualAppointmentId && notionConfigured) {
+      console.log('[ActiveSession] Initializing core data fetch: Appointment and Logs.');
       fetchSingleAppointment({ appointmentId: actualAppointmentId });
       fetchSessionLogs({ appointmentId: actualAppointmentId });
       
-      // Only fetch modes immediately as they are needed in the Overview tab
+      // Fetch modes immediately as they are needed in the Overview tab
+      console.log('[ActiveSession] Initializing reference data fetch: Modes.');
       fetchModes();
     }
   }, [actualAppointmentId, notionConfigured, fetchSingleAppointment, fetchSessionLogs, fetchModes]);
@@ -263,16 +265,28 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
 
     switch (activeTab) {
       case 'muscles':
-        if (!musclesData && !loadingMuscles) fetchMuscles({ searchTerm: '', searchType: 'muscle' });
+        if (!musclesData && !loadingMuscles) {
+          console.log('[ActiveSession] Lazy fetching Muscles data.');
+          fetchMuscles({ searchTerm: '', searchType: 'muscle' });
+        }
         break;
       case 'chakras':
-        if (!chakrasData && !loadingChakras) fetchChakras({ searchTerm: '', searchType: 'name' });
+        if (!chakrasData && !loadingChakras) {
+          console.log('[ActiveSession] Lazy fetching Chakras data.');
+          fetchChakras({ searchTerm: '', searchType: 'name' });
+        }
         break;
       case 'channels':
-        if (!channelsData && !loadingChannels) fetchChannels({ searchTerm: '', searchType: 'name' });
+        if (!channelsData && !loadingChannels) {
+          console.log('[ActiveSession] Lazy fetching Channels data.');
+          fetchChannels({ searchTerm: '', searchType: 'name' });
+        }
         break;
       case 'acupoints':
-        if (!acupointsData && !loadingAcupoints) fetchAcupoints({ searchTerm: '', searchType: 'point' });
+        if (!acupointsData && !loadingAcupoints) {
+          console.log('[ActiveSession] Lazy fetching Acupoints data.');
+          fetchAcupoints({ searchTerm: '', searchType: 'point' });
+        }
         break;
       default:
         break;
@@ -357,6 +371,7 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
 
   const handleLogSuccess = useCallback(() => {
     if (actualAppointmentId) {
+      // Force a refresh of the session logs cache
       fetchSessionLogs({ appointmentId: actualAppointmentId });
     }
   }, [actualAppointmentId, fetchSessionLogs]);
@@ -486,6 +501,7 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
               // Refresh data after sync
               if (actualAppointmentId) {
                 fetchSingleAppointment({ appointmentId: actualAppointmentId });
+                fetchSessionLogs({ appointmentId: actualAppointmentId });
               }
             }} />
           </div>
