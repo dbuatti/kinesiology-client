@@ -46,7 +46,7 @@ serve(async (req) => {
     // Fetch Notion credentials
     const { data: secrets, error: secretsError } = await supabase
       .from('notion_secrets')
-      .select('notion_integration_token, modes_database_id, acupoints_database_id, muscles_database_id, channels_database_id, chakras_database_id, tags_database_id')
+      .select('notion_integration_token, modes_database_id, acupoints_database_id, muscles_database_id, channels_database_id, chakras_database_id, tags_database_id') // Removed core data IDs
       .eq('id', user.id)
       .single()
 

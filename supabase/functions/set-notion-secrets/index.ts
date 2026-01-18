@@ -56,6 +56,7 @@ serve(async (req) => {
         channels_database_id: channelsDbId || null,
         chakras_database_id: chakrasDbId || null,
         tags_database_id: tagsDbId || null,
+        // Removed appointments_database_id and crm_database_id
       }, {
         onConflict: 'id' // Conflict on 'id' since it's the primary key
       })
