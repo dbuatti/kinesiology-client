@@ -15,11 +15,7 @@ interface SyncStatusIndicatorProps {
 }
 
 const REFERENCE_CACHE_KEYS = [
-  'all-modes',
-  'all-acupoints',
-  'all-muscles',
-  'all-chakras',
-  'all-channels',
+  'all-reference-data', // Use the new combined key
 ];
 
 const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({ onSyncComplete }) => {
@@ -96,19 +92,17 @@ const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({ onSyncComplet
       let needsSync = false;
       let latestUpdateTime: Date | null = null;
 
-      for (const key of REFERENCE_CACHE_KEYS) {
-        const cachedData = await cacheService.getRaw(userId, key);
-        if (!cachedData) {
-          console.log(`[SyncStatusIndicator] Cache miss for key: ${key}. Triggering background sync.`);
-          needsSync = true;
-          break;
-        }
-        // Track the latest update time among the reference caches
+      // Check only the single combined cache key
+      const key = REFERENCE_CACHE_KEYS[0];
+      const cachedData = await cacheService.getRaw(userId, key);
+      
+      if (!cachedData) {
+        console.log(`[SyncStatusIndicator] Cache miss for key: ${key}. Triggering background sync.`);
+        needsSync = true;
+      } else {
+        // Track the latest update time
         if (cachedData.updated_at) {
-            const updateTime = new Date(cachedData.updated_at);
-            if (!latestUpdateTime || updateTime > latestUpdateTime) {
-                latestUpdateTime = updateTime;
-            }
+            latestUpdateTime = new Date(cachedData.updated_at);
         }
       }
 

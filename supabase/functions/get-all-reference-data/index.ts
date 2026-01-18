@@ -10,7 +10,7 @@ const corsHeaders = {
 // Helper function to query Notion database and extract results
 async function queryNotionDatabase(databaseId: string | null, notionToken: string, databaseName: string): Promise<any[] | null> {
     if (!databaseId) {
-        console.log(`[sync-notion-data] ${databaseName} database ID is missing.`);
+        console.log(`[get-all-reference-data] ${databaseName} database ID is missing.`);
         return null;
     }
 
@@ -30,15 +30,15 @@ async function queryNotionDatabase(databaseId: string | null, notionToken: strin
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error(`[sync-notion-data] Notion API error for ${databaseName}:`, errorText);
+            console.error(`[get-all-reference-data] Notion API error for ${databaseName}:`, errorText);
             return null;
         }
 
         const data = await response.json();
-        console.log(`[sync-notion-data] Found ${data.results.length} items in ${databaseName}`);
+        console.log(`[get-all-reference-data] Found ${data.results.length} items in ${databaseName}`);
         return data.results;
     } catch (error) {
-        console.error(`[sync-notion-data] Unexpected error querying ${databaseName}:`, error?.message);
+        console.error(`[get-all-reference-data] Unexpected error querying ${databaseName}:`, error?.message);
         return null;
     }
 }
@@ -57,14 +57,15 @@ const resolveRelation = async (relationId: string | undefined, notionToken: stri
         });
         if (response.ok) {
             const data = await response.json();
+            // Check for common title properties: Name (for muscles/acupoints/chakras) or Meridian (for channels)
             const name = data.properties.Name?.title?.[0]?.plain_text || data.properties.Meridian?.title?.[0]?.plain_text || "Unknown";
             return { id: relationId, name };
         } else {
-            console.warn(`[sync-notion-data] Failed to fetch relation page ${relationId}: ${await response.text()}`);
+            console.warn(`[get-all-reference-data] Failed to fetch relation page ${relationId}: ${await response.text()}`);
             return null;
         }
     } catch (err) {
-        console.error(`[sync-notion-data] Error fetching relation page ${relationId}:`, err);
+        console.error(`[get-all-reference-data] Error fetching relation page ${relationId}:`, err);
         return null;
     }
 };
@@ -98,7 +99,7 @@ async function resolveChannelName(channelRelationId: string, notionToken: string
             return channelPageData.properties.Name?.title?.[0]?.plain_text || "";
         }
     } catch (channelError) {
-        console.error(`[sync-notion-data] Error fetching channel page ${channelRelationId}:`, channelError);
+        console.error(`[get-all-reference-data] Error fetching channel page ${channelRelationId}:`, channelError);
     }
     return "";
 }
@@ -110,11 +111,11 @@ serve(async (req) => {
   }
 
   try {
-    console.log("[sync-notion-data] Starting function execution")
+    console.log("[get-all-reference-data] Starting function execution")
 
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
-      console.warn("[sync-notion-data] Unauthorized: No Authorization header")
+      console.warn("[get-all-reference-data] Unauthorized: No Authorization header")
       return new Response('Unauthorized', {
         status: 401,
         headers: corsHeaders
@@ -122,57 +123,52 @@ serve(async (req) => {
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')
     const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
-    const supabase = createClient(supabaseUrl, supabaseServiceRoleKey)
-
+    const authSupabase = createClient(supabaseUrl, supabaseAnonKey)
     const token = authHeader.replace('Bearer ', '')
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token)
+    const { data: { user }, error: userError } = await authSupabase.auth.getUser(token)
 
     if (userError || !user) {
-      console.error("[sync-notion-data] User authentication failed:", userError?.message)
+      console.error("[get-all-reference-data] User authentication failed:", userError?.message)
       return new Response('Unauthorized', {
         status: 401,
         headers: corsHeaders
       })
     }
 
-    console.log("[sync-notion-data] User authenticated:", user.id)
+    console.log("[get-all-reference-data] User authenticated:", user.id)
 
-    // Fetch Notion credentials
-    const { data: secrets, error: secretsError } = await supabase
+    const serviceRoleSupabase = createClient(supabaseUrl, supabaseServiceRoleKey)
+
+    // 1. Fetch Notion credentials
+    const { data: secrets, error: secretsError } = await serviceRoleSupabase
       .from('notion_secrets')
-      .select('notion_integration_token, modes_database_id, acupoints_database_id, muscles_database_id, channels_database_id, chakras_database_id, tags_database_id') // Removed core data IDs
+      .select('notion_integration_token, modes_database_id, acupoints_database_id, muscles_database_id, channels_database_id, chakras_database_id, tags_database_id')
       .eq('id', user.id)
       .single()
 
     if (secretsError || !secrets || !secrets.notion_integration_token) {
-      console.error("[sync-notion-data] Notion configuration not found for user:", user.id, secretsError?.message)
+      console.error("[get-all-reference-data] Notion integration token not configured.")
       return new Response(JSON.stringify({
-        error: 'Notion configuration not found. Please configure your Notion credentials first.'
+        error: 'Notion integration token not configured. Please configure your Notion credentials first.',
+        errorCode: 'NOTION_CONFIG_NOT_FOUND'
       }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
-
-    console.log("[sync-notion-data] Secrets loaded successfully for user:", user.id)
-
-    // Sync data based on request type
-    const { syncType } = await req.json();
-    const results: any = {};
-    const serviceRoleSupabase = supabase; 
+    
     const notionToken = secrets.notion_integration_token;
-    const CACHE_KEY = 'all-reference-data';
-    const CACHE_TTL_MINUTES = 60; // 1 hour TTL for sync results
 
-    // 1. Query all databases in parallel
+    // 2. Query all databases in parallel
     const [
-        modesRaw, 
-        musclesRaw, 
-        chakrasRaw, 
-        channelsRaw, 
-        acupointsRaw
+        modesResults, 
+        musclesResults, 
+        chakrasResults, 
+        channelsResults, 
+        acupointsResults
     ] = await Promise.all([
         queryNotionDatabase(secrets.modes_database_id, notionToken, 'Modes'),
         queryNotionDatabase(secrets.muscles_database_id, notionToken, 'Muscles'),
@@ -181,10 +177,10 @@ serve(async (req) => {
         queryNotionDatabase(secrets.acupoints_database_id, notionToken, 'Acupoints'),
     ]);
 
-    // 2. Process results into the final structure (Mapping logic)
-    
+    // 3. Process results into the final structure (Mapping logic)
+
     // --- Modes Mapping ---
-    const modes = modesRaw ? modesRaw.map((page: any) => {
+    const modes = modesResults ? modesResults.map((page: any) => {
         const properties = page.properties
         return {
             id: page.id,
@@ -192,10 +188,9 @@ serve(async (req) => {
             actionNote: properties["Action Note"]?.rich_text?.[0]?.plain_text || "",
         }
     }) : [];
-    results.modes = modes.length;
 
     // --- Chakras Mapping ---
-    const chakras = chakrasRaw ? chakrasRaw.map((page: any) => {
+    const chakras = chakrasResults ? chakrasResults.map((page: any) => {
         const properties = page.properties
         return {
             id: page.id,
@@ -208,10 +203,9 @@ serve(async (req) => {
             affirmations: properties.Affirmations?.rich_text?.[0]?.plain_text || "",
         }
     }) : [];
-    results.chakras = chakras.length;
 
-    // --- Acupoints Mapping ---
-    const acupoints = acupointsRaw ? await Promise.all(acupointsRaw.map(async (page: any) => {
+    // --- Acupoints Mapping (Requires Channel resolution) ---
+    const acupoints = acupointsResults ? await Promise.all(acupointsResults.map(async (page: any) => {
         const properties = page.properties
         let channelName = "";
 
@@ -232,10 +226,9 @@ serve(async (req) => {
             time: properties.Time?.multi_select?.map((s: any) => s.name) || [],
         }
     })) : [];
-    results.acupoints = acupoints.length;
 
-    // --- Muscles Mapping ---
-    const muscles = musclesRaw ? await Promise.all(musclesRaw.map(async (page: any) => {
+    // --- Muscles Mapping (Requires relation resolution) ---
+    const muscles = musclesResults ? await Promise.all(musclesResults.map(async (page: any) => {
         const properties = page.properties
         
         const relatedYuanPoint = await resolveRelation(properties["Related YUAN POINT"]?.relation?.[0]?.id, notionToken);
@@ -275,10 +268,9 @@ serve(async (req) => {
             timeTcm: timeTcm,
         }
     })) : [];
-    results.muscles = muscles.length;
 
     // --- Channels Mapping ---
-    const channels = channelsRaw ? await Promise.all(channelsRaw.map(async (page: any) => {
+    const channels = channelsResults ? await Promise.all(channelsResults.map(async (page: any) => {
         const properties = page.properties
         
         const element = properties.Element?.select?.name;
@@ -325,37 +317,25 @@ serve(async (req) => {
             sound: properties["Sound"]?.select?.name || "",
         }
     })) : [];
-    results.channels = channels.length;
 
-    const combinedData = { modes, muscles, chakras, channels, acupoints };
 
-    // 3. Cache the combined, mapped results
-    const { error: cacheError } = await serviceRoleSupabase
-        .from('notion_cache')
-        .upsert({
-            id: `${user.id}:${CACHE_KEY}`,
-            data: { data: combinedData }, // Store under 'data' key to match GetAllReferenceDataResponse structure
-            expires_at: new Date(Date.now() + CACHE_TTL_MINUTES * 60 * 1000).toISOString(),
-            updated_at: new Date().toISOString(),
-        });
+    // 4. Return combined data
+    const combinedData = {
+        modes,
+        muscles,
+        chakras,
+        channels,
+        acupoints,
+    };
 
-    if (cacheError) {
-        console.error("[sync-notion-data] Cache upsert error:", cacheError.message);
-        // Continue execution, but log the error
-    }
+    console.log("[get-all-reference-data] All reference data processed and ready to return.")
 
-    console.log("[sync-notion-data] Sync completed successfully")
-
-    return new Response(JSON.stringify({ 
-      success: true, 
-      synced: Object.keys(results).filter(k => results[k] !== null),
-      results 
-    }), {
+    return new Response(JSON.stringify({ data: combinedData }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
 
   } catch (error) {
-    console.error("[sync-notion-data] Unexpected error:", error?.message)
+    console.error("[get-all-reference-data] Unexpected error:", error?.message)
     return new Response(JSON.stringify({ error: 'Internal server error', details: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
