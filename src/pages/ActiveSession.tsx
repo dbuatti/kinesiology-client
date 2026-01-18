@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,17 +16,21 @@ import { Calendar, User, Star, Target, Clock, Settings, AlertCircle, Check, Chev
 import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import MuscleSelector from '@/components/MuscleSelector';
-import ChakraSelector from '@/components/ChakraSelector';
-import ChannelDashboard from '@/components/ChannelDashboard';
-import NotionPageViewer from '@/components/NotionPageViewer';
-import SessionLogDisplay from '@/components/SessionLogDisplay';
-import AcupointSelector from '@/components/AcupointSelector';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+
+// Eager imports (used in the default 'overview' tab or outside tabs)
 import ModeSelect from '@/components/ModeSelect';
 import SessionSummaryDisplay from '@/components/SessionSummaryDisplay';
-import ModeDetailsPanel from '@/components/ModeDetailsPanel';
 import SyncStatusIndicator from '@/components/SyncStatusIndicator';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+
+// Lazy imports for non-critical tabs
+const MuscleSelector = React.lazy(() => import('@/components/MuscleSelector'));
+const ChakraSelector = React.lazy(() => import('@/components/ChakraSelector'));
+const ChannelDashboard = React.lazy(() => import('@/components/ChannelDashboard'));
+const AcupointSelector = React.lazy(() => import('@/components/AcupointSelector'));
+const SessionLogDisplay = React.lazy(() => import('@/components/SessionLogDisplay'));
+const NotionPageViewer = React.lazy(() => import('@/components/NotionPageViewer'));
+const ModeDetailsPanel = React.lazy(() => import('@/components/ModeDetailsPanel'));
 
 import { useCachedEdgeFunction } from '@/hooks/use-cached-edge-function';
 import { useNotionConfig } from '@/hooks/use-notion-config';
@@ -379,6 +383,14 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
 
   // --- Render Logic ---
 
+  const SuspenseFallback = (
+    <div className="p-6 space-y-4">
+      <Skeleton className="h-10 w-full" />
+      <Skeleton className="h-40 w-full" />
+      <Skeleton className="h-10 w-1/3" />
+    </div>
+  );
+
   if (overallLoading && !appointment) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6 flex items-center justify-center">
@@ -492,7 +504,7 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
                 <TabsTrigger value="mode-details">Mode Details</TabsTrigger>
               </TabsList>
 
-              {/* Overview Tab */}
+              {/* Overview Tab (Eager Load) */}
               <TabsContent value="overview" className="mt-6 space-y-6">
                 {/* Client Insight Card */}
                 <Card className="shadow-xl border-2 border-indigo-200">
@@ -592,71 +604,85 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
                 </Card>
               </TabsContent>
 
-              {/* Muscles Tab */}
+              {/* Muscles Tab (Lazy Load) */}
               <TabsContent value="muscles" className="mt-6 space-y-6">
-                <MuscleSelector
-                  onMuscleSelected={handleMuscleSelected}
-                  onMuscleStrengthLogged={handleMuscleStrengthLogged}
-                  appointmentId={actualAppointmentId || ''}
-                  onClearSelection={() => setSelectedMuscle(null)}
-                  onOpenNotionPage={handleOpenNotionPage}
-                />
+                <Suspense fallback={SuspenseFallback}>
+                  <MuscleSelector
+                    onMuscleSelected={handleMuscleSelected}
+                    onMuscleStrengthLogged={handleMuscleStrengthLogged}
+                    appointmentId={actualAppointmentId || ''}
+                    onClearSelection={() => setSelectedMuscle(null)}
+                    onOpenNotionPage={handleOpenNotionPage}
+                  />
+                </Suspense>
               </TabsContent>
 
-              {/* Chakras Tab */}
+              {/* Chakras Tab (Lazy Load) */}
               <TabsContent value="chakras" className="mt-6 space-y-6">
-                <ChakraSelector
-                  appointmentId={actualAppointmentId || ''}
-                  onChakraSelected={handleChakraSelected}
-                  onClearSelection={() => setSelectedChakra(null)}
-                  selectedChakra={selectedChakra}
-                  onOpenNotionPage={handleOpenNotionPage}
-                />
+                <Suspense fallback={SuspenseFallback}>
+                  <ChakraSelector
+                    appointmentId={actualAppointmentId || ''}
+                    onChakraSelected={handleChakraSelected}
+                    onClearSelection={() => setSelectedChakra(null)}
+                    selectedChakra={selectedChakra}
+                    onOpenNotionPage={handleOpenNotionPage}
+                  />
+                </Suspense>
               </TabsContent>
 
-              {/* Channels Tab */}
+              {/* Channels Tab (Lazy Load) */}
               <TabsContent value="channels" className="mt-6 space-y-6">
-                <ChannelDashboard
-                  appointmentId={actualAppointmentId || ''}
-                  onLogSuccess={handleLogSuccess}
-                  onClearSelection={() => setSelectedChannel(null)}
-                  onOpenNotionPage={handleOpenNotionPage}
-                  onChannelSelected={handleChannelSelected}
-                />
+                <Suspense fallback={SuspenseFallback}>
+                  <ChannelDashboard
+                    appointmentId={actualAppointmentId || ''}
+                    onLogSuccess={handleLogSuccess}
+                    onClearSelection={() => setSelectedChannel(null)}
+                    onOpenNotionPage={handleOpenNotionPage}
+                    onChannelSelected={handleChannelSelected}
+                  />
+                </Suspense>
               </TabsContent>
 
-              {/* Acupoints Tab */}
+              {/* Acupoints Tab (Lazy Load) */}
               <TabsContent value="acupoints" className="mt-6 space-y-6">
-                <AcupointSelector
-                  appointmentId={actualAppointmentId || ''}
-                  onLogSuccess={handleLogSuccess}
-                  onClearSelection={() => setSelectedAcupoint(null)}
-                  onOpenNotionPage={handleOpenNotionPage}
-                  onAcupointSelected={handleAcupointSelected}
-                />
+                <Suspense fallback={SuspenseFallback}>
+                  <AcupointSelector
+                    appointmentId={actualAppointmentId || ''}
+                    onLogSuccess={handleLogSuccess}
+                    onClearSelection={() => setSelectedAcupoint(null)}
+                    onOpenNotionPage={handleOpenNotionPage}
+                    onAcupointSelected={handleAcupointSelected}
+                  />
+                </Suspense>
               </TabsContent>
 
-              {/* Session Log Tab */}
+              {/* Session Log Tab (Lazy Load) */}
               <TabsContent value="session-log" className="mt-6 space-y-6">
-                <SessionLogDisplay
-                  appointmentId={actualAppointmentId || ''}
-                  sessionLogs={sessionLogs}
-                  sessionMuscleLogs={sessionMuscleLogs}
-                  onDeleteLog={deleteSessionLog}
-                  deletingLog={deletingSessionLog}
-                  onClearAllLogs={handleClearAllSessionLogs}
-                  clearingAllLogs={clearingAllLogs}
-                />
+                <Suspense fallback={SuspenseFallback}>
+                  <SessionLogDisplay
+                    appointmentId={actualAppointmentId || ''}
+                    sessionLogs={sessionLogs}
+                    sessionMuscleLogs={sessionMuscleLogs}
+                    onDeleteLog={deleteSessionLog}
+                    deletingLog={deletingSessionLog}
+                    onClearAllLogs={handleClearAllSessionLogs}
+                    clearingAllLogs={clearingAllLogs}
+                  />
+                </Suspense>
               </TabsContent>
 
-              {/* Notion Page Tab */}
+              {/* Notion Page Tab (Lazy Load) */}
               <TabsContent value="notion-page" className="mt-6 space-y-6">
-                <NotionPageViewer pageId={selectedNotionPageId} />
+                <Suspense fallback={SuspenseFallback}>
+                  <NotionPageViewer pageId={selectedNotionPageId} />
+                </Suspense>
               </TabsContent>
 
-              {/* Custom Mode Details Tab */}
+              {/* Custom Mode Details Tab (Lazy Load) */}
               <TabsContent value="mode-details" className="mt-6 space-y-6">
-                <ModeDetailsPanel selectedMode={selectedModeForDetailsPanel} />
+                <Suspense fallback={SuspenseFallback}>
+                  <ModeDetailsPanel selectedMode={selectedModeForDetailsPanel} />
+                </Suspense>
               </TabsContent>
 
               {/* Complete Session Button (outside tabs, always visible) */}
