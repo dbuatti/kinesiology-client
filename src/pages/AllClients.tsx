@@ -248,17 +248,28 @@ const AllClients = () => {
                 <Database className="w-12 h-12 mx-auto mb-4 text-indigo-400" />
                 <h3 className="text-xl font-semibold mb-2">Client Database Empty</h3>
                 <p className="mb-4">
-                  {isMirrorEmpty ? "Your local client mirror is empty. Sync your Notion CRM database now to import clients." : "No clients found matching your search."}
+                  {isMirrorEmpty ? "Your local client mirror is empty. Sync your Notion CRM database now to import clients. If the sync fails, ensure your Notion CRM Database ID is correct and shared with the integration." : "No clients found matching your search."}
                 </p>
                 {isMirrorEmpty && (
-                    <Button
-                        onClick={handleManualSync}
-                        disabled={syncingClients}
-                        className="bg-green-600 hover:bg-green-700 text-white"
-                    >
-                        {syncingClients ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-                        {syncingClients ? 'Syncing Clients...' : 'Sync Clients from Notion'}
-                    </Button>
+                    <div className="space-y-3 max-w-sm mx-auto">
+                        <Button
+                            onClick={handleManualSync}
+                            disabled={syncingClients}
+                            className="w-full bg-green-600 hover:bg-green-700 text-white"
+                        >
+                            {syncingClients ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                            {syncingClients ? 'Syncing Clients...' : 'Sync Clients from Notion'}
+                        </Button>
+                        <Button
+                            onClick={() => navigate('/notion-config')}
+                            variant="outline"
+                            disabled={syncingClients}
+                            className="w-full text-indigo-600 hover:bg-indigo-50"
+                        >
+                            <Settings className="h-4 w-4 mr-2" />
+                            Check Notion Configuration
+                        </Button>
+                    </div>
                 )}
               </div>
             ) : (
