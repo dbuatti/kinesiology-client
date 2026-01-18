@@ -42,8 +42,8 @@ serve(async (req) => {
 
     console.log("[set-notion-secrets] User authenticated:", user.id)
 
-    // Note: appointmentsDbId is now optional/nullable
-    const { notionToken, appointmentsDbId, crmDbId, modesDbId, acupointsDbId, musclesDbId, channelsDbId, chakrasDbId, tagsDbId } = await req.json() // Destructure new tagsDbId
+    // Removed appointmentsDbId from destructuring as it is no longer managed by the client form
+    const { notionToken, crmDbId, modesDbId, acupointsDbId, musclesDbId, channelsDbId, chakrasDbId, tagsDbId } = await req.json() 
 
     // Upsert into notion_secrets table using service role
     const { error: insertError } = await supabase
@@ -51,14 +51,14 @@ serve(async (req) => {
       .upsert({
         id: user.id, // Use 'id' as the primary key for the user's secrets
         notion_integration_token: notionToken,
-        appointments_database_id: appointmentsDbId || null, // Allow null
+        appointments_database_id: null, // Explicitly set to null as appointments are now managed locally
         crm_database_id: crmDbId || null,
         modes_database_id: modesDbId || null,
         acupoints_database_id: acupointsDbId || null,
         muscles_database_id: musclesDbId || null,
-        channels_database_id: channelsDbId || null, // Store new channelsDbId
-        chakras_database_id: chakrasDbId || null,  // Store new chakrasDbId
-        tags_database_id: tagsDbId || null, // Store new tagsDbId
+        channels_database_id: channelsDbId || null,
+        chakras_database_id: chakrasDbId || null,
+        tags_database_id: tagsDbId || null,
       }, {
         onConflict: 'id' // Conflict on 'id' since it's the primary key
       })

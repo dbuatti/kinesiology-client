@@ -35,9 +35,9 @@ const notionConfigFormSchema = z.object({
   modesDbId: z.string().nullable(),
   acupointsDbId: z.string().nullable(),
   musclesDbId: z.string().nullable(),
-  channelsDbId: z.string().nullable(), // Added new field
-  chakrasDbId: z.string().nullable(),  // Added new field
-  tagsDbId: z.string().nullable(), // Added new field
+  channelsDbId: z.string().nullable(),
+  chakrasDbId: z.string().nullable(),
+  tagsDbId: z.string().nullable(),
 });
 
 type NotionConfigFormValues = z.infer<typeof notionConfigFormSchema>;
@@ -53,9 +53,9 @@ const NotionConfig = () => {
       modesDbId: '',
       acupointsDbId: '',
       musclesDbId: '',
-      channelsDbId: '', // Default value for new field
-      chakrasDbId: '',  // Default value for new field
-      tagsDbId: '', // Default value for new field
+      channelsDbId: '',
+      chakrasDbId: '',
+      tagsDbId: '',
     },
   });
 
@@ -68,9 +68,9 @@ const NotionConfig = () => {
       modesDbId: secrets.modes_database_id || '',
       acupointsDbId: secrets.acupoints_database_id || '',
       musclesDbId: secrets.muscles_database_id || '',
-      channelsDbId: secrets.channels_database_id || '', // Set new field
-      chakrasDbId: secrets.chakras_database_id || '',  // Set new field
-      tagsDbId: secrets.tags_database_id || '', // Set new field
+      channelsDbId: secrets.channels_database_id || '',
+      chakrasDbId: secrets.chakras_database_id || '',
+      tagsDbId: secrets.tags_database_id || '',
     });
   }, [form]);
 
@@ -127,14 +127,13 @@ const NotionConfig = () => {
   const onSubmit = async (values: NotionConfigFormValues) => {
     await setNotionSecrets({
       notionToken: values.integrationToken.trim(),
-      appointmentsDbId: null, // Explicitly set to null as it's no longer required
       crmDbId: values.crmDbId?.trim() || null,
       modesDbId: values.modesDbId?.trim() || null,
       acupointsDbId: values.acupointsDbId?.trim() || null,
       musclesDbId: values.musclesDbId?.trim() || null,
-      channelsDbId: values.channelsDbId?.trim() || null, // Pass new field
-      chakrasDbId: values.chakrasDbId?.trim() || null,  // Pass new field
-      tagsDbId: values.tagsDbId?.trim() || null, // Pass new field
+      channelsDbId: values.channelsDbId?.trim() || null,
+      chakrasDbId: values.chakrasDbId?.trim() || null,
+      tagsDbId: values.tagsDbId?.trim() || null,
     });
   };
 

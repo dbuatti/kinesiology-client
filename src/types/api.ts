@@ -321,7 +321,6 @@ export interface DeleteSessionLogResponse {
 
 export interface SetNotionSecretsPayload {
   notionToken: string;
-  appointmentsDbId: string | null; // Made nullable
   crmDbId: string | null;
   modesDbId: string | null;
   acupointsDbId: string | null;
@@ -329,6 +328,11 @@ export interface SetNotionSecretsPayload {
   channelsDbId: string | null; // New: Channels Database ID
   chakrasDbId: string | null; // New: Chakras Database ID
   tagsDbId: string | null; // New: Tags Database ID
+}
+
+export interface SetNotionSecretsResponse {
+  success: boolean;
+  message: string;
 }
 
 export interface CreateNotionAppointmentPayload {

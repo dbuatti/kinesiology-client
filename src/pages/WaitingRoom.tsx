@@ -11,13 +11,13 @@ import { format } from 'date-fns';
 import { useCachedEdgeFunction } from '@/hooks/use-cached-edge-function';
 import { useNotionConfig } from '@/hooks/use-notion-config';
 import { useReferenceData } from '@/hooks/use-reference-data'; // Import centralized hook
-import { Appointment, GetTodaysAppointmentsResponse, UpdateNotionAppointmentPayload, UpdateNotionAppointmentResponse, GetTodaysAppointmentsPayload } from '@/types/api';
+import { Appointment, MinimalAppointment, GetTodaysAppointmentsResponse, UpdateNotionAppointmentPayload, UpdateNotionAppointmentResponse, GetTodaysAppointmentsPayload } from '@/types/api';
 import CreateAppointmentDialog from '@/components/CreateAppointmentDialog';
 import SyncStatusIndicator from '@/components/SyncStatusIndicator';
 import { Badge } from '@/components/ui/badge';
 
 const WaitingRoom = () => {
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [appointments, setAppointments] = useState<MinimalAppointment[]>([]);
   const navigate = useNavigate();
 
   // Use reference data hook for configuration status check
