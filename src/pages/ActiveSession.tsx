@@ -53,6 +53,7 @@ import {
   GetChakrasResponse,
   GetChannelsResponse,
   GetAcupointsResponse,
+  GetNotionModesResponse,
 } from '@/types/api';
 
 interface ActiveSessionProps {
@@ -89,7 +90,7 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
 
   // --- Supabase Edge Function Hooks (Using Cached Version) ---
 
-  // 1. Fetch single appointment
+  // 1. Fetch single appointment (Immediate Load)
   const {
     data: fetchedAppointmentData,
     loading: loadingAppointment,
@@ -117,65 +118,35 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
     }
   );
 
-  // 2. Pre-fetch Muscles
+  // 2. Fetch Session Logs (Immediate Load)
   const {
-    data: musclesData,
-    loading: loadingMuscles,
-    execute: fetchMuscles,
-  } = useCachedEdgeFunction<{ searchTerm: string, searchType: 'muscle' | 'meridian' | 'organ' | 'emotion' }, GetMusclesResponse>(
-    'get-muscles',
+    data: fetchedSessionLogsData,
+    loading: loadingSessionLogs,
+    error: sessionLogsError,
+    execute: fetchSessionLogs,
+  } = useCachedEdgeFunction<{ appointmentId: string }, GetSessionLogsResponse>(
+    'get-session-logs',
     {
       requiresAuth: true,
-      requiresNotionConfig: true,
-      cacheKey: 'all-muscles',
-      cacheTtl: 120,
+      cacheKey: actualAppointmentId ? `${actualAppointmentId}:logs` : undefined,
+      cacheTtl: 5, // 5 minutes cache for logs
+      onSuccess: useCallback((data: GetSessionLogsResponse) => {
+        setSessionLogs(data.sessionLogs);
+        setSessionMuscleLogs(data.sessionMuscleLogs);
+      }, []),
+      onError: useCallback((msg: string) => {
+        showError(`Failed to load session logs: ${msg}`);
+      }, []),
     }
   );
 
-  // 3. Pre-fetch Chakras
-  const {
-    data: chakrasData,
-    loading: loadingChakras,
-    execute: fetchChakras,
-  } = useCachedEdgeFunction<{ searchTerm: string, searchType: 'name' | 'element' | 'emotion' | 'organ' }, GetChakrasResponse>(
-    'get-chakras',
-    {
-      requiresAuth: true,
-      requiresNotionConfig: true,
-      cacheKey: 'all-chakras',
-      cacheTtl: 120,
-    }
-  );
+  // 3. Reference Data Hooks (Lazy Load - only executed when tab is clicked)
+  const { data: modesData, loading: loadingModes, execute: fetchModes } = useCachedEdgeFunction<void, GetNotionModesResponse>('get-notion-modes', { requiresAuth: true, requiresNotionConfig: true, cacheKey: 'all-modes', cacheTtl: 120 });
+  const { data: musclesData, loading: loadingMuscles, execute: fetchMuscles } = useCachedEdgeFunction<{ searchTerm: string, searchType: 'muscle' | 'meridian' | 'organ' | 'emotion' }, GetMusclesResponse>('get-muscles', { requiresAuth: true, requiresNotionConfig: true, cacheKey: 'all-muscles', cacheTtl: 120 });
+  const { data: chakrasData, loading: loadingChakras, execute: fetchChakras } = useCachedEdgeFunction<{ searchTerm: string, searchType: 'name' | 'element' | 'emotion' | 'organ' }, GetChakrasResponse>('get-chakras', { requiresAuth: true, requiresNotionConfig: true, cacheKey: 'all-chakras', cacheTtl: 120 });
+  const { data: channelsData, loading: loadingChannels, execute: fetchChannels } = useCachedEdgeFunction<{ searchTerm: string, searchType: 'name' | 'element' }, GetChannelsResponse>('get-channels', { requiresAuth: true, requiresNotionConfig: true, cacheKey: 'all-channels', cacheTtl: 120 });
+  const { data: acupointsData, loading: loadingAcupoints, execute: fetchAcupoints } = useCachedEdgeFunction<{ searchTerm: string, searchType: 'point' | 'symptom' }, GetAcupointsResponse>('get-acupoints', { requiresAuth: true, requiresNotionConfig: true, cacheKey: 'all-acupoints', cacheTtl: 120 });
 
-  // 4. Pre-fetch Channels
-  const {
-    data: channelsData,
-    loading: loadingChannels,
-    execute: fetchChannels,
-  } = useCachedEdgeFunction<{ searchTerm: string, searchType: 'name' | 'element' }, GetChannelsResponse>(
-    'get-channels',
-    {
-      requiresAuth: true,
-      requiresNotionConfig: true,
-      cacheKey: 'all-channels',
-      cacheTtl: 120,
-    }
-  );
-
-  // 5. Pre-fetch Acupoints
-  const {
-    data: acupointsData,
-    loading: loadingAcupoints,
-    execute: fetchAcupoints,
-  } = useCachedEdgeFunction<{ searchTerm: string, searchType: 'point' | 'symptom' }, GetAcupointsResponse>(
-    'get-acupoints',
-    {
-      requiresAuth: true,
-      requiresNotionConfig: true,
-      cacheKey: 'all-acupoints',
-      cacheTtl: 120,
-    }
-  );
 
   // Update Notion appointment
   const {
@@ -194,28 +165,6 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
       }, [actualAppointmentId, fetchSingleAppointment]),
       onError: useCallback((msg: string) => {
         showError(`Update Failed: ${msg}`);
-      }, []),
-    }
-  );
-
-  // Fetch Session Logs
-  const {
-    data: fetchedSessionLogsData,
-    loading: loadingSessionLogs,
-    error: sessionLogsError,
-    execute: fetchSessionLogs,
-  } = useCachedEdgeFunction<{ appointmentId: string }, GetSessionLogsResponse>(
-    'get-session-logs',
-    {
-      requiresAuth: true,
-      cacheKey: actualAppointmentId ? `${actualAppointmentId}:logs` : undefined,
-      cacheTtl: 5, // 5 minutes cache for logs
-      onSuccess: useCallback((data: GetSessionLogsResponse) => {
-        setSessionLogs(data.sessionLogs);
-        setSessionMuscleLogs(data.sessionMuscleLogs);
-      }, []),
-      onError: useCallback((msg: string) => {
-        showError(`Failed to load session logs: ${msg}`);
       }, []),
     }
   );
@@ -284,23 +233,18 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
 
   // --- Effects ---
 
+  // 1. Initial load of core data
   useEffect(() => {
     if (actualAppointmentId && notionConfigured) {
       fetchSingleAppointment({ appointmentId: actualAppointmentId });
       fetchSessionLogs({ appointmentId: actualAppointmentId });
       
-      // --- PRE-FETCH REFERENCE DATA ---
-      // These calls will hit the cache if data is present, or fetch and cache if not.
-      // They run in the background and don't block the main appointment load.
-      fetchMuscles({ searchTerm: '', searchType: 'muscle' });
-      fetchChakras({ searchTerm: '', searchType: 'name' });
-      fetchChannels({ searchTerm: '', searchType: 'name' });
-      fetchAcupoints({ searchTerm: '', searchType: 'point' });
-      // --------------------------------
+      // Only fetch modes immediately as they are needed in the Overview tab
+      fetchModes();
     }
-  }, [actualAppointmentId, notionConfigured, fetchSingleAppointment, fetchSessionLogs, fetchMuscles, fetchChakras, fetchChannels, fetchAcupoints]);
+  }, [actualAppointmentId, notionConfigured, fetchSingleAppointment, fetchSessionLogs, fetchModes]);
 
-  // Clear Notion page viewer when switching tabs
+  // 2. Clear Notion page viewer when switching tabs
   useEffect(() => {
     if (activeTab !== 'notion-page') {
       setSelectedNotionPageId(null);
@@ -310,6 +254,29 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
       setSelectedModeForDetailsPanel(null);
     }
   }, [activeTab]);
+
+  // 3. Lazy loading reference data when tabs are clicked
+  useEffect(() => {
+    if (!notionConfigured) return;
+
+    switch (activeTab) {
+      case 'muscles':
+        if (!musclesData && !loadingMuscles) fetchMuscles({ searchTerm: '', searchType: 'muscle' });
+        break;
+      case 'chakras':
+        if (!chakrasData && !loadingChakras) fetchChakras({ searchTerm: '', searchType: 'name' });
+        break;
+      case 'channels':
+        if (!channelsData && !loadingChannels) fetchChannels({ searchTerm: '', searchType: 'name' });
+        break;
+      case 'acupoints':
+        if (!acupointsData && !loadingAcupoints) fetchAcupoints({ searchTerm: '', searchType: 'point' });
+        break;
+      default:
+        break;
+    }
+  }, [activeTab, notionConfigured, musclesData, loadingMuscles, fetchMuscles, chakrasData, loadingChakras, fetchChakras, channelsData, loadingChannels, fetchChannels, acupointsData, loadingAcupoints, fetchAcupoints]);
+
 
   // Combine all loading states
   const overallLoading = configLoading || loadingAppointment || loggingMuscleStrength || loadingSessionLogs || deletingSessionLog || clearingAllLogs;
@@ -651,6 +618,8 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
                         onOpenNotionPage={handleOpenNotionPage}
                         onLogSuccess={handleLogSuccess}
                         onOpenModeDetailsPanel={handleOpenModeDetailsPanel}
+                        initialModes={modesData?.modes}
+                        loadingInitial={loadingModes}
                       />
                     </div>
                   </CardContent>

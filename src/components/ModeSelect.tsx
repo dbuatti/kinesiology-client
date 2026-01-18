@@ -18,6 +18,8 @@ interface ModeSelectProps {
   onOpenNotionPage: (pageId: string, pageTitle: string) => void;
   onLogSuccess: () => void;
   onOpenModeDetailsPanel: (mode: Mode) => void;
+  initialModes?: Mode[]; // New prop for pre-fetched data
+  loadingInitial: boolean; // New prop for initial loading state
 }
 
 const ModeSelect: React.FC<ModeSelectProps> = ({
@@ -26,8 +28,10 @@ const ModeSelect: React.FC<ModeSelectProps> = ({
   onOpenNotionPage,
   onLogSuccess,
   onOpenModeDetailsPanel,
+  initialModes,
+  loadingInitial,
 }) => {
-  const [allModes, setAllModes] = useState<Mode[]>([]);
+  const [allModes, setAllModes] = useState<Mode[]>(initialModes || []);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [currentModeSelection, setCurrentModeSelection] = useState<Mode | null>(null);
   const [sessionSelectedModes, setSessionSelectedModes] = useState<Mode[]>([]);
@@ -45,7 +49,7 @@ const ModeSelect: React.FC<ModeSelectProps> = ({
   }, []);
 
   const {
-    loading: loadingModes,
+    loading: loadingModesHook,
     error: modesError,
     needsConfig: modesNeedsConfig,
     execute: fetchModes,
@@ -93,12 +97,15 @@ const ModeSelect: React.FC<ModeSelectProps> = ({
   // --- End Logging Handlers ---
 
 
-  // Fetch all modes on initial mount
+  // Effect to handle initial data load from props or trigger fetch if props are empty
   useEffect(() => {
-    if (allModes.length === 0 && !loadingModes && !modesError && !modesNeedsConfig) {
+    if (initialModes && initialModes.length > 0) {
+      setAllModes(initialModes);
+    } else if (!loadingInitial && allModes.length === 0 && !modesError && !modesNeedsConfig) {
+      // If no initial data provided, fetch it now (this should only happen if the parent component didn't pre-fetch)
       fetchModes();
     }
-  }, [allModes.length, loadingModes, modesError, modesNeedsConfig, fetchModes]);
+  }, [initialModes, loadingInitial, allModes.length, modesError, modesNeedsConfig, fetchModes]);
 
   // Notify parent when sessionSelectedModes changes
   useEffect(() => {
@@ -149,11 +156,13 @@ const ModeSelect: React.FC<ModeSelectProps> = ({
     navigate(`/mode-details/${modeId}`);
   };
 
+  const isLoading = loadingInitial || loadingModesHook;
+
   if (modesNeedsConfig) {
     return null;
   }
 
-  if (loadingModes) {
+  if (isLoading && allModes.length === 0) {
     return (
       <Button variant="outline" className="w-full justify-between" disabled>
         <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -183,7 +192,7 @@ const ModeSelect: React.FC<ModeSelectProps> = ({
           <Command>
             <CommandInput
               placeholder="Search mode..."
-              disabled={loadingModes}
+              disabled={isLoading}
             />
             <CommandEmpty>No mode found.</CommandEmpty>
             <CommandGroup className="max-h-[300px] overflow-y-auto">
