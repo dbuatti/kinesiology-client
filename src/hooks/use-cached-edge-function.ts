@@ -83,6 +83,7 @@ export const useCachedEdgeFunction = <TRequest, TResponse>(
 
         const cachedConfig = await cacheService.get(userId, configCacheKey);
         
+        // Check if cached config status is valid and not expired
         if (cachedConfig && cachedConfig.validUntil && new Date(cachedConfig.validUntil) > new Date()) {
           isConfigValid = true;
           console.log(`[useCachedEdgeFunction] Notion config status cache hit. Skipping network check.`);
@@ -117,6 +118,7 @@ export const useCachedEdgeFunction = <TRequest, TResponse>(
           
           // If successful (200 OK), cache the status for 15 minutes
           const validUntil = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+          // Store a simple object indicating validity and expiration time
           await cacheService.set(userId, configCacheKey, { valid: true, validUntil }, 15);
           isConfigValid = true;
           console.log(`[useCachedEdgeFunction] Notion config status successfully fetched and cached.`);
