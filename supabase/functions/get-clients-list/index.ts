@@ -52,6 +52,7 @@ serve(async (req) => {
 
     if (secretsError || !secrets || !secrets.crm_database_id) {
       console.error("[get-clients-list] Notion CRM database ID not configured or secrets fetch failed:", secretsError?.message)
+      // Return 404 if configuration is missing
       return new Response(JSON.stringify({
         error: 'Notion CRM database ID not configured. Please configure your Notion credentials first.',
         errorCode: 'NOTION_CONFIG_NOT_FOUND'
@@ -88,13 +89,14 @@ serve(async (req) => {
     }))
 
     if (clients.length === 0) {
-        console.log("[get-clients-list] Clients mirror is empty. Suggesting sync.")
+        console.log("[get-clients-list] Clients mirror is empty. Returning empty list with specific error code.")
+        // Return 200 OK, but signal empty state via error code in body
         return new Response(JSON.stringify({ 
             error: 'No clients found in local database. Please run a Notion sync.',
             errorCode: 'CLIENTS_MIRROR_EMPTY',
             clients: []
         }), {
-            status: 404,
+            status: 200, // Changed status to 200
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
     }
