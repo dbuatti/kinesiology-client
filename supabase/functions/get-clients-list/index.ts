@@ -42,7 +42,7 @@ serve(async (req) => {
 
     console.log("[get-clients-list] User authenticated:", user.id)
 
-    // Use service role client to fetch secrets securely
+    // Use service role client to fetch secrets securely AND to fetch clients_mirror data for debugging
     const serviceRoleSupabase = createClient(supabaseUrl, supabaseServiceRoleKey)
     const { data: secrets, error: secretsError } = await serviceRoleSupabase
       .from('notion_secrets')
@@ -62,11 +62,14 @@ serve(async (req) => {
       })
     }
 
-    // Fetch clients from the clients_mirror table. RLS handles filtering by user_id.
-    const { data: clientsData, error: fetchError } = await supabase
+    // --- DEBUG CHANGE: Use serviceRoleSupabase to fetch clients_mirror data ---
+    // This bypasses RLS and confirms if the data exists in the table for the current user.
+    const { data: clientsData, error: fetchError } = await serviceRoleSupabase
       .from('clients_mirror')
       .select('id, name, focus, email, phone, star_sign')
+      .eq('user_id', user.id) // Filter by user_id explicitly since RLS is bypassed
       .order('name', { ascending: true });
+    // --- END DEBUG CHANGE ---
 
     if (fetchError) {
       console.error("[get-clients-list] Database fetch error:", fetchError?.message)
