@@ -45,39 +45,6 @@ const AllClients = () => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const navigate = useNavigate();
 
-  const handleFetchAllClientsSuccess = useCallback((data: GetAllClientsResponse, isCached: boolean) => {
-    if ((data as any).errorCode === 'CLIENTS_TABLE_EMPTY') {
-      setIsTableEmpty(true);
-      setClients([]);
-      setFilteredClients([]);
-    } else {
-      setClients(data.clients);
-      setFilteredClients(data.clients);
-      setIsTableEmpty(false);
-    }
-  }, []);
-
-  const handleFetchAllClientsError = useCallback((msg: string, errorCode?: string) => {
-    if (errorCode === 'CLIENTS_TABLE_EMPTY') {
-      setIsTableEmpty(true);
-      setClients([]);
-      setFilteredClients([]);
-    } else if (errorCode === 'NOTION_CONFIG_NOT_FOUND') {
-      // Handled by needsConfig check below
-    } else {
-      showError(msg);
-    }
-  }, []);
-
-  const handleUpdateClientSuccess = useCallback(() => {
-    showSuccess('Client updated successfully.');
-  }, []);
-
-  const handleUpdateClientError = useCallback((msg: string) => {
-    showError(`Update Failed: ${msg}`);
-    fetchAllClients(); // Re-fetch to ensure data consistency if optimistic update failed
-  }, [fetchAllClients]);
-
   // 1. Fetch Clients (from clients table)
   const {
     data: fetchedClientsData,
@@ -94,12 +61,43 @@ const AllClients = () => {
       requiresNotionConfig: false, // Clients are now local, no Notion config needed
       cacheKey: 'all-clients',
       cacheTtl: 60, // 1 hour cache
-      onSuccess: handleFetchAllClientsSuccess,
-      onError: handleFetchAllClientsError,
+      onSuccess: useCallback((data: GetAllClientsResponse, isCached: boolean) => {
+        if ((data as any).errorCode === 'CLIENTS_TABLE_EMPTY') {
+          setIsTableEmpty(true);
+          setClients([]);
+          setFilteredClients([]);
+        } else {
+          setClients(data.clients);
+          setFilteredClients(data.clients);
+          setIsTableEmpty(false);
+        }
+      }, []),
+      onError: useCallback((msg: string, errorCode?: string) => {
+        if (errorCode === 'CLIENTS_TABLE_EMPTY') {
+          setIsTableEmpty(true);
+          setClients([]);
+          setFilteredClients([]);
+        } else if (errorCode === 'NOTION_CONFIG_NOT_FOUND') {
+          // Handled by needsConfig check below
+        } else {
+          showError(msg);
+        }
+      }, []),
     }
   );
 
   // 2. Update Client (Supabase clients table)
+  const handleUpdateClientSuccess = useCallback(() => {
+    showSuccess('Client updated successfully.');
+  }, []);
+
+  const handleUpdateClientError = useCallback((msg: string) => {
+    showError(`Update Failed: ${msg}`);
+    // Re-fetch to ensure data consistency if optimistic update failed
+    // fetchAllClients is guaranteed to be defined here
+    fetchAllClients(); 
+  }, [fetchAllClients]); // Dependency added
+
   const {
     loading: updatingClient,
     execute: updateClient,
