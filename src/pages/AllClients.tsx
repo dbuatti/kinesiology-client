@@ -356,11 +356,6 @@ const AllClients = () => {
                       <TableRow key={client.id}>
                         <TableCell className="font-medium">
                           {client.name}
-                          {clientsIsCached && (
-                            <Badge variant="secondary" className="bg-green-200 text-green-800 ml-2">
-                              Cached
-                            </Badge>
-                          )}
                         </TableCell>
                         <TableCell>
                           <Textarea

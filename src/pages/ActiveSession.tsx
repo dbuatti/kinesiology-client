@@ -500,11 +500,6 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
                     <CardTitle className="text-2xl font-bold flex items-center gap-2">
                       <User className="w-6 h-6" />
                       {appointment.clientName}
-                      {appointmentIsCached && (
-                        <Badge variant="secondary" className="bg-green-200 text-green-800 ml-2">
-                          Cached
-                        </Badge>
-                      )}
                     </CardTitle>
                     <div className="flex items-center gap-2 text-indigo-100 mt-2">
                       <Star className="w-4 h-4 fill-current" />

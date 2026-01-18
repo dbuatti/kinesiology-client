@@ -225,11 +225,6 @@ const AllAppointments = () => {
                       <TableRow key={app.id}>
                         <TableCell className="font-medium">
                           {app.clientName}
-                          {appointmentsIsCached && (
-                            <Badge variant="secondary" className="bg-green-200 text-green-800 ml-2">
-                              Cached
-                            </Badge>
-                          )}
                         </TableCell>
                         <TableCell>{app.date ? format(new Date(app.date), 'PPP') : 'N/A'}</TableCell>
                         <TableCell>

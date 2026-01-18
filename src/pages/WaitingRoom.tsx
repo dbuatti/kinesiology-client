@@ -215,11 +215,6 @@ const WaitingRoom = () => {
                   <CardTitle className="text-xl font-bold text-indigo-800 flex items-center gap-2">
                     <User className="w-5 h-5" />
                     {appointment.clientName}
-                    {appointmentsIsCached && (
-                      <Badge variant="secondary" className="bg-green-200 text-green-800 ml-2">
-                        Cached
-                      </Badge>
-                    )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-4 space-y-3">
