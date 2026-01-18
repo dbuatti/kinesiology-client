@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
-import { Check, ChevronsUpDown, Info, Loader2, Trash2, ChevronRight, XCircle } from 'lucide-react';
+import { Check, ChevronsUpDown, Info, Loader2, Trash2, ChevronRight, XCircle, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCachedEdgeFunction } from '@/hooks/use-cached-edge-function';
 import { useReferenceData } from '@/hooks/use-reference-data'; // Import centralized hook
@@ -12,6 +12,7 @@ import { Mode, LogSessionEventPayload, LogSessionEventResponse } from '@/types/a
 import { showSuccess, showError } from '@/utils/toast';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from './ui/card';
+import { Badge } from './ui/badge';
 
 interface ModeSelectProps {
   appointmentId: string;
@@ -28,7 +29,7 @@ const ModeSelect: React.FC<ModeSelectProps> = ({
   onLogSuccess,
   onOpenModeDetailsPanel,
 }) => {
-  const { data, loading: loadingReferenceData, needsConfig: modesNeedsConfig } = useReferenceData();
+  const { data, loading: loadingReferenceData, needsConfig: modesNeedsConfig, isCached: isDataCached } = useReferenceData();
   const allModes = data.modes;
 
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
@@ -117,16 +118,26 @@ const ModeSelect: React.FC<ModeSelectProps> = ({
   const isLoading = loadingReferenceData;
 
   if (modesNeedsConfig) {
-    return null;
-  }
-
-  if (isLoading && allModes.length === 0) {
     return (
-      <Button variant="outline" className="w-full justify-between" disabled>
-        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-        Loading Modes...
-        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-      </Button>
+      <Card className="max-w-md w-full shadow-xl mx-auto">
+        <CardContent className="pt-8 text-center">
+          <div className="mx-auto mb-4 p-4 bg-indigo-100 rounded-full w-20 h-20 flex items-center justify-center">
+            <Settings className="w-10 h-10 text-indigo-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-indigo-900 mb-2">
+            Notion Modes Database Required
+          </h2>
+          <p className="text-gray-600 mb-6">
+            Please configure your Notion Modes Database ID to use the Mode Selector.
+          </p>
+          <Button
+            className="w-full h-12 text-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+            onClick={() => navigate('/notion-config')}
+          >
+            Configure Notion
+          </Button>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -184,6 +195,12 @@ const ModeSelect: React.FC<ModeSelectProps> = ({
           </Command>
         </PopoverContent>
       </Popover>
+
+      {isDataCached && (
+        <Badge variant="secondary" className="bg-green-200 text-green-800 w-full justify-center">
+          Modes Cached
+        </Badge>
+      )}
 
       {sessionSelectedModes.length > 0 && (
         <div className="space-y-2">

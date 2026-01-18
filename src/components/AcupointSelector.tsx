@@ -26,7 +26,7 @@ interface AcupointSelectorProps {
 }
 
 const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLogSuccess, onClearSelection, onOpenNotionPage, onAcupointSelected }) => {
-  const { data, loading: loadingReferenceData, needsConfig: acupointsNeedsConfig } = useReferenceData();
+  const { data, loading: loadingReferenceData, needsConfig: acupointsNeedsConfig, isCached: isDataCached } = useReferenceData();
   const allAcupoints = data.acupoints;
 
   const [foundAcupoints, setFoundAcupoints] = useState<Acupoint[]>(allAcupoints);
@@ -35,7 +35,6 @@ const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLo
   const [selectedAcupoint, setSelectedAcupoint] = useState<Acupoint | null>(null);
   const [isAcupointSearchOpen, setIsAcupointSearchOpen] = useState(false);
   const [isSymptomSearchOpen, setIsSymptomSearchOpen] = useState(false);
-  const [isDataCached, setIsDataCached] = useState(true); // Assume cached since data comes from provider
 
   const navigate = useNavigate();
 
@@ -166,7 +165,7 @@ const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLo
 
   if (acupointsNeedsConfig) {
     return (
-      <Card className="max-w-md w-full w-full shadow-xl mx-auto">
+      <Card className="max-w-md w-full shadow-xl mx-auto">
         <CardContent className="pt-8 text-center">
           <div className="mx-auto mb-4 p-4 bg-indigo-100 rounded-full w-20 h-20 flex items-center justify-center">
             <Settings className="w-10 h-10 text-indigo-600" />
