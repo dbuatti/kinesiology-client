@@ -27,7 +27,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+}
+from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -98,22 +99,26 @@ export default function AllClients() {
   const updateClientMutation = useCachedEdgeFunction<UpdateNotionClientPayload, { success: boolean }>(
     "update-client",
     {
-      onSuccess: (_, payload) => {
+      onSuccess: (_, __, payload) => { // Fix 2: Added __ for isCached, payload is third argument
         showSuccess("Client updated");
         setPendingUpdates((prev) => {
           const next = { ...prev };
-          delete next[payload.clientId];
+          if (payload?.clientId) { // Safely check for clientId
+            delete next[payload.clientId];
+          }
           return next;
         });
       },
-      onError: (msg, _, payload) => {
+      onError: (msg, _, payload) => { // Fix 3: Added _ for errorCode, payload is third argument
         showError(`Update failed: ${msg}`);
         // Revert optimistic update
-        setClients((prev) =>
-          prev.map((c) =>
-            c.id === payload.clientId ? { ...c, ...pendingUpdates[payload.clientId] } : c
-          )
-        );
+        if (payload?.clientId) {
+          setClients((prev) =>
+            prev.map((c) =>
+              c.id === payload.clientId ? { ...c, ...pendingUpdates[payload.clientId] } : c
+            )
+          );
+        }
       },
     }
   );
@@ -277,7 +282,7 @@ export default function AllClients() {
                           name="name"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel required>Name</FormLabel>
+                              <FormLabel>Name <span className="text-red-500">*</span></FormLabel> {/* Fix 4: Manual required indicator */}
                               <FormControl>
                                 <Input placeholder="Full name" {...field} />
                               </FormControl>

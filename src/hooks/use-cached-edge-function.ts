@@ -6,19 +6,19 @@ import { supabase } from '@/integrations/supabase/client';
 import { cacheService } from '@/integrations/supabase/cache';
 import { showSuccess, showError } from '@/utils/toast';
 
-interface UseCachedEdgeFunctionOptions {
+interface UseCachedEdgeFunctionOptions<TRequest> {
   requiresAuth?: boolean;
   requiresNotionConfig?: boolean;
   cacheKey?: string;
   cacheTtl?: number; // minutes
-  onSuccess?: (data: any, isCached: boolean) => void;
-  onError?: (error: string, errorCode?: string) => void;
+  onSuccess?: (data: any, isCached: boolean, payload?: TRequest) => void;
+  onError?: (error: string, errorCode?: string, payload?: TRequest) => void;
   onNotionConfigNeeded?: () => void;
 }
 
 export const useCachedEdgeFunction = <TRequest, TResponse>(
   functionName: string,
-  options?: UseCachedEdgeFunctionOptions
+  options?: UseCachedEdgeFunctionOptions<TRequest>
 ) => {
   const {
     requiresAuth = true,
@@ -141,7 +141,7 @@ export const useCachedEdgeFunction = <TRequest, TResponse>(
           console.log(`[useCachedEdgeFunction] Cache hit for ${functionName} with key: ${cacheKey}`);
           setData(cachedData);
           setIsCached(true);
-          onSuccessRef.current?.(cachedData, true); // Pass true for isCached
+          onSuccessRef.current?.(cachedData, true, payload); // Pass true for isCached, and payload
           setLoading(false);
           return;
         }
@@ -168,7 +168,7 @@ export const useCachedEdgeFunction = <TRequest, TResponse>(
         const errorCode = errorData.errorCode;
 
         setError(errorMessage);
-        onErrorRef.current?.(errorMessage, errorCode);
+        onErrorRef.current?.(errorMessage, errorCode, payload); // Pass payload
 
         if (errorCode === 'PROFILE_NOT_FOUND' || errorCode === 'PRACTITIONER_NAME_MISSING') {
           showError(`Profile Required: ${errorMessage}`);
@@ -185,7 +185,7 @@ export const useCachedEdgeFunction = <TRequest, TResponse>(
 
       const result = await response.json();
       setData(result);
-      onSuccessRef.current?.(result, false); // Pass false for isCached
+      onSuccessRef.current?.(result, false, payload); // Pass false for isCached, and payload
       console.log(`[useCachedEdgeFunction] Successfully fetched data for ${functionName}.`);
 
       // Cache the result if cacheKey is provided
@@ -198,7 +198,7 @@ export const useCachedEdgeFunction = <TRequest, TResponse>(
       console.error(`[useCachedEdgeFunction] Caught error in ${functionName}:`, err);
       const errorMessage = err.message || 'An unexpected error occurred.';
       setError(errorMessage);
-      onErrorRef.current?.(errorMessage);
+      onErrorRef.current?.(errorMessage, undefined, payload); // Pass payload
       showError(`Error: ${errorMessage}`);
     } finally {
       console.log(`[useCachedEdgeFunction] Finally block reached for ${functionName}. Setting loading to false.`);
