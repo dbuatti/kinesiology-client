@@ -1,350 +1,438 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
-import { Check, ChevronsUpDown, Calendar, User, Settings, Loader2, Search, AlertCircle, XCircle, PlayCircle } from 'lucide-react';
-import { showSuccess, showError } from '@/utils/toast';
-import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
-import { useCachedEdgeFunction } from '@/hooks/use-cached-edge-function';
-import { Appointment, GetAllAppointmentsResponse, UpdateNotionAppointmentPayload, UpdateNotionAppointmentResponse } from '@/types/api';
-import SyncStatusIndicator from '@/components/SyncStatusIndicator';
-import { Badge } from '@/components/ui/badge';
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { format } from "date-fns";
+import debounce from "lodash/debounce";
 
-const statusOptions = ['AP', 'OPEN', 'CH', 'CXL']; // Status options for Supabase table
-const priorityPatternOptions = ['Pattern A', 'Pattern B', 'Pattern C', 'Pattern D'];
+import {
+  AlertCircle,
+  Calendar,
+  Check,
+  ChevronsUpDown,
+  Loader2,
+  PlayCircle,
+  RefreshCw,
+  Search,
+  X,
+} from "lucide-react";
 
-const AllAppointments = () => {
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [filteredAppointments, setFilteredAppointments] = useState<Appointment[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { showError, showSuccess } from "@/utils/toast";
+import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
+
+import { useCachedEdgeFunction } from "@/hooks/use-cached-edge-function";
+import type {
+  Appointment,
+  GetAllAppointmentsResponse,
+  UpdateNotionAppointmentPayload,
+} from "@/types/api";
+
+const STATUS_OPTIONS = ["AP", "OPEN", "CH", "CXL"] as const;
+const PRIORITY_PATTERNS = ["Pattern A", "Pattern B", "Pattern C", "Pattern D"] as const;
+
+type Status = (typeof STATUS_OPTIONS)[number];
+type PriorityPattern = (typeof PRIORITY_PATTERNS)[number];
+
+export default function AllAppointments() {
   const navigate = useNavigate();
 
-  const handleFetchAllAppointmentsSuccess = useCallback((data: GetAllAppointmentsResponse) => {
-    setAppointments(data.appointments);
-    setFilteredAppointments(data.appointments);
-  }, []);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [pendingUpdates, setPendingUpdates] = useState<Record<string, Partial<Appointment>>>({});
 
-  const handleFetchAllAppointmentsError = useCallback((msg: string) => {
-    showError(msg);
-  }, []);
+  // ── Data Fetching ───────────────────────────────────────────────────────────
 
-  const handleUpdateAppointmentSuccess = useCallback(() => {
-    showSuccess('Appointment updated successfully.');
-  }, []);
-
-  const handleUpdateAppointmentError = useCallback((msg: string) => {
-    showError(`Update Failed: ${msg}`);
-    fetchAllAppointments(); // Re-fetch to ensure data consistency if optimistic update failed
-  }, []);
-
-  const {
-    data: fetchedAppointmentsData,
-    loading: loadingAppointments,
-    error: appointmentsError,
-    needsConfig,
-    execute: fetchAllAppointments,
-    isCached: appointmentsIsCached,
-  } = useCachedEdgeFunction<void, GetAllAppointmentsResponse>(
-    'get-all-appointments',
+  const appointmentsQuery = useCachedEdgeFunction<void, GetAllAppointmentsResponse>(
+    "get-all-appointments",
     {
-      requiresAuth: true,
-      requiresNotionConfig: false, // Appointments are now local, but reference data still needs Notion
-      cacheKey: 'all-appointments',
-      cacheTtl: 60, // 1 hour cache
-      onSuccess: handleFetchAllAppointmentsSuccess,
-      onError: handleFetchAllAppointmentsError,
+      cacheKey: "appointments:all",
+      cacheTtl: 300, // 5 minutes
+      onSuccess: (data) => {
+        setAppointments(data.appointments ?? []);
+      },
+      onError: (msg, code) => {
+        if (code !== "NO_APPOINTMENTS") {
+          showError(msg);
+        }
+      },
     }
   );
 
-  const {
-    loading: updatingAppointment,
-    execute: updateAppointment, // Renamed to updateAppointment
-  } = useCachedEdgeFunction<UpdateNotionAppointmentPayload, UpdateNotionAppointmentResponse>(
-    'update-appointment', // New function name
-    {
-      requiresAuth: true,
-      onSuccess: handleUpdateAppointmentSuccess,
-      onError: handleUpdateAppointmentError,
-    }
+  const updateAppointmentMutation = useCachedEdgeFunction<
+    UpdateNotionAppointmentPayload,
+    { success: boolean }
+  >("update-appointment", {
+    onSuccess: (_, payload) => {
+      showSuccess("Appointment updated");
+      setPendingUpdates((prev) => {
+        const next = { ...prev };
+        delete next[payload.appointmentId];
+        return next;
+      });
+    },
+    onError: (msg, _, payload) => {
+      showError(`Update failed: ${msg}`);
+      // Rollback optimistic update
+      setAppointments((prev) =>
+        prev.map((a) =>
+          a.id === payload.appointmentId
+            ? { ...a, ...pendingUpdates[payload.appointmentId] }
+            : a
+        )
+      );
+    },
+  });
+
+  // ── Effects ─────────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    appointmentsQuery.execute();
+  }, []);
+
+  // ── Search (memoized) ───────────────────────────────────────────────────────
+
+  const filteredAppointments = useMemo(() => {
+    if (!searchTerm.trim()) return appointments;
+
+    const term = searchTerm.toLowerCase();
+    return appointments.filter(
+      (a) =>
+        a.clientName?.toLowerCase().includes(term) ||
+        a.goal?.toLowerCase().includes(term) ||
+        a.sessionNorthStar?.toLowerCase().includes(term) ||
+        a.notes?.toLowerCase().includes(term) ||
+        a.status?.toLowerCase().includes(term) ||
+        a.priorityPattern?.toLowerCase().includes(term)
+    );
+  }, [appointments, searchTerm]);
+
+  // ── Debounced field updates ─────────────────────────────────────────────────
+
+  const debouncedUpdate = useCallback(
+    debounce((payload: UpdateNotionAppointmentPayload) => {
+      updateAppointmentMutation.execute(payload);
+    }, 700),
+    []
   );
 
-  useEffect(() => {
-    fetchAllAppointments();
-  }, [fetchAllAppointments]);
+  const handleFieldChange = useCallback(
+    (appointmentId: string, field: keyof Appointment, value: string | null) => {
+      setAppointments((prev) =>
+        prev.map((app) =>
+          app.id === appointmentId ? { ...app, [field]: value } : app
+        )
+      );
 
-  useEffect(() => {
-    const lowerCaseSearchTerm = searchTerm.toLowerCase();
-    const filtered = appointments.filter(app =>
-      app.clientName.toLowerCase().includes(lowerCaseSearchTerm) ||
-      app.goal.toLowerCase().includes(lowerCaseSearchTerm) ||
-      app.notes.toLowerCase().includes(lowerCaseSearchTerm) ||
-      app.status.toLowerCase().includes(lowerCaseSearchTerm) ||
-      app.sessionNorthStar.toLowerCase().includes(lowerCaseSearchTerm) ||
-      (app.priorityPattern && app.priorityPattern.toLowerCase().includes(lowerCaseSearchTerm))
-    );
-    setFilteredAppointments(filtered);
-  }, [searchTerm, appointments]);
+      setPendingUpdates((prev) => ({
+        ...prev,
+        [appointmentId]: { ...prev[appointmentId], [field]: value },
+      }));
 
-  const handleLocalFieldChange = (id: string, field: keyof Appointment, value: any) => {
-    // Update local state immediately for responsive UI
-    setAppointments(prev => prev.map(app =>
-      app.id === id ? { ...app, [field]: value } : app
-    ));
-  };
+      debouncedUpdate({
+        appointmentId,
+        updates: { [field]: value },
+      });
+    },
+    []
+  );
 
-  const handleFieldBlur = (id: string, field: keyof Appointment, value: any) => {
-    // Trigger API update only on blur
-    updateAppointment({ appointmentId: id, updates: { [field]: value } });
-  };
+  const handleSelectChange = useCallback(
+    (appointmentId: string, field: keyof Appointment, value: string) => {
+      handleFieldChange(appointmentId, field, value);
+    },
+    [handleFieldChange]
+  );
 
-  const handleSelectChange = (id: string, field: keyof Appointment, value: any) => {
-    // For select components, update immediately
-    handleLocalFieldChange(id, field, value);
-    updateAppointment({ appointmentId: id, updates: { [field]: value } });
-  };
+  const startSession = useCallback(
+    (appointmentId: string) => {
+      navigate(`/active-session/${appointmentId}`);
+    },
+    [navigate]
+  );
 
-  const handleClearSearch = useCallback(() => {
-    setSearchTerm('');
-    setFilteredAppointments(appointments); // Reset to all appointments
-  }, [appointments]);
+  // ── Render states ───────────────────────────────────────────────────────────
 
-  const handleStartSession = useCallback(async (appointmentId: string) => {
-    // Navigate directly to the active session page for this appointment
-    navigate(`/active-session/${appointmentId}`);
-  }, [navigate]);
-
-  if (loadingAppointments) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6 flex items-center justify-center">
-        <Loader2 className="w-12 h-12 animate-spin text-indigo-600" />
-      </div>
-    );
-  }
-
-  if (appointmentsError) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center p-6">
-        <Card className="max-w-md w-full shadow-lg">
-          <CardContent className="pt-6 text-center">
-            <div className="text-red-500 mb-4">
-              <AlertCircle className="w-12 h-12 mx-auto" />
-            </div>
-            <h2 className="xl font-bold mb-2">Error Loading Appointments</h2>
-            <p className="text-gray-600 mb-4">{appointmentsError}</p>
-            <div className="space-y-2">
-              <Button onClick={() => fetchAllAppointments()}>Try Again</Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
+  if (appointmentsQuery.loading && appointments.length === 0) {
+    return <LoadingState />;
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6">
-      <div className="mx-auto w-full">
-        <Card className="shadow-xl">
-          <CardHeader className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-t-lg p-4">
-            <CardTitle className="text-3xl font-bold flex items-center gap-3">
-              <Calendar className="w-7 h-7" />
-              All Appointments
-            </CardTitle>
-            <p className="text-indigo-100 mt-1">Manage all your client appointments.</p>
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 px-4 py-6 md:p-8">
+      <div className="mx-auto max-w-7xl">
+        <Card className="shadow-2xl border-0 overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-indigo-600 to-purple-700 text-white px-6 py-8">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <Calendar className="h-8 w-8" />
+                <div>
+                  <CardTitle className="text-3xl font-bold tracking-tight">
+                    Appointments
+                  </CardTitle>
+                  <p className="mt-1.5 text-indigo-100/90 text-lg">
+                    Manage and start client sessions
+                  </p>
+                </div>
+              </div>
+
+              <Badge
+                variant="outline"
+                className="bg-white/15 text-white border-white/30 px-4 py-1.5 text-base"
+              >
+                {appointments.length} total
+              </Badge>
+            </div>
           </CardHeader>
 
-          <CardContent className="pt-6">
-            <div className="mb-6 flex items-center gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <CardContent className="p-6">
+            {/* Controls */}
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-6">
+              <div className="relative flex-1 max-w-xl">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-muted-foreground" />
                 <Input
-                  type="text"
-                  placeholder="Search appointments by client, goal, notes, or status..."
+                  placeholder="Search by client, goal, north star, notes, status..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-10 py-2 border rounded-md w-full" // Added pr-10 for clear button
+                  className="pl-10 pr-10 h-11"
                 />
                 {searchTerm && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0 text-gray-500 hover:text-gray-700"
-                    onClick={handleClearSearch}
-                    disabled={loadingAppointments}
+                  <button
+                    onClick={() => setSearchTerm("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    <XCircle className="h-4 w-4" />
-                  </Button>
+                    <X className="h-4 w-4" />
+                  </button>
                 )}
               </div>
-              <Button onClick={() => fetchAllAppointments()} variant="outline" disabled={loadingAppointments}>
-                {loadingAppointments ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                {loadingAppointments ? 'Refreshing...' : 'Refresh'}
-              </Button>
-            </div>
 
-            <div className="flex justify-center mb-4">
-              <SyncStatusIndicator onSyncComplete={() => {
-                // Refresh data after sync
-                fetchAllAppointments();
-              }} />
-            </div>
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    appointmentsQuery.invalidateCache();
+                    appointmentsQuery.execute();
+                  }}
+                  disabled={appointmentsQuery.loading || updateAppointmentMutation.loading}
+                  className="gap-2"
+                >
+                  {appointmentsQuery.loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                  Refresh
+                </Button>
 
-            {filteredAppointments.length === 0 && searchTerm !== '' ? (
-              <div className="text-center py-10 text-gray-600">
-                No appointments found matching your search.
+                <div className="hidden sm:block">
+                  <SyncStatusIndicator
+                    onSyncComplete={() => appointmentsQuery.execute()}
+                    size="sm"
+                  />
+                </div>
               </div>
+            </div>
+
+            {/* Content Area */}
+            {appointments.length === 0 ? (
+              <EmptyState isLoading={appointmentsQuery.loading} />
             ) : filteredAppointments.length === 0 ? (
-              <div className="text-center py-10 text-gray-600">
-                No appointments available.
+              <div className="py-16 text-center text-muted-foreground">
+                <Search className="mx-auto h-12 w-12 opacity-40 mb-4" />
+                <h3 className="text-xl font-medium">No matching appointments</h3>
+                <p className="mt-2">Try adjusting your search or refresh the list.</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="min-w-[150px]">Client Name</TableHead>
-                      <TableHead className="min-w-[120px]">Date</TableHead>
-                      <TableHead className="min-w-[200px]">Goal</TableHead>
-                      <TableHead className="min-w-[200px]">Session North Star</TableHead>
-                      <TableHead className="min-w-[150px]">Priority Pattern</TableHead>
-                      <TableHead className="min-w-[120px]">Status</TableHead>
-                      <TableHead className="min-w-[250px]">Notes</TableHead>
-                      <TableHead className="min-w-[100px]">Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredAppointments.map((app) => (
-                      <TableRow key={app.id}>
-                        <TableCell className="font-medium">
-                          {app.clientName}
-                        </TableCell>
-                        <TableCell>{app.date ? format(new Date(app.date), 'PPP') : 'N/A'}</TableCell>
-                        <TableCell>
-                          <Textarea
-                            value={app.goal}
-                            onChange={(e) => handleLocalFieldChange(app.id, 'goal', e.target.value)}
-                            onBlur={(e) => handleFieldBlur(app.id, 'goal', e.target.value)}
-                            className="min-h-[60px] w-full"
-                            disabled={updatingAppointment}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Textarea
-                            value={app.sessionNorthStar}
-                            onChange={(e) => handleLocalFieldChange(app.id, 'sessionNorthStar', e.target.value)}
-                            onBlur={(e) => handleFieldBlur(app.id, 'sessionNorthStar', e.target.value)}
-                            className="min-h-[60px] w-full"
-                            disabled={updatingAppointment}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button
-                                variant="outline"
-                                role="combobox"
-                                className="w-full justify-between"
-                                disabled={updatingAppointment}
-                              >
-                                {app.priorityPattern || "Select Pattern"}
-                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-[200px] p-0">
-                              <Command>
-                                <CommandInput placeholder="Search pattern..." />
-                                <CommandEmpty>No pattern found.</CommandEmpty>
-                                <CommandGroup>
-                                  {priorityPatternOptions.map((pattern) => (
-                                    <CommandItem
-                                      key={pattern}
-                                      value={pattern}
-                                      onSelect={() => handleSelectChange(app.id, 'priorityPattern', pattern)}
-                                    >
-                                      <Check
-                                        className={cn(
-                                          "mr-2 h-4 w-4",
-                                          app.priorityPattern === pattern ? "opacity-100" : "opacity-0"
-                                        )}
-                                      />
-                                      {pattern}
-                                    </CommandItem>
-                                  ))}
-                                </CommandGroup>
-                              </Command>
-                            </PopoverContent>
-                          </Popover>
-                        </TableCell>
-                        <TableCell>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button
-                                variant="outline"
-                                role="combobox"
-                                className="w-full justify-between"
-                                disabled={updatingAppointment}
-                              >
-                                {app.status || "Select Status"}
-                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-[150px] p-0">
-                              <Command>
-                                <CommandInput placeholder="Search status..." />
-                                <CommandEmpty>No status found.</CommandEmpty>
-                                <CommandGroup>
-                                  {statusOptions.map((status) => (
-                                    <CommandItem
-                                      key={status}
-                                      value={status}
-                                      onSelect={() => handleSelectChange(app.id, 'status', status)}
-                                    >
-                                      <Check
-                                        className={cn(
-                                          "mr-2 h-4 w-4",
-                                          app.status === status ? "opacity-100" : "opacity-0"
-                                        )}
-                                      />
-                                      {status}
-                                    </CommandItem>
-                                  ))}
-                                </CommandGroup>
-                              </Command>
-                            </PopoverContent>
-                          </Popover>
-                        </TableCell>
-                        <TableCell>
-                          <Textarea
-                            value={app.notes}
-                            onChange={(e) => handleLocalFieldChange(app.id, 'notes', e.target.value)}
-                            onBlur={(e) => handleFieldBlur(app.id, 'notes', e.target.value)}
-                            className="min-h-[60px] w-full"
-                            disabled={updatingAppointment}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleStartSession(app.id)}
-                            disabled={updatingAppointment}
-                          >
-                            <PlayCircle className="h-4 w-4 mr-2" />
-                            Start Session
-                          </Button>
-                        </TableCell>
+              <div className="rounded-lg border overflow-hidden bg-white shadow-sm">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/50 hover:bg-muted/50 border-b">
+                        <TableHead className="w-[180px] pl-6">Client</TableHead>
+                        <TableHead className="w-[140px]">Date</TableHead>
+                        <TableHead className="min-w-[220px]">Goal</TableHead>
+                        <TableHead className="min-w-[220px]">North Star</TableHead>
+                        <TableHead className="w-[180px]">Priority Pattern</TableHead>
+                        <TableHead className="w-[140px]">Status</TableHead>
+                        <TableHead className="min-w-[240px]">Notes</TableHead>
+                        <TableHead className="w-[140px] text-right pr-6">Action</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+
+                    <TableBody>
+                      {filteredAppointments.map((appt) => (
+                        <TableRow
+                          key={appt.id}
+                          className="group hover:bg-muted/40 transition-colors"
+                        >
+                          <TableCell className="pl-6 font-medium">{appt.clientName}</TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {appt.date ? format(new Date(appt.date), "MMM d, yyyy") : "—"}
+                          </TableCell>
+
+                          <TableCell>
+                            <Textarea
+                              value={appt.goal ?? ""}
+                              onChange={(e) =>
+                                handleFieldChange(appt.id, "goal", e.target.value)
+                              }
+                              placeholder="—"
+                              className="min-h-[56px] text-sm resize-none border-0 shadow-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 p-2"
+                              disabled={updateAppointmentMutation.loading}
+                            />
+                          </TableCell>
+
+                          <TableCell>
+                            <Textarea
+                              value={appt.sessionNorthStar ?? ""}
+                              onChange={(e) =>
+                                handleFieldChange(appt.id, "sessionNorthStar", e.target.value)
+                              }
+                              placeholder="—"
+                              className="min-h-[56px] text-sm resize-none border-0 shadow-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 p-2"
+                              disabled={updateAppointmentMutation.loading}
+                            />
+                          </TableCell>
+
+                          <TableCell>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  role="combobox"
+                                  className="w-full justify-between text-left font-normal h-10 px-3"
+                                  disabled={updateAppointmentMutation.loading}
+                                >
+                                  {appt.priorityPattern || <span className="text-muted-foreground">Select...</span>}
+                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-[220px] p-0">
+                                <Command>
+                                  <CommandInput placeholder="Search pattern..." className="h-9" />
+                                  <CommandEmpty>No pattern found.</CommandEmpty>
+                                  <CommandGroup className="max-h-60 overflow-auto">
+                                    {PRIORITY_PATTERNS.map((pattern) => (
+                                      <CommandItem
+                                        key={pattern}
+                                        value={pattern}
+                                        onSelect={() =>
+                                          handleSelectChange(appt.id, "priorityPattern", pattern)
+                                        }
+                                      >
+                                        <Check
+                                          className={cn(
+                                            "mr-2 h-4 w-4",
+                                            appt.priorityPattern === pattern ? "opacity-100" : "opacity-0"
+                                          )}
+                                        />
+                                        {pattern}
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </Command>
+                              </PopoverContent>
+                            </Popover>
+                          </TableCell>
+
+                          <TableCell>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  role="combobox"
+                                  className={cn(
+                                    "w-full justify-between text-left font-normal h-10 px-3",
+                                    !appt.status && "text-muted-foreground"
+                                  )}
+                                  disabled={updateAppointmentMutation.loading}
+                                >
+                                  {appt.status || "Select..."}
+                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-[180px] p-0">
+                                <Command>
+                                  <CommandInput placeholder="Search status..." className="h-9" />
+                                  <CommandEmpty>No status found.</CommandEmpty>
+                                  <CommandGroup>
+                                    {STATUS_OPTIONS.map((status) => (
+                                      <CommandItem
+                                        key={status}
+                                        value={status}
+                                        onSelect={() =>
+                                          handleSelectChange(appt.id, "status", status)
+                                        }
+                                      >
+                                        <Check
+                                          className={cn(
+                                            "mr-2 h-4 w-4",
+                                            appt.status === status ? "opacity-100" : "opacity-0"
+                                          )}
+                                        />
+                                        {status}
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </Command>
+                              </PopoverContent>
+                            </Popover>
+                          </TableCell>
+
+                          <TableCell>
+                            <Textarea
+                              value={appt.notes ?? ""}
+                              onChange={(e) =>
+                                handleFieldChange(appt.id, "notes", e.target.value)
+                              }
+                              placeholder="Additional notes..."
+                              className="min-h-[56px] text-sm resize-none border-0 shadow-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 p-2"
+                              disabled={updateAppointmentMutation.loading}
+                            />
+                          </TableCell>
+
+                          <TableCell className="text-right pr-6">
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => startSession(appt.id)}
+                              disabled={updateAppointmentMutation.loading}
+                              className="gap-1.5 bg-indigo-600 hover:bg-indigo-700"
+                            >
+                              <PlayCircle className="h-4 w-4" />
+                              Start
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             )}
           </CardContent>
@@ -352,6 +440,35 @@ const AllAppointments = () => {
       </div>
     </div>
   );
-};
+}
 
-export default AllAppointments;
+function LoadingState() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center">
+      <div className="flex flex-col items-center gap-4">
+        <Loader2 className="h-12 w-12 animate-spin text-indigo-600" />
+        <p className="text-muted-foreground">Loading appointments...</p>
+      </div>
+    </div>
+  );
+}
+
+function EmptyState({ isLoading }: { isLoading: boolean }) {
+  if (isLoading) return <LoadingState />;
+
+  return (
+    <div className="py-20 text-center">
+      <Calendar className="mx-auto h-16 w-16 text-indigo-200 mb-6" />
+      <h2 className="text-2xl font-semibold text-slate-700 mb-3">
+        No appointments yet
+      </h2>
+      <p className="text-slate-500 max-w-md mx-auto mb-8">
+        Create new appointments from the Waiting Room or sync your calendar.
+      </p>
+      <Button variant="outline" className="gap-2">
+        <RefreshCw className="h-4 w-4" />
+        Refresh List
+      </Button>
+    </div>
+  );
+}
