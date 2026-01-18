@@ -14,6 +14,7 @@ import {
   Search,
   User,
   X,
+  Trash2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -58,6 +59,8 @@ import type {
   Client,
   GetAllClientsResponse,
   UpdateNotionClientPayload,
+  DeleteClientPayload,
+  DeleteClientResponse,
 } from "@/types/api";
 
 const clientFormSchema = z.object({
@@ -99,17 +102,17 @@ export default function AllClients() {
   const updateClientMutation = useCachedEdgeFunction<UpdateNotionClientPayload, { success: boolean }>(
     "update-client",
     {
-      onSuccess: (_, __, payload) => { // Fix 2: Added __ for isCached, payload is third argument
+      onSuccess: (_, __, payload) => {
         showSuccess("Client updated");
         setPendingUpdates((prev) => {
           const next = { ...prev };
-          if (payload?.clientId) { // Safely check for clientId
+          if (payload?.clientId) {
             delete next[payload.clientId];
           }
           return next;
         });
       },
-      onError: (msg, _, payload) => { // Fix 3: Added _ for errorCode, payload is third argument
+      onError: (msg, _, payload) => {
         showError(`Update failed: ${msg}`);
         // Revert optimistic update
         if (payload?.clientId) {
@@ -133,6 +136,18 @@ export default function AllClients() {
         clientsQuery.execute();
       },
       onError: (msg) => showError(`Creation failed: ${msg}`),
+    }
+  );
+  
+  const deleteClientMutation = useCachedEdgeFunction<DeleteClientPayload, DeleteClientResponse>(
+    "delete-client",
+    {
+      onSuccess: (data) => {
+        showSuccess(`Client ${data.deletedClientId} deleted successfully.`);
+        clientsQuery.invalidateCache();
+        clientsQuery.execute();
+      },
+      onError: (msg) => showError(`Deletion failed: ${msg}`),
     }
   );
 
@@ -177,6 +192,12 @@ export default function AllClients() {
     }));
 
     debouncedUpdate({ clientId, updates: { [field]: value } });
+  };
+  
+  const handleDeleteClient = async (clientId: string, clientName: string) => {
+    if (window.confirm(`Are you sure you want to delete client "${clientName}"? This action cannot be undone and will delete all associated appointments.`)) {
+      await deleteClientMutation.execute({ clientId });
+    }
   };
 
   // ── Form ─────────────────────────────────────────────────────────────────────
@@ -250,7 +271,7 @@ export default function AllClients() {
                     clientsQuery.invalidateCache();
                     clientsQuery.execute();
                   }}
-                  disabled={clientsQuery.loading || updateClientMutation.loading}
+                  disabled={clientsQuery.loading || updateClientMutation.loading || deleteClientMutation.loading}
                 >
                   {clientsQuery.loading ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -282,7 +303,7 @@ export default function AllClients() {
                           name="name"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Name <span className="text-red-500">*</span></FormLabel> {/* Fix 4: Manual required indicator */}
+                              <FormLabel>Name <span className="text-red-500">*</span></FormLabel>
                               <FormControl>
                                 <Input placeholder="Full name" {...field} />
                               </FormControl>
@@ -374,24 +395,25 @@ export default function AllClients() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/40">
-                      <TableHead className="w-[180px]">Name</TableHead>
+                      <TableHead className="w-[180px] pl-6">Name</TableHead>
                       <TableHead className="min-w-[220px]">Focus</TableHead>
                       <TableHead className="w-[220px]">Email</TableHead>
                       <TableHead className="w-[160px]">Phone</TableHead>
                       <TableHead className="w-[120px] text-center">Star Sign</TableHead>
+                      <TableHead className="w-[80px] text-right pr-6">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredClients.map((client) => (
                       <TableRow key={client.id} className="group hover:bg-muted/50">
-                        <TableCell className="font-medium">{client.name}</TableCell>
+                        <TableCell className="font-medium pl-6">{client.name}</TableCell>
                         <TableCell>
                           <Textarea
                             value={client.focus ?? ""}
                             onChange={(e) => handleFieldChange(client.id, "focus", e.target.value)}
                             placeholder="—"
                             className="min-h-[52px] text-sm resize-none border-0 shadow-none focus-visible:ring-1"
-                            disabled={updateClientMutation.loading}
+                            disabled={updateClientMutation.loading || deleteClientMutation.loading}
                           />
                         </TableCell>
                         <TableCell>
@@ -401,7 +423,7 @@ export default function AllClients() {
                             onChange={(e) => handleFieldChange(client.id, "email", e.target.value)}
                             placeholder="—"
                             className="border-0 shadow-none focus-visible:ring-1"
-                            disabled={updateClientMutation.loading}
+                            disabled={updateClientMutation.loading || deleteClientMutation.loading}
                           />
                         </TableCell>
                         <TableCell>
@@ -411,7 +433,7 @@ export default function AllClients() {
                             onChange={(e) => handleFieldChange(client.id, "phone", e.target.value)}
                             placeholder="—"
                             className="border-0 shadow-none focus-visible:ring-1"
-                            disabled={updateClientMutation.loading}
+                            disabled={updateClientMutation.loading || deleteClientMutation.loading}
                           />
                         </TableCell>
                         <TableCell className="text-center">
@@ -422,6 +444,17 @@ export default function AllClients() {
                           ) : (
                             <span className="text-muted-foreground text-xs">—</span>
                           )}
+                        </TableCell>
+                        <TableCell className="text-right pr-6">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteClient(client.id, client.name)}
+                            disabled={deleteClientMutation.loading || updateClientMutation.loading}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            {deleteClientMutation.loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}

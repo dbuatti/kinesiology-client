@@ -15,6 +15,7 @@ import {
   RefreshCw,
   Search,
   X,
+  Trash2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,8 @@ import type {
   Appointment,
   GetAllAppointmentsResponse,
   UpdateNotionAppointmentPayload,
+  DeleteAppointmentPayload,
+  DeleteAppointmentResponse,
 } from "@/types/api";
 
 const STATUS_OPTIONS = ["AP", "OPEN", "CH", "CXL"] as const;
@@ -112,6 +115,18 @@ export default function AllAppointments() {
       }
     },
   });
+  
+  const deleteAppointmentMutation = useCachedEdgeFunction<DeleteAppointmentPayload, DeleteAppointmentResponse>(
+    "delete-appointment",
+    {
+      onSuccess: (data) => {
+        showSuccess(`Appointment ${data.deletedAppointmentId} deleted successfully.`);
+        appointmentsQuery.invalidateCache();
+        appointmentsQuery.execute();
+      },
+      onError: (msg) => showError(`Deletion failed: ${msg}`),
+    }
+  );
 
   // ── Effects ─────────────────────────────────────────────────────────────────
 
@@ -179,6 +194,13 @@ export default function AllAppointments() {
     },
     [navigate]
   );
+  
+  const handleDeleteAppointment = async (appointmentId: string, clientName: string, date: string | null) => {
+    const dateString = date ? format(new Date(date), 'MMM d, yyyy') : 'Unknown Date';
+    if (window.confirm(`Are you sure you want to delete the appointment for ${clientName} on ${dateString}? This action cannot be undone.`)) {
+      await deleteAppointmentMutation.execute({ appointmentId });
+    }
+  };
 
   // ── Render states ───────────────────────────────────────────────────────────
 
@@ -242,7 +264,7 @@ export default function AllAppointments() {
                     appointmentsQuery.invalidateCache();
                     appointmentsQuery.execute();
                   }}
-                  disabled={appointmentsQuery.loading || updateAppointmentMutation.loading}
+                  disabled={appointmentsQuery.loading || updateAppointmentMutation.loading || deleteAppointmentMutation.loading}
                   className="gap-2"
                 >
                   {appointmentsQuery.loading ? (
@@ -306,7 +328,7 @@ export default function AllAppointments() {
                               }
                               placeholder="—"
                               className="min-h-[56px] text-sm resize-none border-0 shadow-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 p-2"
-                              disabled={updateAppointmentMutation.loading}
+                              disabled={updateAppointmentMutation.loading || deleteAppointmentMutation.loading}
                             />
                           </TableCell>
 
@@ -318,7 +340,7 @@ export default function AllAppointments() {
                               }
                               placeholder="—"
                               className="min-h-[56px] text-sm resize-none border-0 shadow-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 p-2"
-                              disabled={updateAppointmentMutation.loading}
+                              disabled={updateAppointmentMutation.loading || deleteAppointmentMutation.loading}
                             />
                           </TableCell>
 
@@ -329,7 +351,7 @@ export default function AllAppointments() {
                                   variant="outline"
                                   role="combobox"
                                   className="w-full justify-between text-left font-normal h-10 px-3"
-                                  disabled={updateAppointmentMutation.loading}
+                                  disabled={updateAppointmentMutation.loading || deleteAppointmentMutation.loading}
                                 >
                                   {appt.priorityPattern || <span className="text-muted-foreground">Select...</span>}
                                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -373,7 +395,7 @@ export default function AllAppointments() {
                                     "w-full justify-between text-left font-normal h-10 px-3",
                                     !appt.status && "text-muted-foreground"
                                   )}
-                                  disabled={updateAppointmentMutation.loading}
+                                  disabled={updateAppointmentMutation.loading || deleteAppointmentMutation.loading}
                                 >
                                   {appt.status || "Select..."}
                                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -415,20 +437,29 @@ export default function AllAppointments() {
                               }
                               placeholder="Additional notes..."
                               className="min-h-[56px] text-sm resize-none border-0 shadow-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 p-2"
-                              disabled={updateAppointmentMutation.loading}
+                              disabled={updateAppointmentMutation.loading || deleteAppointmentMutation.loading}
                             />
                           </TableCell>
 
-                          <TableCell className="text-right pr-6">
+                          <TableCell className="text-right pr-6 flex items-center justify-end h-full pt-4">
                             <Button
                               variant="default"
                               size="sm"
                               onClick={() => startSession(appt.id)}
-                              disabled={updateAppointmentMutation.loading}
-                              className="gap-1.5 bg-indigo-600 hover:bg-indigo-700"
+                              disabled={updateAppointmentMutation.loading || deleteAppointmentMutation.loading}
+                              className="gap-1.5 bg-indigo-600 hover:bg-indigo-700 mr-2"
                             >
                               <PlayCircle className="h-4 w-4" />
                               Start
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteAppointment(appt.id, appt.clientName, appt.date)}
+                              disabled={deleteAppointmentMutation.loading || updateAppointmentMutation.loading}
+                              className="text-red-500 hover:text-red-700"
+                            >
+                              {deleteAppointmentMutation.loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                             </Button>
                           </TableCell>
                         </TableRow>

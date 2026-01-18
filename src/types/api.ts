@@ -357,3 +357,22 @@ export interface CreateClientResponse {
   success: boolean;
   newClientId: string;
 }
+
+// --- NEW DELETE TYPES ---
+export interface DeleteClientPayload {
+  clientId: string;
+}
+
+export interface DeleteClientResponse {
+  success: boolean;
+  deletedClientId: string;
+}
+
+export interface DeleteAppointmentPayload {
+  appointmentId: string;
+}
+
+export interface DeleteAppointmentResponse {
+  success: boolean;
+  deletedAppointmentId: string;
+}
