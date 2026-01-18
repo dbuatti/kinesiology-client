@@ -65,7 +65,7 @@ serve(async (req) => {
     // Sync data based on request type
     const { syncType } = await req.json();
     const results: any = {};
-    // Use the service role client created above for writing to clients_mirror
+    // Use the service role client created above for writing to clients table
     const serviceRoleSupabase = supabase; 
 
     // Helper function to sync a database to notion_cache
@@ -113,7 +113,7 @@ serve(async (req) => {
       return data.results.length; // Return count instead of results array
     };
 
-    // Helper function to sync clients to clients_mirror table
+    // Helper function to sync clients to clients table
     const syncClientsToMirror = async () => {
         const databaseId = secrets.crm_database_id;
         if (!databaseId) {
@@ -121,7 +121,7 @@ serve(async (req) => {
             return null;
         }
 
-        console.log("[sync-notion-data] Syncing clients to clients_mirror table...");
+        console.log("[sync-notion-data] Syncing clients to clients table...");
 
         const notionClientsResponse = await retryFetch('https://api.notion.com/v1/databases/' + databaseId + '/query', {
             method: 'POST',
@@ -176,16 +176,16 @@ serve(async (req) => {
         if (clientsToUpsert.length > 0) {
             // Use serviceRoleSupabase (which is 'supabase' here) for upserting
             const { error: upsertError } = await serviceRoleSupabase
-                .from('clients_mirror')
+                .from('clients') // <-- CORRECTED: Using 'clients' table
                 .upsert(clientsToUpsert, { onConflict: 'id' });
 
             if (upsertError) {
-                console.error("[sync-notion-data] Supabase upsert error for clients_mirror:", upsertError?.message)
+                console.error("[sync-notion-data] Supabase upsert error for clients:", upsertError?.message)
                 return null;
             }
-            console.log(`[sync-notion-data] Successfully upserted ${clientsToUpsert.length} clients to clients_mirror.`);
+            console.log(`[sync-notion-data] Successfully upserted ${clientsToUpsert.length} clients to clients.`);
         } else {
-            console.log("[sync-notion-data] No clients to upsert to clients_mirror.");
+            console.log("[sync-notion-data] No clients to upsert to clients.");
         }
         return clientsToUpsert.length;
     }
@@ -197,7 +197,7 @@ serve(async (req) => {
     }
     if (!syncType || syncType === 'all' || syncType === 'clients') {
       // Sync clients to the persistent mirror table
-      results.clients_mirror_count = await syncClientsToMirror();
+      results.clients_count = await syncClientsToMirror(); // <-- CORRECTED: Renamed result key
     }
     if (!syncType || syncType === 'all' || syncType === 'modes') {
       results.modes = await syncDatabaseToCache(secrets.modes_database_id, 'modes');
