@@ -134,7 +134,9 @@ const SessionSummaryDisplay: React.FC<SessionSummaryDisplayProps> = ({
   }, [sessionSelectedModes, selectedMuscle, selectedChakra, selectedChannel, selectedAcupoint, allLogs]);
 
   const handleClearItem = async (item: { type: string; name: string; id?: string }) => {
-    if (!item.id) return;
+    // For selected items (Muscle, Chakra, Channel, Acupoint), the ID is the Notion page ID.
+    // For selected Modes, the ID is the Notion page ID.
+    // For Logged items, the ID is the Supabase log ID (which we don't clear here, only clear the selection).
     
     setIsClearing(true);
     try {
@@ -150,7 +152,9 @@ const SessionSummaryDisplay: React.FC<SessionSummaryDisplayProps> = ({
       });
       
       // Clear the item from parent state
-      onClearItem(item.type.toLowerCase(), item.id);
+      // Pass the ID if it's a Mode, otherwise pass undefined (as the parent state only needs the type for single selections like Muscle/Chakra)
+      const idToClear = item.type === 'Mode' ? item.id : undefined;
+      onClearItem(item.type.toLowerCase(), idToClear);
       showSuccess(`Cleared ${item.name} from summary.`);
     } catch (error) {
       showError(`Failed to clear item: ${error}`);

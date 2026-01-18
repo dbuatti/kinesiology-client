@@ -410,8 +410,8 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
   }, [actualAppointmentId, clearAllSessionLogs]);
 
   const handleClearSummaryItem = useCallback(async (type: string, id?: string) => {
-    if (!id) return;
-    
+    if (!id && (type === 'mode' || type === 'logged mode')) return; // Modes require an ID to clear
+
     switch (type) {
       case 'muscle':
         setSelectedMuscle(null);
@@ -427,11 +427,17 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
         break;
       case 'mode':
         setSessionSelectedModes(prev => prev.filter(mode => mode.id !== id));
+        // If the mode being cleared was the one displayed in the details panel, clear that too
+        if (selectedModeForDetailsPanel?.id === id) {
+          setSelectedModeForDetailsPanel(null);
+        }
         break;
       default:
+        // For logged items, we just clear the selection state if it was set, but generally,
+        // logged items are cleared via the Session Log tab.
         break;
     }
-  }, []);
+  }, [selectedModeForDetailsPanel]);
 
   // --- Render Logic ---
 
