@@ -151,16 +151,23 @@ serve(async (req) => {
 
         const clientsToUpsert = notionClientsData.results.map((page: any) => {
             const properties = page.properties
+            
+            // Safely access properties, defaulting to null/empty string if missing
             const birthDate = properties["Born"]?.date?.start || null;
             const starSign = calculateStarSign(birthDate);
+            const clientName = properties.Name?.title?.[0]?.plain_text || "Unknown Client";
+            const focus = properties.Focus?.rich_text?.[0]?.plain_text || "";
+            const email = properties.Email?.email || "";
+            const phone = properties.Phone?.phone_number || "";
+
 
             return {
                 id: page.id,
                 user_id: user.id, // Ensure user_id is correctly set
-                name: properties.Name?.title?.[0]?.plain_text || "Unknown Client",
-                focus: properties.Focus?.rich_text?.[0]?.plain_text || "",
-                email: properties.Email?.email || "",
-                phone: properties.Phone?.phone_number || "",
+                name: clientName,
+                focus: focus,
+                email: email,
+                phone: phone,
                 star_sign: starSign,
                 updated_at: new Date().toISOString(),
             }
