@@ -15,9 +15,10 @@ function normalizeClientName(name: string): string {
     // 1. Remove common prefixes like numbers and dashes (e.g., "1 - ", "2 - ")
     normalized = normalized.replace(/^\d+\s*-\s*/, '');
 
-    // 2. Remove common suffixes related to session details, dates, and time
-    // This regex attempts to remove common session/date/time phrases at the end of the string
-    normalized = normalized.replace(/\s*(\(|\s*kinesiology|\s*session|\s*checkup|\s*balance|\s*appointment|\s*follow up|\s*community|\s*discounted|\s*minutes|\s*hour|\s*hr|\s*january|\s*february|\s*march|\s*april|\s*may|\s*june|\s*july|\s*august|\s*september|\s*october|\s*november|\s*december|\s*jan|\s*feb|\s*mar|\s*apr|\s*jun|\s*jul|\s*aug|\s*sep|\s*oct|\s*nov|\s*dec|\s*\d{1,2}\s*\/\s*\d{1,2}\s*\/\s*\d{4}|\s*\d{4}|\s*,\s*\d{4}|\s*\d{1,2}\s*:\s*\d{2}|\s*am|\s*pm|\s*kinesiology|\s*session|\s*checkup|\s*balance|\s*appointment|\s*follow up|\s*community|\s*discounted|\s*minutes|\s*hour|\s*hr|\s*january|\s*february|\s*march|\s*april|\s*may|\s*june|\s*july|\s*august|\s*september|\s*october|\s*november|\s*december|\s*jan|\s*feb|\s*mar|\s*apr|\s*jun|\s*jul|\s*aug|\s*sep|\s*oct|\s*nov|\s*dec|\s*\d{1,2}\s*\/\s*\d{1,2}\s*\/\s*\d{4}|\s*\d{4}|\s*,\s*\d{4}|\s*\d{1,2}\s*:\s*\d{2}|\s*am|\s*pm|\s*)\s*$/ig, '');
+    // 2. Remove common suffixes related to dates, times, and discounts.
+    // Generic session terms (kinesiology, session, checkup, balance, appointment, follow up) 
+    // have been removed from this list to prevent stripping the entire title if the client name is missing.
+    normalized = normalized.replace(/\s*(\s*community|\s*discounted|\s*minutes|\s*hour|\s*hr|\s*january|\s*february|\s*march|\s*april|\s*may|\s*june|\s*july|\s*august|\s*september|\s*october|\s*november|\s*december|\s*jan|\s*feb|\s*mar|\s*apr|\s*jun|\s*jul|\s*aug|\s*sep|\s*oct|\s*nov|\s*dec|\s*\d{1,2}\s*\/\s*\d{1,2}\s*\/\s*\d{4}|\s*\d{4}|\s*,\s*\d{4}|\s*\d{1,2}\s*:\s*\d{2}|\s*am|\s*pm)\s*$/ig, '');
     
     // Remove content in parentheses/brackets if they appear at the end after cleaning
     normalized = normalized.replace(/\s*\(.*\)\s*$/, ''); 
