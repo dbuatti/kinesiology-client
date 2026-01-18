@@ -717,17 +717,7 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
 
               {/* Notion Page Tab */}
               <TabsContent value="notion-page" className="mt-6 space-y-6">
-                <Card className="shadow-xl">
-                  <CardHeader className="bg-indigo-50 border-b border-indigo-200 rounded-t-lg p-4">
-                    <CardTitle className="text-xl font-bold text-indigo-800 flex items-center gap-2">
-                      <Info className="w-5 h-5" />
-                      {selectedNotionPageTitle || "Notion Page Viewer"}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-6">
-                    <NotionPageViewer pageId={selectedNotionPageId} />
-                  </CardContent>
-                </Card>
+                <NotionPageViewer pageId={selectedNotionPageId} />
               </TabsContent>
 
               {/* Custom Mode Details Tab */}

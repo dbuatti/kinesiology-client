@@ -5,6 +5,7 @@ import { Loader2, AlertCircle, CheckSquare, Square, ChevronRight, Image as Image
 import { useCachedEdgeFunction } from '@/hooks/use-cached-edge-function';
 import { NotionBlock, NotionRichText, GetNotionPageContentPayload, GetNotionPageContentResponse } from '@/types/api';
 import { cn } from '@/lib/utils';
+import { Card, CardHeader, CardTitle, CardContent } from './ui/card'; // Import Card components
 
 interface NotionPageViewerProps {
   pageId: string | null;
@@ -216,9 +217,23 @@ const NotionPageViewer: React.FC<NotionPageViewerProps> = ({ pageId }) => {
   }
 
   return (
-    <div className="notion-page-viewer p-4 max-h-[70vh] overflow-y-auto">
-      {/* The title is now managed internally by the component */}
-      {pageContent.blocks.map(renderBlock)}
+    <div className="notion-page-viewer max-h-[70vh] overflow-y-auto">
+      <Card className="shadow-none border-none">
+        <CardHeader className="p-4 pb-2">
+          <CardTitle className="text-2xl font-bold text-indigo-900 flex items-center gap-2">
+            <Info className="w-6 h-6 text-indigo-600" />
+            {internalPageTitle || "Notion Page"}
+            {isCached && (
+              <Badge variant="secondary" className="bg-green-200 text-green-800 ml-2">
+                Cached
+              </Badge>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-4 pt-2">
+          {pageContent.blocks.map(renderBlock)}
+        </CardContent>
+      </Card>
     </div>
   );
 };
