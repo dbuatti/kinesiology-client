@@ -43,7 +43,7 @@ const CreateAppointmentDialog: React.FC<CreateAppointmentDialogProps> = ({ onApp
     execute: fetchAllClients,
     isCached: clientsIsCached,
   } = useCachedEdgeFunction<void, GetAllClientsResponse>(
-    'fetch-all-clients', // Renamed function endpoint
+    'get-clients-list', // Updated function endpoint name
     {
       requiresAuth: true,
       requiresNotionConfig: true,

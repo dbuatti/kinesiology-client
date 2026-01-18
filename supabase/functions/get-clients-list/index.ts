@@ -12,11 +12,11 @@ serve(async (req) => {
   }
 
   try {
-    console.log("[fetch-all-clients] Starting function execution")
+    console.log("[get-clients-list] Starting function execution")
 
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
-      console.warn("[fetch-all-clients] Unauthorized: No Authorization header")
+      console.warn("[get-clients-list] Unauthorized: No Authorization header")
       return new Response('Unauthorized', {
         status: 401,
         headers: corsHeaders
@@ -33,14 +33,14 @@ serve(async (req) => {
     const { data: { user }, error: userError } = await supabase.auth.getUser(token)
 
     if (userError || !user) {
-      console.error("[fetch-all-clients] User authentication failed:", userError?.message)
+      console.error("[get-clients-list] User authentication failed:", userError?.message)
       return new Response('Unauthorized', {
         status: 401,
         headers: corsHeaders
       })
     }
 
-    console.log("[fetch-all-clients] User authenticated:", user.id)
+    console.log("[get-clients-list] User authenticated:", user.id)
 
     // Use service role client to fetch secrets securely
     const serviceRoleSupabase = createClient(supabaseUrl, supabaseServiceRoleKey)
@@ -51,7 +51,7 @@ serve(async (req) => {
       .single()
 
     if (secretsError || !secrets || !secrets.crm_database_id) {
-      console.error("[fetch-all-clients] Notion CRM database ID not configured or secrets fetch failed:", secretsError?.message)
+      console.error("[get-clients-list] Notion CRM database ID not configured or secrets fetch failed:", secretsError?.message)
       return new Response(JSON.stringify({
         error: 'Notion CRM database ID not configured. Please configure your Notion credentials first.',
         errorCode: 'NOTION_CONFIG_NOT_FOUND'
@@ -69,14 +69,14 @@ serve(async (req) => {
       .order('name', { ascending: true });
 
     if (fetchError) {
-      console.error("[fetch-all-clients] Database fetch error:", fetchError?.message)
+      console.error("[get-clients-list] Database fetch error:", fetchError?.message)
       return new Response(JSON.stringify({ error: 'Failed to fetch clients from database', details: fetchError.message }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    console.log("[fetch-all-clients] Found", clientsData.length, "clients in clients_mirror")
+    console.log("[get-clients-list] Found", clientsData.length, "clients in clients_mirror")
 
     const clients = clientsData.map((client: any) => ({
       id: client.id,
@@ -88,7 +88,7 @@ serve(async (req) => {
     }))
 
     if (clients.length === 0) {
-        console.log("[fetch-all-clients] Clients mirror is empty. Suggesting sync.")
+        console.log("[get-clients-list] Clients mirror is empty. Suggesting sync.")
         return new Response(JSON.stringify({ 
             error: 'No clients found in local database. Please run a Notion sync.',
             errorCode: 'CLIENTS_MIRROR_EMPTY',
@@ -104,7 +104,7 @@ serve(async (req) => {
     })
 
   } catch (error) {
-    console.error("[fetch-all-clients] Unexpected error:", error?.message)
+    console.error("[get-clients-list] Unexpected error:", error?.message)
     return new Response(JSON.stringify({ error: 'Internal server error', details: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
