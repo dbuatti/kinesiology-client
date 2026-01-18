@@ -8,49 +8,75 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { User, Settings, Loader2, Search, AlertCircle, XCircle, RefreshCw, Database } from 'lucide-react';
+import { User, Settings, Loader2, Search, AlertCircle, XCircle, RefreshCw, Database, PlusCircle } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import { useCachedEdgeFunction } from '@/hooks/use-cached-edge-function';
 import { Client, GetAllClientsResponse, UpdateNotionClientPayload, UpdateNotionClientResponse } from '@/types/api';
 import SyncStatusIndicator from '@/components/SyncStatusIndicator';
 import { Badge } from '@/components/ui/badge';
-import { cacheService } from '@/integrations/supabase/cache';
-import { supabase } from '@/integrations/supabase/client';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+
+// Form schema for creating a new client
+const clientFormSchema = z.object({
+  name: z.string().min(1, { message: "Client name is required." }),
+  focus: z.string().optional(),
+  email: z.string().email({ message: "Invalid email address." }).optional().or(z.literal("")),
+  phone: z.string().optional(),
+});
+
+type ClientFormValues = z.infer<typeof clientFormSchema>;
 
 const AllClients = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isTableEmpty, setIsTableEmpty] = useState(false);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleFetchAllClientsSuccess = useCallback((data: GetAllClientsResponse, isCached: boolean) => {
     if ((data as any).errorCode === 'CLIENTS_TABLE_EMPTY') {
-        setIsTableEmpty(true);
-        setClients([]);
-        setFilteredClients([]);
+      setIsTableEmpty(true);
+      setClients([]);
+      setFilteredClients([]);
     } else {
-        setClients(data.clients);
-        setFilteredClients(data.clients);
-        setIsTableEmpty(false);
+      setClients(data.clients);
+      setFilteredClients(data.clients);
+      setIsTableEmpty(false);
     }
   }, []);
 
   const handleFetchAllClientsError = useCallback((msg: string, errorCode?: string) => {
     if (errorCode === 'CLIENTS_TABLE_EMPTY') {
-        setIsTableEmpty(true);
-        setClients([]);
-        setFilteredClients([]);
+      setIsTableEmpty(true);
+      setClients([]);
+      setFilteredClients([]);
     } else if (errorCode === 'NOTION_CONFIG_NOT_FOUND') {
-        // Handled by needsConfig check below
+      // Handled by needsConfig check below
     } else {
-        showError(msg);
+      showError(msg);
     }
   }, []);
 
   const handleUpdateClientSuccess = useCallback(() => {
     showSuccess('Client updated successfully.');
   }, []);
+
+  const handleUpdateClientError = useCallback((msg: string) => {
+    showError(`Update Failed: ${msg}`);
+    fetchAllClients(); // Re-fetch to ensure data consistency if optimistic update failed
+  }, [fetchAllClients]);
 
   // 1. Fetch Clients (from clients table)
   const {
@@ -65,30 +91,45 @@ const AllClients = () => {
     'get-clients-list',
     {
       requiresAuth: true,
-      requiresNotionConfig: true, // Still requires Notion config for other features, but not for client read
+      requiresNotionConfig: false, // Clients are now local, no Notion config needed
       cacheKey: 'all-clients',
       cacheTtl: 60, // 1 hour cache
       onSuccess: handleFetchAllClientsSuccess,
       onError: handleFetchAllClientsError,
     }
   );
-  
-  // Define the problematic callback AFTER fetchAllClients is defined
-  const handleUpdateClientError = useCallback((msg: string) => {
-    showError(`Update Failed: ${msg}`);
-    fetchAllClients(); // Re-fetch to ensure data consistency if optimistic update failed
-  }, [fetchAllClients]);
 
   // 2. Update Client (Supabase clients table)
   const {
     loading: updatingClient,
     execute: updateClient,
   } = useCachedEdgeFunction<UpdateNotionClientPayload, UpdateNotionClientResponse>(
-    'update-client', // Using the new function name
+    'update-client',
     {
       requiresAuth: true,
       onSuccess: handleUpdateClientSuccess,
       onError: handleUpdateClientError,
+    }
+  );
+
+  // 3. Create Client (Supabase clients table)
+  const {
+    loading: creatingClient,
+    execute: createClient,
+  } = useCachedEdgeFunction<ClientFormValues, { success: boolean; newClientId: string }>(
+    'create-client',
+    {
+      requiresAuth: true,
+      onSuccess: (data) => {
+        showSuccess('Client created successfully!');
+        setIsCreateDialogOpen(false);
+        // Invalidate cache to refresh the list
+        invalidateClientsCache();
+        fetchAllClients();
+      },
+      onError: (msg) => {
+        showError(`Creation Failed: ${msg}`);
+      }
     }
   );
 
@@ -125,39 +166,25 @@ const AllClients = () => {
     setFilteredClients(clients); // Reset to all clients
   }, [clients]);
 
-  // Removed handleManualSync and syncingClients logic
+  // Form for creating a new client
+  const form = useForm<ClientFormValues>({
+    resolver: zodResolver(clientFormSchema),
+    defaultValues: {
+      name: '',
+      focus: '',
+      email: '',
+      phone: '',
+    },
+  });
+
+  const onSubmitCreateClient = async (values: ClientFormValues) => {
+    await createClient(values);
+  };
 
   if (loadingClients && !clientsIsCached && !isTableEmpty) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6 flex items-center justify-center">
         <Loader2 className="w-12 h-12 animate-spin text-indigo-600" />
-      </div>
-    );
-  }
-
-  if (needsConfig) {
-    // This check remains because other features still rely on Notion config
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center p-6">
-        <Card className="max-w-md w-full shadow-xl">
-          <CardContent className="pt-8 text-center">
-            <div className="mx-auto mb-4 p-4 bg-indigo-100 rounded-full w-20 h-20 flex items-center justify-center">
-              <Settings className="w-10 h-10 text-indigo-600" />
-            </div>
-            <h2 className="text-2xl font-bold text-indigo-900 mb-2">
-              Notion Integration Required
-            </h2>
-            <p className="text-gray-600 mb-6">
-              Connect your Notion account to enable other features (Appointments, Reference Data).
-            </p>
-            <Button
-              className="w-full h-12 text-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
-              onClick={() => navigate('/notion-config')}
-            >
-              Configure Notion
-            </Button>
-          </CardContent>
-        </Card>
       </div>
     );
   }
@@ -234,18 +261,83 @@ const AllClients = () => {
                 <Database className="w-12 h-12 mx-auto mb-4 text-indigo-400" />
                 <h3 className="text-xl font-semibold mb-2">Client Database Empty</h3>
                 <p className="mb-4">
-                  {isTableEmpty ? "Your local client database is empty. You can create new clients via the 'Create New Appointment' dialog or manually add them here (future feature)." : "No clients found matching your search."}
+                  {isTableEmpty ? "Your local client database is empty. You can create new clients via the 'Create New Appointment' dialog or manually add them here." : "No clients found matching your search."}
                 </p>
                 {isTableEmpty && (
                     <div className="space-y-3 max-w-sm mx-auto">
-                        <Button
-                            onClick={() => navigate('/notion-config')}
-                            variant="outline"
-                            className="w-full text-indigo-600 hover:bg-indigo-50"
-                        >
-                            <Settings className="h-4 w-4 mr-2" />
-                            Check Notion Configuration
-                        </Button>
+                        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                          <DialogTrigger asChild>
+                            <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">
+                              <PlusCircle className="h-4 w-4 mr-2" />
+                              Create First Client
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-[425px]">
+                            <DialogHeader>
+                              <DialogTitle>Create New Client</DialogTitle>
+                            </DialogHeader>
+                            <Form {...form}>
+                              <form onSubmit={form.handleSubmit(onSubmitCreateClient)} className="space-y-4 py-4">
+                                <FormField
+                                  control={form.control}
+                                  name="name"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Name <span className="text-red-500">*</span></FormLabel>
+                                      <FormControl>
+                                        <Input placeholder="Client Name" {...field} />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                <FormField
+                                  control={form.control}
+                                  name="focus"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Focus</FormLabel>
+                                      <FormControl>
+                                        <Textarea placeholder="Client focus or main issue" {...field} />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                <FormField
+                                  control={form.control}
+                                  name="email"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Email</FormLabel>
+                                      <FormControl>
+                                        <Input type="email" placeholder="client@example.com" {...field} />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                <FormField
+                                  control={form.control}
+                                  name="phone"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Phone</FormLabel>
+                                      <FormControl>
+                                        <Input type="tel" placeholder="+1 (555) 123-4567" {...field} />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                <Button type="submit" className="w-full" disabled={creatingClient}>
+                                  {creatingClient ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <PlusCircle className="h-4 w-4 mr-2" />}
+                                  {creatingClient ? 'Creating...' : 'Create Client'}
+                                </Button>
+                              </form>
+                            </Form>
+                          </DialogContent>
+                        </Dialog>
                     </div>
                 )}
               </div>

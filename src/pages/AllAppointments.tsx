@@ -130,33 +130,6 @@ const AllAppointments = () => {
     );
   }
 
-  if (needsConfig) {
-    // This check remains because reference data still needs Notion config
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center p-6">
-        <Card className="max-w-md w-full shadow-xl">
-          <CardContent className="pt-8 text-center">
-            <div className="mx-auto mb-4 p-4 bg-indigo-100 rounded-full w-20 h-20 flex items-center justify-center">
-              <Settings className="w-10 h-10 text-indigo-600" />
-            </div>
-            <h2 className="text-2xl font-bold text-indigo-900 mb-2">
-              Notion Integration Required
-            </h2>
-            <p className="text-gray-600 mb-6">
-              Connect your Notion account to load reference data (Muscles, Chakras, etc.).
-            </p>
-            <Button
-              className="w-full h-12 text-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
-              onClick={() => navigate('/notion-config')}
-            >
-              Configure Notion
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   if (appointmentsError) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center p-6">

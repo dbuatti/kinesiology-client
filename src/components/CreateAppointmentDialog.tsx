@@ -58,7 +58,7 @@ const CreateAppointmentDialog: React.FC<CreateAppointmentDialogProps> = ({ onApp
     'get-clients-list',
     {
       requiresAuth: true,
-      requiresNotionConfig: true,
+      requiresNotionConfig: false, // Clients are now local, no Notion config needed
       cacheKey: 'all-clients',
       cacheTtl: 60, // 1 hour cache
       onSuccess: handleFetchClientsSuccess,

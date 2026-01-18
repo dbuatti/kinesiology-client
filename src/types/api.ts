@@ -347,3 +347,16 @@ export interface CreateNotionAppointmentResponse {
   success: boolean;
   newAppointmentId: string;
 }
+
+// New interface for creating a client
+export interface CreateClientPayload {
+  name: string;
+  focus?: string;
+  email?: string;
+  phone?: string;
+}
+
+export interface CreateClientResponse {
+  success: boolean;
+  newClientId: string;
+}

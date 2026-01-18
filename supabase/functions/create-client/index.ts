@@ -12,11 +12,11 @@ serve(async (req) => {
   }
 
   try {
-    console.log("[create-appointment] Starting function execution")
+    console.log("[create-client] Starting function execution")
 
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
-      console.warn("[create-appointment] Unauthorized: No Authorization header")
+      console.warn("[create-client] Unauthorized: No Authorization header")
       return new Response('Unauthorized', {
         status: 401,
         headers: corsHeaders
@@ -32,54 +32,60 @@ serve(async (req) => {
     const { data: { user }, error: userError } = await supabase.auth.getUser(token)
 
     if (userError || !user) {
-      console.error("[create-appointment] User authentication failed:", userError?.message)
+      console.error("[create-client] User authentication failed:", userError?.message)
       return new Response('Unauthorized', {
         status: 401,
         headers: corsHeaders
       })
     }
 
-    console.log("[create-appointment] User authenticated:", user.id)
+    console.log("[create-client] User authenticated:", user.id)
 
-    const { clientCrmId, date, goal, sessionNorthStar } = await req.json()
+    const { name, focus, email, phone } = await req.json()
 
-    if (!clientCrmId || !date || !goal || !sessionNorthStar) {
-      console.warn("[create-appointment] Bad request: Missing required fields")
-      return new Response(JSON.stringify({ error: 'Missing clientCrmId, date, goal, or sessionNorthStar in request body' }), {
+    if (!name) {
+      console.warn("[create-client] Bad request: Missing name")
+      return new Response(JSON.stringify({ error: 'Missing name in request body' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
+    // Calculate star sign based on birth date (if provided in future)
+    // For now, we'll set it to "Unknown" or calculate based on a placeholder
+    // Let's add a birth_date field to the clients table in the future
+    // For now, we'll just set star_sign to "Unknown"
+    const starSign = "Unknown";
+
     const { data, error } = await supabase
-      .from('appointments')
+      .from('clients')
       .insert({
         user_id: user.id,
-        client_id: clientCrmId,
-        date: date, // YYYY-MM-DD format
-        goal: goal,
-        session_north_star: sessionNorthStar,
-        status: 'AP', // Default status: Appointment
+        name: name,
+        focus: focus || null,
+        email: email || null,
+        phone: phone || null,
+        star_sign: starSign,
       })
       .select()
       .single()
 
     if (error) {
-      console.error("[create-appointment] Database insert error:", error?.message)
-      return new Response(JSON.stringify({ error: 'Failed to create appointment', details: error.message }), {
+      console.error("[create-client] Database insert error:", error?.message)
+      return new Response(JSON.stringify({ error: 'Failed to create client', details: error.message }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    console.log("[create-appointment] Appointment created successfully:", data.id)
+    console.log("[create-client] Client created successfully:", data.id)
 
-    return new Response(JSON.stringify({ success: true, newAppointmentId: data.id }), {
+    return new Response(JSON.stringify({ success: true, newClientId: data.id }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
 
   } catch (error) {
-    console.error("[create-appointment] Unexpected error:", error?.message)
+    console.error("[create-client] Unexpected error:", error?.message)
     return new Response(JSON.stringify({ error: 'Internal server error', details: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
