@@ -25,8 +25,9 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')
+    const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
-    // Use the client Supabase instance (with RLS)
+    // Use the client Supabase instance (with RLS) for auth
     const supabase = createClient(supabaseUrl, supabaseAnonKey)
     const token = authHeader.replace('Bearer ', '')
     const { data: { user }, error: userError } = await supabase.auth.getUser(token)
@@ -40,6 +41,25 @@ serve(async (req) => {
     }
 
     console.log("[get-all-clients] User authenticated:", user.id)
+
+    // Use service role client to fetch secrets securely
+    const serviceRoleSupabase = createClient(supabaseUrl, supabaseServiceRoleKey)
+    const { data: secrets, error: secretsError } = await serviceRoleSupabase
+      .from('notion_secrets')
+      .select('crm_database_id')
+      .eq('id', user.id)
+      .single()
+
+    if (secretsError || !secrets || !secrets.crm_database_id) {
+      console.error("[get-all-clients] Notion CRM database ID not configured or secrets fetch failed:", secretsError?.message)
+      return new Response(JSON.stringify({
+        error: 'Notion CRM database ID not configured. Please configure your Notion credentials first.',
+        errorCode: 'NOTION_CONFIG_NOT_FOUND'
+      }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
 
     // Fetch clients from the clients_mirror table
     const { data: clientsData, error: fetchError } = await supabase

@@ -35,7 +35,9 @@ const AllClients = () => {
         setIsMirrorEmpty(true);
         setClients([]);
         setFilteredClients([]);
-        showError('Client database mirror is empty. Please sync from Notion.');
+        // Do not show error toast here, the UI handles the empty state
+    } else if (errorCode === 'NOTION_CONFIG_NOT_FOUND') {
+        // Handled by needsConfig check below
     } else {
         showError(msg);
     }
@@ -109,6 +111,15 @@ const AllClients = () => {
     fetchAllClients();
   }, [fetchAllClients]);
 
+  // Auto-sync if mirror is empty and not currently loading/syncing
+  useEffect(() => {
+    if (isMirrorEmpty && !loadingClients && !syncingClients && !needsConfig) {
+        console.log('[AllClients] Mirror is empty, triggering automatic client sync.');
+        syncClients({ syncType: 'clients' });
+    }
+  }, [isMirrorEmpty, loadingClients, syncingClients, needsConfig, syncClients]);
+
+
   useEffect(() => {
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
     const filtered = clients.filter(client =>
@@ -142,7 +153,7 @@ const AllClients = () => {
     syncClients({ syncType: 'clients' });
   };
 
-  if (loadingClients && !clientsIsCached) {
+  if (loadingClients && !clientsIsCached && !isMirrorEmpty) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6 flex items-center justify-center">
         <Loader2 className="w-12 h-12 animate-spin text-indigo-600" />
@@ -224,7 +235,7 @@ const AllClients = () => {
                     size="sm"
                     className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0 text-gray-500 hover:text-gray-700"
                     onClick={handleClearSearch}
-                    disabled={loadingClients}
+                    disabled={loadingClients || syncingClients}
                   >
                     <XCircle className="h-4 w-4" />
                   </Button>
