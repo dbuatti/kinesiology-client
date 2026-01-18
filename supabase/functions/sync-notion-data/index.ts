@@ -69,7 +69,7 @@ serve(async (req) => {
     const serviceRoleSupabase = supabase; 
 
     // Helper function to sync a database to notion_cache
-    const syncDatabaseToCache = async (databaseId: string, databaseName: string) => {
+    const syncDatabaseToCache = async (databaseId: string | null, databaseName: string) => {
       if (!databaseId) {
         console.log(`[sync-notion-data] ${databaseName} database ID not configured, skipping cache sync.`);
         return null;
@@ -110,7 +110,7 @@ serve(async (req) => {
           updated_at: new Date().toISOString(),
         });
 
-      return data.results;
+      return data.results.length; // Return count instead of results array
     };
 
     // Helper function to sync clients to clients_mirror table
@@ -185,28 +185,32 @@ serve(async (req) => {
 
 
     // Sync based on type or all if no type specified
-    if (!syncType || syncType === 'appointments') {
+    if (!syncType || syncType === 'all' || syncType === 'appointments') {
       results.appointments = await syncDatabaseToCache(secrets.appointments_database_id, 'appointments');
     }
-    if (!syncType || syncType === 'clients') {
+    if (!syncType || syncType === 'all' || syncType === 'clients') {
       // Sync clients to the persistent mirror table
       results.clients_mirror_count = await syncClientsToMirror();
     }
-    if (!syncType || syncType === 'modes') {
+    if (!syncType || syncType === 'all' || syncType === 'modes') {
       results.modes = await syncDatabaseToCache(secrets.modes_database_id, 'modes');
     }
-    if (!syncType || syncType === 'acupoints') {
+    if (!syncType || syncType === 'all' || syncType === 'acupoints') {
       results.acupoints = await syncDatabaseToCache(secrets.acupoints_database_id, 'acupoints');
     }
-    if (!syncType || syncType === 'muscles') {
+    if (!syncType || syncType === 'all' || syncType === 'muscles') {
       results.muscles = await syncDatabaseToCache(secrets.muscles_database_id, 'muscles');
     }
-    if (!syncType || syncType === 'channels') {
+    if (!syncType || syncType === 'all' || syncType === 'channels') {
       results.channels = await syncDatabaseToCache(secrets.channels_database_id, 'channels');
     }
-    if (!syncType || syncType === 'chakras') {
+    if (!syncType || syncType === 'all' || syncType === 'chakras') {
       results.chakras = await syncDatabaseToCache(secrets.chakras_database_id, 'chakras');
     }
+    if (!syncType || syncType === 'all' || syncType === 'tags') {
+      results.tags = await syncDatabaseToCache(secrets.tags_database_id, 'tags');
+    }
+
 
     console.log("[sync-notion-data] Sync completed successfully")
 
