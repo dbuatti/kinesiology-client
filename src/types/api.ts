@@ -154,8 +154,6 @@ export interface NotionBlock {
 export interface NotionSecrets {
   id: string; // This is now the user_id and primary key
   notion_integration_token: string;
-  appointments_database_id: string | null; // Made nullable
-  crm_database_id: string | null;
   modes_database_id: string | null;
   acupoints_database_id: string | null;
   muscles_database_id: string | null; // New: Muscles Database ID
@@ -321,7 +319,6 @@ export interface DeleteSessionLogResponse {
 
 export interface SetNotionSecretsPayload {
   notionToken: string;
-  crmDbId: string | null;
   modesDbId: string | null;
   acupointsDbId: string | null;
   musclesDbId: string | null; // New: Muscles Database ID

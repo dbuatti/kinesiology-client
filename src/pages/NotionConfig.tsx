@@ -31,7 +31,6 @@ interface GetNotionSecretsResponse {
 // Define the form schema using Zod
 const notionConfigFormSchema = z.object({
   integrationToken: z.string().min(1, { message: "Integration Token is required." }),
-  crmDbId: z.string().nullable(),
   modesDbId: z.string().nullable(),
   acupointsDbId: z.string().nullable(),
   musclesDbId: z.string().nullable(),
@@ -49,7 +48,6 @@ const NotionConfig = () => {
     resolver: zodResolver(notionConfigFormSchema),
     defaultValues: {
       integrationToken: '',
-      crmDbId: '',
       modesDbId: '',
       acupointsDbId: '',
       musclesDbId: '',
@@ -64,7 +62,6 @@ const NotionConfig = () => {
     const secrets = data.secrets;
     form.reset({
       integrationToken: secrets.notion_integration_token || '',
-      crmDbId: secrets.crm_database_id || '',
       modesDbId: secrets.modes_database_id || '',
       acupointsDbId: secrets.acupoints_database_id || '',
       musclesDbId: secrets.muscles_database_id || '',
@@ -127,7 +124,6 @@ const NotionConfig = () => {
   const onSubmit = async (values: NotionConfigFormValues) => {
     await setNotionSecrets({
       notionToken: values.integrationToken.trim(),
-      crmDbId: values.crmDbId?.trim() || null,
       modesDbId: values.modesDbId?.trim() || null,
       acupointsDbId: values.acupointsDbId?.trim() || null,
       musclesDbId: values.musclesDbId?.trim() || null,
@@ -191,33 +187,6 @@ const NotionConfig = () => {
                           <FormMessage />
                           <p className="text-xs text-gray-500">
                             Find this in Notion → Settings & Members → Integrations → [Your Integration]
-                          </p>
-                        </FormItem>
-                      )}
-                    />
-
-                    {/* CRM Database ID (Optional) - Still useful for initial client migration if needed */}
-                    <FormField
-                      control={form.control}
-                      name="crmDbId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="flex items-center gap-2 font-semibold">
-                            <Database className="w-4 h-4 text-indigo-600" />
-                            CRM Database ID (Optional - Legacy Sync)
-                          </FormLabel>
-                          <FormControl>
-                            <Input
-                              id="crm"
-                              type="text"
-                              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                              disabled={savingConfig}
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                          <p className="text-xs text-gray-500">
-                            Used only if you need to re-sync clients from Notion to the local database.
                           </p>
                         </FormItem>
                       )}
