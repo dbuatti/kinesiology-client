@@ -22,6 +22,7 @@ const AllClients = () => {
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isMirrorEmpty, setIsMirrorEmpty] = useState(false);
+  const [autoSyncAttempted, setAutoSyncAttempted] = useState(false); // New state to prevent loop
   const navigate = useNavigate();
 
   const handleFetchAllClientsSuccess = useCallback((data: GetAllClientsResponse, isCached: boolean) => {
@@ -94,6 +95,8 @@ const AllClients = () => {
         showSuccess(`Successfully imported ${data.results.clients_mirror_count} clients from Notion.`);
         // Invalidate the 'all-clients' cache key to force a fresh fetch from the mirror table
         await invalidateClientsCache();
+        // Reset autoSyncAttempted flag if sync was successful, allowing future manual syncs to trigger a check
+        setAutoSyncAttempted(false); 
         fetchAllClients();
       },
       onError: (msg) => {
@@ -121,11 +124,12 @@ const AllClients = () => {
 
   // Auto-sync if mirror is empty and not currently loading/syncing
   useEffect(() => {
-    if (isMirrorEmpty && !loadingClients && !syncingClients && !needsConfig) {
+    if (isMirrorEmpty && !loadingClients && !syncingClients && !needsConfig && !autoSyncAttempted) {
         console.log('[AllClients] Mirror is empty, triggering automatic client sync.');
+        setAutoSyncAttempted(true); // Prevent immediate re-trigger
         syncClients({ syncType: 'clients' });
     }
-  }, [isMirrorEmpty, loadingClients, syncingClients, needsConfig, syncClients]);
+  }, [isMirrorEmpty, loadingClients, syncingClients, needsConfig, syncClients, autoSyncAttempted]);
 
 
   useEffect(() => {
@@ -158,6 +162,8 @@ const AllClients = () => {
   }, [clients]);
 
   const handleManualSync = () => {
+    // Reset autoSyncAttempted flag when manually syncing
+    setAutoSyncAttempted(false);
     syncClients({ syncType: 'clients' });
   };
 
