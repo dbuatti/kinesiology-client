@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
+import { calculateStarSign } from '../_shared/starSignCalculator.ts'; // Import star sign calculator
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -62,7 +63,16 @@ serve(async (req) => {
     if (updates.focus !== undefined) updatePayload.focus = updates.focus;
     if (updates.email !== undefined) updatePayload.email = updates.email;
     if (updates.phone !== undefined) updatePayload.phone = updates.phone;
-    if (updates.starSign !== undefined) updatePayload.star_sign = updates.starSign;
+    
+    // Handle birthDate update and recalculate star sign
+    if (updates.birthDate !== undefined) {
+      // Assuming we add a birth_date column to the clients table later
+      // updatePayload.birth_date = updates.birthDate; 
+      updatePayload.star_sign = calculateStarSign(updates.birthDate);
+    } else if (updates.starSign !== undefined) {
+      // Allow direct update of starSign if birthDate is not provided
+      updatePayload.star_sign = updates.starSign;
+    }
 
     if (Object.keys(updatePayload).length <= 1) { // Only updated_at was set
       console.log("[update-client] No valid fields provided for update.");

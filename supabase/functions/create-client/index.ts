@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
+import { calculateStarSign } from '../_shared/starSignCalculator.ts'; // Import star sign calculator
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -41,7 +42,7 @@ serve(async (req) => {
 
     console.log("[create-client] User authenticated:", user.id)
 
-    const { name, focus, email, phone } = await req.json()
+    const { name, focus, email, phone, birthDate } = await req.json()
 
     if (!name) {
       console.warn("[create-client] Bad request: Missing name")
@@ -51,11 +52,8 @@ serve(async (req) => {
       })
     }
 
-    // Calculate star sign based on birth date (if provided in future)
-    // For now, we'll set it to "Unknown" or calculate based on a placeholder
-    // Let's add a birth_date field to the clients table in the future
-    // For now, we'll just set star_sign to "Unknown"
-    const starSign = "Unknown";
+    // Calculate star sign if birthDate is provided
+    const starSign = birthDate ? calculateStarSign(birthDate) : "Unknown";
 
     const { data, error } = await supabase
       .from('clients')
