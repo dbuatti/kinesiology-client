@@ -44,7 +44,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { showError, showSuccess } from "@/utils/toast";
-import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
+import SyncStatusIndicator from "@/components/SyncStatusIndicator"; // <-- FIX 1: Changed to default import
 
 import { useCachedEdgeFunction } from "@/hooks/use-cached-edge-function";
 import type {
@@ -57,7 +57,7 @@ const STATUS_OPTIONS = ["AP", "OPEN", "CH", "CXL"] as const;
 const PRIORITY_PATTERNS = ["Pattern A", "Pattern B", "Pattern C", "Pattern D"] as const;
 
 type Status = (typeof STATUS_OPTIONS)[number];
-type PriorityPattern = (typeof PRIORITY_PATTERNS)[number];
+type PriorityPattern = (typeof PRIORITY_PATTERds)[number];
 
 export default function AllAppointments() {
   const navigate = useNavigate();
@@ -88,24 +88,28 @@ export default function AllAppointments() {
     UpdateNotionAppointmentPayload,
     { success: boolean }
   >("update-appointment", {
-    onSuccess: (_, payload) => {
+    onSuccess: (_, isCached, payload) => { // Added isCached and payload
       showSuccess("Appointment updated");
       setPendingUpdates((prev) => {
         const next = { ...prev };
-        delete next[payload.appointmentId];
+        if (payload?.appointmentId) { // <-- FIX 2: Safely check and access appointmentId
+          delete next[payload.appointmentId];
+        }
         return next;
       });
     },
     onError: (msg, _, payload) => {
       showError(`Update failed: ${msg}`);
       // Rollback optimistic update
-      setAppointments((prev) =>
-        prev.map((a) =>
-          a.id === payload.appointmentId
-            ? { ...a, ...pendingUpdates[payload.appointmentId] }
-            : a
-        )
-      );
+      if (payload?.appointmentId) {
+        setAppointments((prev) =>
+          prev.map((a) =>
+            a.id === payload.appointmentId
+              ? { ...a, ...pendingUpdates[payload.appointmentId] }
+              : a
+          )
+        );
+      }
     },
   });
 
@@ -252,7 +256,6 @@ export default function AllAppointments() {
                 <div className="hidden sm:block">
                   <SyncStatusIndicator
                     onSyncComplete={() => appointmentsQuery.execute()}
-                    size="sm"
                   />
                 </div>
               </div>
