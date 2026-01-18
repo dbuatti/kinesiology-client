@@ -72,18 +72,61 @@ serve(async (req) => {
       })
     }
 
+    // 1. Fetch the current Notion page to check for existing properties and their types
+    const currentClientResponse = await retryFetch('https://api.notion.com/v1/pages/' + clientId, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${secrets.notion_integration_token}`,
+        'Content-Type': 'application/json',
+        'Notion-Version': '2022-06-28'
+      }
+    });
+
+    if (!currentClientResponse.ok) {
+      const errorText = await currentClientResponse.text();
+      console.error("[update-notion-client] Failed to fetch current client page:", errorText);
+      throw new Error('Failed to fetch current client page to check properties.');
+    }
+    const currentClientData = await currentClientResponse.json();
+    const existingNotionProperties = currentClientData.properties;
+    console.log("[update-notion-client] Existing Notion properties fetched.");
+
+
     const notionProperties: { [key: string]: any } = {};
 
-    if (updates.focus !== undefined) {
-      notionProperties["Focus"] = {
-        rich_text: [{ type: "text", text: { content: updates.focus } }]
-      };
-    }
-    if (updates.email !== undefined) {
-      notionProperties["Email"] = { email: updates.email };
-    }
-    if (updates.phone !== undefined) {
-      notionProperties["Phone"] = { phone_number: updates.phone };
+    // Helper function to safely update properties based on Notion's expected structure
+    const updateProperty = (propertyName: keyof typeof updates, notionKey: string) => {
+      const value = updates[propertyName];
+      if (value !== undefined && existingNotionProperties[notionKey]) {
+        const propertyType = existingNotionProperties[notionKey].type;
+        console.log(`[update-notion-client] Processing property '${notionKey}' (Type: ${propertyType})`);
+
+        if (propertyType === 'rich_text') {
+          notionProperties[notionKey] = {
+            rich_text: [{ type: "text", text: { content: value } }]
+          };
+        } else if (propertyType === 'email') {
+          notionProperties[notionKey] = { email: value };
+        } else if (propertyType === 'phone_number') {
+          notionProperties[notionKey] = { phone_number: value };
+        } else {
+          console.warn(`[update-notion-client] Unsupported Notion property type '${propertyType}' for key '${notionKey}'. Skipping.`);
+        }
+      } else if (value !== undefined && !existingNotionProperties[notionKey]) {
+        console.warn(`[update-notion-client] Notion property '${notionKey}' does not exist in the database. Skipping update for ${propertyName}.`);
+      }
+    };
+
+    // Map client fields to Notion property names
+    updateProperty("focus", "Focus");
+    updateProperty("email", "Email");
+    updateProperty("phone", "Phone");
+
+    if (Object.keys(notionProperties).length === 0) {
+      console.log("[update-notion-client] No valid properties to update.");
+      return new Response(JSON.stringify({ success: true, updatedPageId: clientId, message: "No valid properties to update." }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
     }
 
     console.log("[update-notion-client] Updating Notion page:", clientId, "with properties:", notionProperties)
