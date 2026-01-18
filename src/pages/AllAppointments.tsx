@@ -44,7 +44,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { showError, showSuccess } from "@/utils/toast";
-import SyncStatusIndicator from "@/components/SyncStatusIndicator"; // <-- FIX 1: Changed to default import
+import SyncStatusIndicator from "@/components/SyncStatusIndicator";
 
 import { useCachedEdgeFunction } from "@/hooks/use-cached-edge-function";
 import type {
@@ -57,7 +57,7 @@ const STATUS_OPTIONS = ["AP", "OPEN", "CH", "CXL"] as const;
 const PRIORITY_PATTERNS = ["Pattern A", "Pattern B", "Pattern C", "Pattern D"] as const;
 
 type Status = (typeof STATUS_OPTIONS)[number];
-type PriorityPattern = (typeof PRIORITY_PATTERds)[number];
+type PriorityPattern = (typeof PRIORITY_PATTERNS)[number];
 
 export default function AllAppointments() {
   const navigate = useNavigate();
@@ -88,17 +88,17 @@ export default function AllAppointments() {
     UpdateNotionAppointmentPayload,
     { success: boolean }
   >("update-appointment", {
-    onSuccess: (_, isCached, payload) => { // Added isCached and payload
+    onSuccess: (data, isCached, payload) => {
       showSuccess("Appointment updated");
       setPendingUpdates((prev) => {
         const next = { ...prev };
-        if (payload?.appointmentId) { // <-- FIX 2: Safely check and access appointmentId
+        if (payload?.appointmentId) {
           delete next[payload.appointmentId];
         }
         return next;
       });
     },
-    onError: (msg, _, payload) => {
+    onError: (msg, errorCode, payload) => {
       showError(`Update failed: ${msg}`);
       // Rollback optimistic update
       if (payload?.appointmentId) {
