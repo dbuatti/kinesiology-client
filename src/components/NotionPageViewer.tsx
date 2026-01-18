@@ -70,6 +70,7 @@ const NotionPageViewer: React.FC<NotionPageViewerProps> = ({ pageId, onClearSele
       setInternalPageTitle(null);
       fetchPageContent({ pageId });
     } else {
+      // Clear internal state when pageId is null (e.g., when switching tabs)
       setInternalPageTitle(null);
     }
   }, [pageId, fetchPageContent]);

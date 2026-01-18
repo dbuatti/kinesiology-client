@@ -150,12 +150,6 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
     setIsSearchOpen(true);
   };
 
-  const handleClearSearch = () => {
-    setSearchTerm('');
-    setFilteredMuscles(allMuscles);
-    setIsSearchOpen(false);
-  };
-
   const isLoading = loadingInitial || loadingMusclesHook;
 
   if (needsConfig) {
@@ -212,7 +206,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
               variant={searchType === 'muscle' ? 'default' : 'outline'}
               onClick={() => handleSearchTypeChange('muscle')}
               className={cn(searchType === 'muscle' ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'text-indigo-600 border-indigo-300 hover:bg-indigo-50')}
-              disabled={isLoading}
+              disabled={isLoading || !!selectedMuscle}
             >
               Muscle Name
             </Button>
@@ -220,7 +214,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
               variant={searchType === 'organ' ? 'default' : 'outline'}
               onClick={() => handleSearchTypeChange('organ')}
               className={cn(searchType === 'organ' ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'text-indigo-600 border-indigo-300 hover:bg-indigo-50')}
-              disabled={isLoading}
+              disabled={isLoading || !!selectedMuscle}
             >
               Organ System
             </Button>
@@ -228,7 +222,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
               variant={searchType === 'emotion' ? 'default' : 'outline'}
               onClick={() => handleSearchTypeChange('emotion')}
               className={cn(searchType === 'emotion' ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'text-indigo-600 border-indigo-300 hover:bg-indigo-50')}
-              disabled={isLoading}
+              disabled={isLoading || !!selectedMuscle}
             >
               Emotion
             </Button>
@@ -240,7 +234,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
                 role="combobox"
                 aria-expanded={isSearchOpen}
                 className="w-full justify-between"
-                disabled={isLoading}
+                disabled={isLoading || !!selectedMuscle}
               >
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 {selectedMuscle ? selectedMuscle.name : (searchTerm || `Search by ${searchType}...`)}

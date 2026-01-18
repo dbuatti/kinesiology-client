@@ -218,7 +218,7 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
               variant={searchType === 'name' ? 'default' : 'outline'}
               onClick={() => handleSearchTypeChange('name')}
               className={cn(searchType === 'name' ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'text-indigo-600 border-indigo-300 hover:bg-indigo-50')}
-              disabled={isLoading || loggingSessionEvent}
+              disabled={isLoading || loggingSessionEvent || !!selectedChakra}
             >
               Name
             </Button>
@@ -226,7 +226,7 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
               variant={searchType === 'element' ? 'default' : 'outline'}
               onClick={() => handleSearchTypeChange('element')}
               className={cn(searchType === 'element' ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'text-indigo-600 border-indigo-300 hover:bg-indigo-50')}
-              disabled={isLoading || loggingSessionEvent}
+              disabled={isLoading || loggingSessionEvent || !!selectedChakra}
             >
               Element
             </Button>
@@ -234,7 +234,7 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
               variant={searchType === 'emotion' ? 'default' : 'outline'}
               onClick={() => handleSearchTypeChange('emotion')}
               className={cn(searchType === 'emotion' ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'text-indigo-600 border-indigo-300 hover:bg-indigo-50')}
-              disabled={isLoading || loggingSessionEvent}
+              disabled={isLoading || loggingSessionEvent || !!selectedChakra}
             >
               Emotion
             </Button>
@@ -242,7 +242,7 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
               variant={searchType === 'organ' ? 'default' : 'outline'}
               onClick={() => handleSearchTypeChange('organ')}
               className={cn(searchType === 'organ' ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'text-indigo-600 border-indigo-300 hover:bg-indigo-50')}
-              disabled={isLoading || loggingSessionEvent}
+              disabled={isLoading || loggingSessionEvent || !!selectedChakra}
             >
               Organ
             </Button>
@@ -254,7 +254,7 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
                 role="combobox"
                 aria-expanded={isSearchOpen}
                 className="w-full justify-between"
-                disabled={isLoading || loggingSessionEvent}
+                disabled={isLoading || loggingSessionEvent || !!selectedChakra}
               >
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 {selectedChakra ? selectedChakra.name : (searchTerm || `Search by ${searchType}...`)}
