@@ -60,7 +60,7 @@ const ModeSelect: React.FC<ModeSelectProps> = ({
       requiresAuth: true,
       requiresNotionConfig: true,
       cacheKey: 'all-modes',
-      cacheTtl: 120, // 2 hours cache
+      cacheTtl: 525600, // 1 year cache
       onSuccess: onModesSuccess,
       onError: onModesError,
     }

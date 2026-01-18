@@ -62,7 +62,7 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
       requiresAuth: true,
       requiresNotionConfig: true,
       cacheKey: 'all-chakras',
-      cacheTtl: 120, // 2 hours cache
+      cacheTtl: 525600, // 1 year cache
       onSuccess: onChakrasSuccess,
       onError: onChakrasError,
     }

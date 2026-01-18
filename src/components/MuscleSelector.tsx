@@ -66,7 +66,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
       requiresAuth: true,
       requiresNotionConfig: true,
       cacheKey: 'all-muscles',
-      cacheTtl: 120, // 2 hours cache
+      cacheTtl: 525600, // 1 year cache
       onSuccess: onMusclesSuccess,
       onError: onMusclesError,
     }

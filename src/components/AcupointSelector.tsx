@@ -66,7 +66,7 @@ const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLo
       requiresAuth: true,
       requiresNotionConfig: true,
       cacheKey: 'all-acupoints',
-      cacheTtl: 120, // 2 hours cache
+      cacheTtl: 525600, // 1 year cache
       onSuccess: onAcupointsSuccess,
       onError: onAcupointsError,
     }

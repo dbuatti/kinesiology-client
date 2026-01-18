@@ -53,7 +53,7 @@ const NotionPageViewer: React.FC<NotionPageViewerProps> = ({ pageId, onClearSele
       requiresAuth: true,
       requiresNotionConfig: true,
       cacheKey: pageId ? `page:${pageId}` : undefined,
-      cacheTtl: 120, // 2 hours cache for page content
+      cacheTtl: 525600, // 1 year cache for page content
       onSuccess: (data) => {
         console.log('[NotionPageViewer] Fetched page content:', data.title);
         setInternalPageTitle(data.title);

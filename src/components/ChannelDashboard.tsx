@@ -143,7 +143,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
       requiresAuth: true,
       requiresNotionConfig: true,
       cacheKey: 'all-channels',
-      cacheTtl: 120, // 2 hours cache
+      cacheTtl: 525600, // 1 year cache
       onSuccess: onChannelsSuccess,
       onError: onChannelsError,
     }
