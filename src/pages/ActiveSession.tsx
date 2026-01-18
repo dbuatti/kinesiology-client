@@ -140,7 +140,7 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
     }
   );
 
-  // 3. Reference Data Hooks (Lazy Load - only executed when tab is clicked)
+  // 3. Reference Data Hooks (Pre-fetched on mount)
   const LONG_TTL = 525600; // 1 year in minutes
 
   const { data: modesData, loading: loadingModes, execute: fetchModes } = useCachedEdgeFunction<void, GetNotionModesResponse>('get-notion-modes', { requiresAuth: true, requiresNotionConfig: true, cacheKey: 'all-modes', cacheTtl: LONG_TTL });
@@ -235,18 +235,32 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
 
   // --- Effects ---
 
-  // 1. Initial load of core data (Appointment and Logs)
+  // 1. Initial load of core data (Appointment and Logs) AND all reference data
   useEffect(() => {
     if (actualAppointmentId && notionConfigured) {
       console.log('[ActiveSession] Initializing core data fetch: Appointment and Logs.');
       fetchSingleAppointment({ appointmentId: actualAppointmentId });
       fetchSessionLogs({ appointmentId: actualAppointmentId });
       
-      // Fetch modes immediately as they are needed in the Overview tab
-      console.log('[ActiveSession] Initializing reference data fetch: Modes.');
+      // Fetch all reference data in parallel immediately (since they are heavily cached)
+      console.log('[ActiveSession] Initializing ALL reference data fetches in parallel.');
       fetchModes();
+      fetchMuscles({ searchTerm: '', searchType: 'muscle' });
+      fetchChakras({ searchTerm: '', searchType: 'name' });
+      fetchChannels({ searchTerm: '', searchType: 'name' });
+      fetchAcupoints({ searchTerm: '', searchType: 'point' });
     }
-  }, [actualAppointmentId, notionConfigured, fetchSingleAppointment, fetchSessionLogs, fetchModes]);
+  }, [
+    actualAppointmentId, 
+    notionConfigured, 
+    fetchSingleAppointment, 
+    fetchSessionLogs, 
+    fetchModes,
+    fetchMuscles,
+    fetchChakras,
+    fetchChannels,
+    fetchAcupoints,
+  ]);
 
   // 2. Clear Notion page viewer when switching tabs
   useEffect(() => {
@@ -258,41 +272,6 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
       setSelectedModeForDetailsPanel(null);
     }
   }, [activeTab]);
-
-  // 3. Lazy loading reference data when tabs are clicked
-  useEffect(() => {
-    if (!notionConfigured) return;
-
-    switch (activeTab) {
-      case 'muscles':
-        if (!musclesData && !loadingMuscles) {
-          console.log('[ActiveSession] Lazy fetching Muscles data.');
-          fetchMuscles({ searchTerm: '', searchType: 'muscle' });
-        }
-        break;
-      case 'chakras':
-        if (!chakrasData && !loadingChakras) {
-          console.log('[ActiveSession] Lazy fetching Chakras data.');
-          fetchChakras({ searchTerm: '', searchType: 'name' });
-        }
-        break;
-      case 'channels':
-        if (!channelsData && !loadingChannels) {
-          console.log('[ActiveSession] Lazy fetching Channels data.');
-          fetchChannels({ searchTerm: '', searchType: 'name' });
-        }
-        break;
-      case 'acupoints':
-        if (!acupointsData && !loadingAcupoints) {
-          console.log('[ActiveSession] Lazy fetching Acupoints data.');
-          fetchAcupoints({ searchTerm: '', searchType: 'point' });
-        }
-        break;
-      default:
-        break;
-    }
-  }, [activeTab, notionConfigured, musclesData, loadingMuscles, fetchMuscles, chakrasData, loadingChakras, fetchChakras, channelsData, loadingChannels, fetchChannels, acupointsData, loadingAcupoints, fetchAcupoints]);
-
 
   // Combine all loading states
   const overallLoading = configLoading || loadingAppointment || loggingMuscleStrength || loadingSessionLogs || deletingSessionLog || clearingAllLogs;
