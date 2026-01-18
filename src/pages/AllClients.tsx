@@ -24,18 +24,25 @@ const AllClients = () => {
   const [isMirrorEmpty, setIsMirrorEmpty] = useState(false);
   const navigate = useNavigate();
 
-  const handleFetchAllClientsSuccess = useCallback((data: GetAllClientsResponse) => {
-    setClients(data.clients);
-    setFilteredClients(data.clients);
-    setIsMirrorEmpty(false);
+  const handleFetchAllClientsSuccess = useCallback((data: GetAllClientsResponse, isCached: boolean) => {
+    // Check for the specific error code even on success (200 OK)
+    if ((data as any).errorCode === 'CLIENTS_MIRROR_EMPTY') {
+        setIsMirrorEmpty(true);
+        setClients([]);
+        setFilteredClients([]);
+    } else {
+        setClients(data.clients);
+        setFilteredClients(data.clients);
+        setIsMirrorEmpty(false);
+    }
   }, []);
 
   const handleFetchAllClientsError = useCallback((msg: string, errorCode?: string) => {
     if (errorCode === 'CLIENTS_MIRROR_EMPTY') {
+        // This case should now be handled by onSuccess (status 200)
         setIsMirrorEmpty(true);
         setClients([]);
         setFilteredClients([]);
-        // Do not show error toast here, the UI handles the empty state
     } else if (errorCode === 'NOTION_CONFIG_NOT_FOUND') {
         // Handled by needsConfig check below
     } else {
@@ -45,11 +52,6 @@ const AllClients = () => {
 
   const handleUpdateNotionClientSuccess = useCallback(() => {
     showSuccess('Client updated in Notion.');
-  }, []);
-
-  const handleUpdateNotionClientError = useCallback((msg: string) => {
-    showError(`Update Failed: ${msg}`);
-    fetchAllClients(); // Re-fetch to ensure data consistency if optimistic update failed
   }, []);
 
   // 1. Fetch Clients (from clients_mirror table)
@@ -72,6 +74,12 @@ const AllClients = () => {
       onError: handleFetchAllClientsError,
     }
   );
+  
+  // Define the problematic callback AFTER fetchAllClients is defined
+  const handleUpdateNotionClientError = useCallback((msg: string) => {
+    showError(`Update Failed: ${msg}`);
+    fetchAllClients(); // Re-fetch to ensure data consistency if optimistic update failed
+  }, [fetchAllClients]);
 
   // 2. Sync Clients (Notion -> clients_mirror table)
   const {
