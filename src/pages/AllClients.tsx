@@ -62,7 +62,7 @@ const AllClients = () => {
     isCached: clientsIsCached,
     invalidateCache: invalidateClientsCache,
   } = useCachedEdgeFunction<void, GetAllClientsResponse>(
-    'get-all-clients',
+    'fetch-all-clients', // Renamed function endpoint
     {
       requiresAuth: true,
       requiresNotionConfig: true,
