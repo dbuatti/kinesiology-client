@@ -7,6 +7,28 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Helper function to normalize client names by removing common prefixes/suffixes
+function normalizeClientName(name: string): string {
+    if (!name) return '';
+    let normalized = name.trim();
+
+    // Remove common prefixes like "1 - ", "2 - ", "3 - "
+    normalized = normalized.replace(/^\d+\s*-\s*/, '');
+
+    // Remove common suffixes like dates, session types, and parentheses content
+    // Matches patterns like " Diona Hill September 26, 2025 Kinesiology (90 minutes) "
+    // This is a complex regex, simplifying to remove common separators and trailing info
+    normalized = normalized.replace(/\s*\(.*\)\s*$/, ''); // Remove content in parentheses
+    normalized = normalized.replace(/\s*\[.*\]\s*$/, ''); // Remove content in brackets
+    normalized = normalized.replace(/\s*(kinesiology|session|checkup|balance|appointment|follow up|community|discounted|minutes|hour|hr|january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)\s*.*$/i, '');
+    normalized = normalized.replace(/,\s*\d{4}\s*.*$/, ''); // Remove trailing date/year info
+    normalized = normalized.replace(/\s*\d{1,2}\s*(january|february|march|april|may|june|july|august|september|october|november|december)\s*\d{4}\s*.*$/i, ''); // Remove date format like "26 August, 2025"
+    normalized = normalized.replace(/\s*\d{1,2}\/\d{1,2}\/\d{4}\s*.*$/, ''); // Remove date format like "26/02/2025"
+    
+    // Final trim and normalization
+    return normalized.trim().toLowerCase();
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -56,7 +78,7 @@ serve(async (req) => {
     const notionToken = secrets.notion_integration_token;
     const appointmentsDbId = secrets.appointments_database_id;
 
-    // 2. Fetch local clients for mapping (Name -> ID)
+    // 2. Fetch local clients for mapping (Normalized Name -> ID)
     const { data: clientsData, error: clientsError } = await serviceRoleSupabase
       .from('clients')
       .select('id, name')
@@ -72,7 +94,8 @@ serve(async (req) => {
 
     const clientMap = new Map<string, string>();
     clientsData.forEach(client => {
-      clientMap.set(client.name.toLowerCase(), client.id);
+      // Store normalized name -> ID mapping
+      clientMap.set(normalizeClientName(client.name), client.id);
     });
     console.log(`[migrate-notion-appointments] Loaded ${clientMap.size} local clients for mapping.`);
 
@@ -111,8 +134,8 @@ serve(async (req) => {
     for (const page of notionAppointments) {
       const properties = page.properties;
       
-      // Assuming 'Client Name' is the Title property, or 'Name'
-      const clientName = properties['Client Name']?.title?.[0]?.plain_text || properties['Name']?.title?.[0]?.plain_text;
+      // Extract the raw client name/title
+      const rawClientName = properties['Client Name']?.title?.[0]?.plain_text || properties['Name']?.title?.[0]?.plain_text;
       const date = properties.Date?.date?.start;
       const goal = properties.Goal?.rich_text?.[0]?.plain_text || '';
       const sessionNorthStar = properties['Session North Star']?.rich_text?.[0]?.plain_text || '';
@@ -121,17 +144,19 @@ serve(async (req) => {
       const sessionAnchor = properties['Session Anchor']?.rich_text?.[0]?.plain_text || '';
       const priorityPattern = properties['Priority Pattern']?.select?.name || null;
 
-      if (!clientName || !date) {
+      if (!rawClientName || !date) {
         console.warn(`[migrate-notion-appointments] Skipping appointment due to missing Client Name or Date: ${page.id}`);
         skippedCount++;
         continue;
       }
 
-      const clientId = clientMap.get(clientName.toLowerCase());
+      // Normalize the raw name for lookup
+      const normalizedClientName = normalizeClientName(rawClientName);
+      const clientId = clientMap.get(normalizedClientName);
 
       if (!clientId) {
-        console.warn(`[migrate-notion-appointments] Skipping appointment: Client "${clientName}" not found in local database.`);
-        errors.push(`Client "${clientName}" not found in local database.`);
+        console.warn(`[migrate-notion-appointments] Skipping appointment: Normalized client name "${normalizedClientName}" (from raw: "${rawClientName}") not found in local database.`);
+        errors.push(`Client "${rawClientName}" (Normalized: ${normalizedClientName}) not found in local database.`);
         skippedCount++;
         continue;
       }
@@ -146,14 +171,14 @@ serve(async (req) => {
         
       if (checkError) {
           console.error(`[migrate-notion-appointments] Error checking existing appointment: ${checkError.message}`);
-          errors.push(`Error checking existing appointment for ${clientName} on ${date}: ${checkError.message}`);
+          errors.push(`Error checking existing appointment for ${rawClientName} on ${date}: ${checkError.message}`);
           skippedCount++;
           continue;
       }
 
       if (existingCount && existingCount > 0) {
-          console.log(`[migrate-notion-appointments] Skipping appointment: Duplicate found for ${clientName} on ${date}.`);
-          errors.push(`Duplicate appointment found for ${clientName} on ${date}.`);
+          console.log(`[migrate-notion-appointments] Skipping appointment: Duplicate found for ${rawClientName} on ${date}.`);
+          errors.push(`Duplicate appointment found for ${rawClientName} on ${date}.`);
           skippedCount++;
           continue;
       }
@@ -174,8 +199,8 @@ serve(async (req) => {
         });
 
       if (insertError) {
-        console.error(`[migrate-notion-appointments] Insert error for ${clientName} on ${date}:`, insertError.message);
-        errors.push(`Failed to insert appointment for ${clientName} on ${date}: ${insertError.message}`);
+        console.error(`[migrate-notion-appointments] Insert error for ${rawClientName} on ${date}:`, insertError.message);
+        errors.push(`Failed to insert appointment for ${rawClientName} on ${date}: ${insertError.message}`);
         skippedCount++;
       } else {
         migratedCount++;
