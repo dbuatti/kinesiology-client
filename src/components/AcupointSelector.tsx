@@ -69,7 +69,6 @@ const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLo
       cacheTtl: 120, // 2 hours cache
       onSuccess: onAcupointsSuccess,
       onError: onAcupointsError,
-      preventAutoInvalidate: true, // NEW: Prevent automatic cache invalidation on mount
     }
   );
 

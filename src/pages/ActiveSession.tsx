@@ -141,12 +141,11 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
   );
 
   // 3. Reference Data Hooks (Lazy Load - only executed when tab is clicked)
-  // These hooks now prevent automatic cache invalidation on mount
-  const { data: modesData, loading: loadingModes, execute: fetchModes } = useCachedEdgeFunction<void, GetNotionModesResponse>('get-notion-modes', { requiresAuth: true, requiresNotionConfig: true, cacheKey: 'all-modes', cacheTtl: 120, preventAutoInvalidate: true });
-  const { data: musclesData, loading: loadingMuscles, execute: fetchMuscles } = useCachedEdgeFunction<{ searchTerm: string, searchType: 'muscle' | 'meridian' | 'organ' | 'emotion' }, GetMusclesResponse>('get-muscles', { requiresAuth: true, requiresNotionConfig: true, cacheKey: 'all-muscles', cacheTtl: 120, preventAutoInvalidate: true });
-  const { data: chakrasData, loading: loadingChakras, execute: fetchChakras } = useCachedEdgeFunction<{ searchTerm: string, searchType: 'name' | 'element' | 'emotion' | 'organ' }, GetChakrasResponse>('get-chakras', { requiresAuth: true, requiresNotionConfig: true, cacheKey: 'all-chakras', cacheTtl: 120, preventAutoInvalidate: true });
-  const { data: channelsData, loading: loadingChannels, execute: fetchChannels } = useCachedEdgeFunction<{ searchTerm: string, searchType: 'name' | 'element' }, GetChannelsResponse>('get-channels', { requiresAuth: true, requiresNotionConfig: true, cacheKey: 'all-channels', cacheTtl: 120, preventAutoInvalidate: true });
-  const { data: acupointsData, loading: loadingAcupoints, execute: fetchAcupoints } = useCachedEdgeFunction<{ searchTerm: string, searchType: 'point' | 'symptom' }, GetAcupointsResponse>('get-acupoints', { requiresAuth: true, requiresNotionConfig: true, cacheKey: 'all-acupoints', cacheTtl: 120, preventAutoInvalidate: true });
+  const { data: modesData, loading: loadingModes, execute: fetchModes } = useCachedEdgeFunction<void, GetNotionModesResponse>('get-notion-modes', { requiresAuth: true, requiresNotionConfig: true, cacheKey: 'all-modes', cacheTtl: 120 });
+  const { data: musclesData, loading: loadingMuscles, execute: fetchMuscles } = useCachedEdgeFunction<{ searchTerm: string, searchType: 'muscle' | 'meridian' | 'organ' | 'emotion' }, GetMusclesResponse>('get-muscles', { requiresAuth: true, requiresNotionConfig: true, cacheKey: 'all-muscles', cacheTtl: 120 });
+  const { data: chakrasData, loading: loadingChakras, execute: fetchChakras } = useCachedEdgeFunction<{ searchTerm: string, searchType: 'name' | 'element' | 'emotion' | 'organ' }, GetChakrasResponse>('get-chakras', { requiresAuth: true, requiresNotionConfig: true, cacheKey: 'all-chakras', cacheTtl: 120 });
+  const { data: channelsData, loading: loadingChannels, execute: fetchChannels } = useCachedEdgeFunction<{ searchTerm: string, searchType: 'name' | 'element' }, GetChannelsResponse>('get-channels', { requiresAuth: true, requiresNotionConfig: true, cacheKey: 'all-channels', cacheTtl: 120 });
+  const { data: acupointsData, loading: loadingAcupoints, execute: fetchAcupoints } = useCachedEdgeFunction<{ searchTerm: string, searchType: 'point' | 'symptom' }, GetAcupointsResponse>('get-acupoints', { requiresAuth: true, requiresNotionConfig: true, cacheKey: 'all-acupoints', cacheTtl: 120 });
 
 
   // Update Notion appointment

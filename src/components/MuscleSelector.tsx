@@ -69,7 +69,6 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
       cacheTtl: 120, // 2 hours cache
       onSuccess: onMusclesSuccess,
       onError: onMusclesError,
-      preventAutoInvalidate: true, // NEW: Prevent automatic cache invalidation on mount
     }
   );
 

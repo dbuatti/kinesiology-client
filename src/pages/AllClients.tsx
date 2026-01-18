@@ -55,7 +55,6 @@ const AllClients = () => {
       cacheTtl: 60, // 1 hour cache
       onSuccess: handleFetchAllClientsSuccess,
       onError: handleFetchAllClientsError,
-      preventAutoInvalidate: true, // NEW: Prevent automatic cache invalidation on mount
     }
   );
 
