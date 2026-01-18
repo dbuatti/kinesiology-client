@@ -26,6 +26,10 @@ function normalizeClientName(name: string): string {
     // Remove trailing commas or spaces
     normalized = normalized.replace(/,\s*$/, '').trim();
 
+    // NEW STEP: Remove all non-alphanumeric characters (including spaces) for strict matching key
+    // This ensures "D Hill", "D. Hill", and "Dhill" all become "dhill"
+    normalized = normalized.replace(/[^a-z0-9]/g, ''); 
+
     return normalized;
 }
 
@@ -98,7 +102,8 @@ serve(async (req) => {
       clientMap.set(normalizeClientName(client.name), client.id);
       // Store email -> ID mapping (if email exists)
       if (client.email) {
-        clientMap.set(client.email.toLowerCase().trim(), client.id);
+        // Apply strict normalization to email too, just in case
+        clientMap.set(client.email.toLowerCase().replace(/[^a-z0-9]/g, ''), client.id);
       }
     });
     console.log(`[migrate-notion-appointments] Loaded ${clientMap.size} unique client mappings (names/emails).`);
@@ -159,27 +164,13 @@ serve(async (req) => {
         continue;
       }
 
-      // Try to find client ID using multiple strategies
+      // Try to find client ID using strict normalization
       let clientId = null;
       const normalizedClientName = normalizeClientName(rawClientName);
       
-      // Strategy 1: Exact match on normalized name
+      // Strategy 1: Exact match on strictly normalized name
       clientId = clientMap.get(normalizedClientName);
-
-      // Strategy 2: Check if the normalized name contains any known client name (less reliable, but useful for partial matches)
-      if (!clientId) {
-          for (const [normalizedLocalName, localClientId] of clientMap.entries()) {
-              if (normalizedClientName.includes(normalizedLocalName) || normalizedLocalName.includes(normalizedClientName)) {
-                  clientId = localClientId;
-                  console.log(`[migrate-notion-appointments] Found fuzzy match for "${rawClientName}" -> "${normalizedLocalName}"`);
-                  break;
-              }
-          }
-      }
       
-      // Strategy 3: Check if the Notion page has an email property (if available in Notion schema)
-      // NOTE: Assuming Notion appointments database doesn't typically store email directly, relying on name matching.
-
       if (!clientId) {
         console.warn(`[migrate-notion-appointments] Skipping appointment: Client name "${rawClientName}" (Normalized: ${normalizedClientName}) not found in local database.`);
         errors.push(`Client "${rawClientName}" (Normalized: ${normalizedClientName}) not found in local database.`);
