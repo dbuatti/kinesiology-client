@@ -42,34 +42,15 @@ serve(async (req) => {
 
     console.log("[get-clients-list] User authenticated:", user.id)
 
-    // Use service role client to fetch secrets securely AND to fetch clients_mirror data for debugging
+    // Use service role client to fetch clients data (bypassing RLS for consistency, though RLS is enabled on the table)
     const serviceRoleSupabase = createClient(supabaseUrl, supabaseServiceRoleKey)
-    const { data: secrets, error: secretsError } = await serviceRoleSupabase
-      .from('notion_secrets')
-      .select('crm_database_id')
-      .eq('id', user.id)
-      .single()
-
-    if (secretsError || !secrets || !secrets.crm_database_id) {
-      console.error("[get-clients-list] Notion CRM database ID not configured or secrets fetch failed:", secretsError?.message)
-      // Return 404 if configuration is missing
-      return new Response(JSON.stringify({
-        error: 'Notion CRM database ID not configured. Please configure your Notion credentials first.',
-        errorCode: 'NOTION_CONFIG_NOT_FOUND'
-      }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
-    }
-
-    // --- DEBUG CHANGE: Use serviceRoleSupabase to fetch clients_mirror data ---
-    // This bypasses RLS and confirms if the data exists in the table for the current user.
+    
+    // Fetch clients directly from the new 'clients' table
     const { data: clientsData, error: fetchError } = await serviceRoleSupabase
-      .from('clients_mirror')
+      .from('clients')
       .select('id, name, focus, email, phone, star_sign')
-      .eq('user_id', user.id) // Filter by user_id explicitly since RLS is bypassed
+      .eq('user_id', user.id) // Filter by user_id explicitly
       .order('name', { ascending: true });
-    // --- END DEBUG CHANGE ---
 
     if (fetchError) {
       console.error("[get-clients-list] Database fetch error:", fetchError?.message)
@@ -79,7 +60,7 @@ serve(async (req) => {
       })
     }
 
-    console.log("[get-clients-list] Found", clientsData.length, "clients in clients_mirror")
+    console.log("[get-clients-list] Found", clientsData.length, "clients in clients table")
 
     const clients = clientsData.map((client: any) => ({
       id: client.id,
@@ -91,14 +72,14 @@ serve(async (req) => {
     }))
 
     if (clients.length === 0) {
-        console.log("[get-clients-list] Clients mirror is empty. Returning empty list with specific error code.")
-        // Return 200 OK, but include the error code to signal the client mirror is empty
+        console.log("[get-clients-list] Clients table is empty.")
+        // Return 200 OK, but include the error code to signal the client table is empty
         return new Response(JSON.stringify({ 
-            error: 'No clients found in local database. Please run a Notion sync.',
-            errorCode: 'CLIENTS_MIRROR_EMPTY',
+            error: 'No clients found in local database.',
+            errorCode: 'CLIENTS_TABLE_EMPTY', // New error code for empty table
             clients: []
         }), {
-            status: 200, // Changed status to 200 OK
+            status: 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
     }

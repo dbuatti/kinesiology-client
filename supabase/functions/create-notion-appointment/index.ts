@@ -46,14 +46,14 @@ serve(async (req) => {
     // Fetch Notion credentials from secure secrets table
     const { data: secrets, error: secretsError } = await supabase
       .from('notion_secrets')
-      .select('notion_integration_token, appointments_database_id, crm_database_id')
+      .select('notion_integration_token, appointments_database_id') // Removed crm_database_id
       .eq('id', user.id)
       .single()
 
-    if (secretsError || !secrets || !secrets.appointments_database_id || !secrets.crm_database_id) {
+    if (secretsError || !secrets || !secrets.appointments_database_id) {
       console.error("[create-notion-appointment] Notion configuration missing required IDs:", user.id, secretsError?.message)
       return new Response(JSON.stringify({
-        error: 'Notion configuration missing Appointments or CRM database ID.'
+        error: 'Notion configuration missing Appointments database ID.'
       }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -118,7 +118,7 @@ serve(async (req) => {
             name: "AP"
           }
         },
-        // Client relation property
+        // Client relation property - clientCrmId is the Notion Page ID of the client
         "Client": {
           relation: [
             {

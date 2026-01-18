@@ -21,27 +21,24 @@ const AllClients = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isMirrorEmpty, setIsMirrorEmpty] = useState(false);
-  const [autoSyncAttempted, setAutoSyncAttempted] = useState(false); // New state to prevent loop
+  const [isTableEmpty, setIsTableEmpty] = useState(false);
   const navigate = useNavigate();
 
   const handleFetchAllClientsSuccess = useCallback((data: GetAllClientsResponse, isCached: boolean) => {
-    // Check for the specific error code even on success (200 OK)
-    if ((data as any).errorCode === 'CLIENTS_MIRROR_EMPTY') {
-        setIsMirrorEmpty(true);
+    if ((data as any).errorCode === 'CLIENTS_TABLE_EMPTY') {
+        setIsTableEmpty(true);
         setClients([]);
         setFilteredClients([]);
     } else {
         setClients(data.clients);
         setFilteredClients(data.clients);
-        setIsMirrorEmpty(false);
+        setIsTableEmpty(false);
     }
   }, []);
 
   const handleFetchAllClientsError = useCallback((msg: string, errorCode?: string) => {
-    if (errorCode === 'CLIENTS_MIRROR_EMPTY') {
-        // This case should now be handled by onSuccess (status 200)
-        setIsMirrorEmpty(true);
+    if (errorCode === 'CLIENTS_TABLE_EMPTY') {
+        setIsTableEmpty(true);
         setClients([]);
         setFilteredClients([]);
     } else if (errorCode === 'NOTION_CONFIG_NOT_FOUND') {
@@ -51,11 +48,11 @@ const AllClients = () => {
     }
   }, []);
 
-  const handleUpdateNotionClientSuccess = useCallback(() => {
-    showSuccess('Client updated in Notion.');
+  const handleUpdateClientSuccess = useCallback(() => {
+    showSuccess('Client updated successfully.');
   }, []);
 
-  // 1. Fetch Clients (from clients_mirror table)
+  // 1. Fetch Clients (from clients table)
   const {
     data: fetchedClientsData,
     loading: loadingClients,
@@ -65,10 +62,10 @@ const AllClients = () => {
     isCached: clientsIsCached,
     invalidateCache: invalidateClientsCache,
   } = useCachedEdgeFunction<void, GetAllClientsResponse>(
-    'get-clients-list', // Updated function endpoint name
+    'get-clients-list',
     {
       requiresAuth: true,
-      requiresNotionConfig: true,
+      requiresNotionConfig: true, // Still requires Notion config for other features, but not for client read
       cacheKey: 'all-clients',
       cacheTtl: 60, // 1 hour cache
       onSuccess: handleFetchAllClientsSuccess,
@@ -77,60 +74,27 @@ const AllClients = () => {
   );
   
   // Define the problematic callback AFTER fetchAllClients is defined
-  const handleUpdateNotionClientError = useCallback((msg: string) => {
+  const handleUpdateClientError = useCallback((msg: string) => {
     showError(`Update Failed: ${msg}`);
     fetchAllClients(); // Re-fetch to ensure data consistency if optimistic update failed
   }, [fetchAllClients]);
 
-  // 2. Sync Clients (Notion -> clients_mirror table)
-  const {
-    loading: syncingClients,
-    execute: syncClients,
-  } = useCachedEdgeFunction<{ syncType: 'clients' }, any>(
-    'sync-notion-data',
-    {
-      requiresAuth: true,
-      requiresNotionConfig: true,
-      onSuccess: async (data) => {
-        showSuccess(`Successfully imported ${data.results.clients_mirror_count} clients from Notion.`);
-        // Invalidate the 'all-clients' cache key to force a fresh fetch from the mirror table
-        await invalidateClientsCache();
-        // Reset autoSyncAttempted flag if sync was successful, allowing future manual syncs to trigger a check
-        setAutoSyncAttempted(false); 
-        fetchAllClients();
-      },
-      onError: (msg) => {
-        showError(`Client Sync Failed: ${msg}`);
-      }
-    }
-  );
-
-  // 3. Update Client (Notion API)
+  // 2. Update Client (Supabase clients table)
   const {
     loading: updatingClient,
-    execute: updateNotionClient,
+    execute: updateClient,
   } = useCachedEdgeFunction<UpdateNotionClientPayload, UpdateNotionClientResponse>(
-    'update-notion-client',
+    'update-client', // Using the new function name
     {
       requiresAuth: true,
-      onSuccess: handleUpdateNotionClientSuccess,
-      onError: handleUpdateNotionClientError,
+      onSuccess: handleUpdateClientSuccess,
+      onError: handleUpdateClientError,
     }
   );
 
   useEffect(() => {
     fetchAllClients();
   }, [fetchAllClients]);
-
-  // Auto-sync if mirror is empty and not currently loading/syncing
-  useEffect(() => {
-    if (isMirrorEmpty && !loadingClients && !syncingClients && !needsConfig && !autoSyncAttempted) {
-        console.log('[AllClients] Mirror is empty, triggering automatic client sync.');
-        setAutoSyncAttempted(true); // Prevent immediate re-trigger
-        syncClients({ syncType: 'clients' });
-    }
-  }, [isMirrorEmpty, loadingClients, syncingClients, needsConfig, syncClients, autoSyncAttempted]);
-
 
   useEffect(() => {
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
@@ -153,7 +117,7 @@ const AllClients = () => {
 
   const handleFieldBlur = (id: string, field: keyof Client, value: any) => {
     // Trigger API update only on blur
-    updateNotionClient({ clientId: id, updates: { [field]: value } });
+    updateClient({ clientId: id, updates: { [field]: value } });
   };
 
   const handleClearSearch = useCallback(() => {
@@ -161,13 +125,9 @@ const AllClients = () => {
     setFilteredClients(clients); // Reset to all clients
   }, [clients]);
 
-  const handleManualSync = () => {
-    // Reset autoSyncAttempted flag when manually syncing
-    setAutoSyncAttempted(false);
-    syncClients({ syncType: 'clients' });
-  };
+  // Removed handleManualSync and syncingClients logic
 
-  if (loadingClients && !clientsIsCached && !isMirrorEmpty) {
+  if (loadingClients && !clientsIsCached && !isTableEmpty) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6 flex items-center justify-center">
         <Loader2 className="w-12 h-12 animate-spin text-indigo-600" />
@@ -176,6 +136,7 @@ const AllClients = () => {
   }
 
   if (needsConfig) {
+    // This check remains because other features still rely on Notion config
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center p-6">
         <Card className="max-w-md w-full shadow-xl">
@@ -187,7 +148,7 @@ const AllClients = () => {
               Notion Integration Required
             </h2>
             <p className="text-gray-600 mb-6">
-              Connect your Notion account to view and manage all clients.
+              Connect your Notion account to enable other features (Appointments, Reference Data).
             </p>
             <Button
               className="w-full h-12 text-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
@@ -201,7 +162,7 @@ const AllClients = () => {
     );
   }
 
-  if (clientsError && !isMirrorEmpty) {
+  if (clientsError && !isTableEmpty) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center p-6">
         <Card className="max-w-md w-full shadow-lg">
@@ -229,7 +190,7 @@ const AllClients = () => {
               <User className="w-7 h-7" />
               All Clients
             </CardTitle>
-            <p className="text-indigo-100 mt-1">Manage all your client records with two-way Notion sync.</p>
+            <p className="text-indigo-100 mt-1">Manage all your client records directly in the app.</p>
           </CardHeader>
 
           <CardContent className="pt-6">
@@ -249,22 +210,13 @@ const AllClients = () => {
                     size="sm"
                     className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0 text-gray-500 hover:text-gray-700"
                     onClick={handleClearSearch}
-                    disabled={loadingClients || syncingClients}
+                    disabled={loadingClients || updatingClient}
                   >
                     <XCircle className="h-4 w-4" />
                   </Button>
                 )}
               </div>
-              <Button 
-                onClick={handleManualSync} 
-                variant="default" 
-                disabled={syncingClients}
-                className="bg-green-600 hover:bg-green-700 text-white"
-              >
-                {syncingClients ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-                {syncingClients ? 'Syncing...' : 'Sync Clients'}
-              </Button>
-              <Button onClick={() => fetchAllClients()} variant="outline" disabled={loadingClients || syncingClients}>
+              <Button onClick={() => fetchAllClients()} variant="outline" disabled={loadingClients || updatingClient}>
                 {loadingClients ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
                 {loadingClients ? 'Refreshing...' : 'Refresh'}
               </Button>
@@ -277,27 +229,18 @@ const AllClients = () => {
               }} />
             </div>
 
-            {isMirrorEmpty || filteredClients.length === 0 ? (
+            {isTableEmpty || filteredClients.length === 0 ? (
               <div className="text-center py-10 text-gray-600">
                 <Database className="w-12 h-12 mx-auto mb-4 text-indigo-400" />
                 <h3 className="text-xl font-semibold mb-2">Client Database Empty</h3>
                 <p className="mb-4">
-                  {isMirrorEmpty ? "Your local client mirror is empty. Sync your Notion CRM database now to import clients. If the sync fails, ensure your Notion CRM Database ID is correct and shared with the integration." : "No clients found matching your search."}
+                  {isTableEmpty ? "Your local client database is empty. You can create new clients via the 'Create New Appointment' dialog or manually add them here (future feature)." : "No clients found matching your search."}
                 </p>
-                {isMirrorEmpty && (
+                {isTableEmpty && (
                     <div className="space-y-3 max-w-sm mx-auto">
-                        <Button
-                            onClick={handleManualSync}
-                            disabled={syncingClients}
-                            className="w-full bg-green-600 hover:bg-green-700 text-white"
-                        >
-                            {syncingClients ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-                            {syncingClients ? 'Syncing Clients...' : 'Sync Clients from Notion'}
-                        </Button>
                         <Button
                             onClick={() => navigate('/notion-config')}
                             variant="outline"
-                            disabled={syncingClients}
                             className="w-full text-indigo-600 hover:bg-indigo-50"
                         >
                             <Settings className="h-4 w-4 mr-2" />

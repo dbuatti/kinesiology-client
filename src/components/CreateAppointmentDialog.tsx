@@ -28,13 +28,25 @@ const CreateAppointmentDialog: React.FC<CreateAppointmentDialogProps> = ({ onApp
   const [goal, setGoal] = useState('');
   const [sessionNorthStar, setSessionNorthStar] = useState('');
   const [allClients, setAllClients] = useState<Client[]>([]);
+  const [isClientTableEmpty, setIsClientTableEmpty] = useState(false);
 
   const handleFetchClientsSuccess = useCallback((data: GetAllClientsResponse) => {
-    setAllClients(data.clients);
+    if ((data as any).errorCode === 'CLIENTS_TABLE_EMPTY') {
+      setAllClients([]);
+      setIsClientTableEmpty(true);
+    } else {
+      setAllClients(data.clients);
+      setIsClientTableEmpty(false);
+    }
   }, []);
 
-  const handleFetchClientsError = useCallback((msg: string) => {
-    showError(`Failed to load clients: ${msg}`);
+  const handleFetchClientsError = useCallback((msg: string, errorCode?: string) => {
+    if (errorCode === 'CLIENTS_TABLE_EMPTY') {
+      setAllClients([]);
+      setIsClientTableEmpty(true);
+    } else {
+      showError(`Failed to load clients: ${msg}`);
+    }
   }, []);
 
   const {
@@ -43,7 +55,7 @@ const CreateAppointmentDialog: React.FC<CreateAppointmentDialogProps> = ({ onApp
     execute: fetchAllClients,
     isCached: clientsIsCached,
   } = useCachedEdgeFunction<void, GetAllClientsResponse>(
-    'get-clients-list', // Updated function endpoint name
+    'get-clients-list',
     {
       requiresAuth: true,
       requiresNotionConfig: true,
@@ -78,10 +90,10 @@ const CreateAppointmentDialog: React.FC<CreateAppointmentDialogProps> = ({ onApp
   );
 
   useEffect(() => {
-    if (isDialogOpen && allClients.length === 0 && !loadingClients) {
+    if (isDialogOpen && allClients.length === 0 && !loadingClients && !isClientTableEmpty) {
       fetchAllClients();
     }
-  }, [isDialogOpen, allClients.length, loadingClients, fetchAllClients]);
+  }, [isDialogOpen, allClients.length, loadingClients, fetchAllClients, isClientTableEmpty]);
 
   const handleClientSelect = (client: Client) => {
     setSelectedClient(client);
@@ -97,7 +109,7 @@ const CreateAppointmentDialog: React.FC<CreateAppointmentDialogProps> = ({ onApp
     }
 
     const payload: CreateNotionAppointmentPayload = {
-      clientCrmId: selectedClient.id,
+      clientCrmId: selectedClient.id, // This is the Notion Page ID, still required for the Notion Appointment relation
       clientName: selectedClient.name,
       date: format(date, 'yyyy-MM-dd'),
       goal: goal.trim(),
@@ -112,7 +124,7 @@ const CreateAppointmentDialog: React.FC<CreateAppointmentDialogProps> = ({ onApp
       <Button
         variant="secondary"
         className="w-full md:w-auto bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
-        onClick={() => showError('Notion configuration required to load clients.')}
+        onClick={() => showError('Notion configuration required for appointment creation.')}
         disabled
       >
         <Settings className="h-4 w-4 mr-2" />
@@ -143,44 +155,50 @@ const CreateAppointmentDialog: React.FC<CreateAppointmentDialogProps> = ({ onApp
               <User className="w-4 h-4 text-indigo-600" />
               Client <span className="text-red-500">*</span>
             </Label>
-            <Popover open={isClientSelectOpen} onOpenChange={setIsClientSelectOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={isClientSelectOpen}
-                  className="w-full justify-between"
-                  disabled={loadingClients || creatingAppointment}
-                >
-                  {loadingClients ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                  {selectedClient ? selectedClient.name : "Select client..."}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                <Command>
-                  <CommandInput placeholder="Search client..." />
-                  <CommandEmpty>No client found.</CommandEmpty>
-                  <CommandGroup className="max-h-[300px] overflow-y-auto">
-                    {allClients.map((client) => (
-                      <CommandItem
-                        key={client.id}
-                        value={client.name}
-                        onSelect={() => handleClientSelect(client)}
-                      >
-                        <Check
-                          className={cn(
-                            "mr-2 h-4 w-4",
-                            selectedClient?.id === client.id ? "opacity-100" : "opacity-0"
-                          )}
-                        />
-                        {client.name}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </Command>
-              </PopoverContent>
-            </Popover>
+            {isClientTableEmpty ? (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-700">
+                No clients found in the local database. Please add a client first.
+              </div>
+            ) : (
+              <Popover open={isClientSelectOpen} onOpenChange={setIsClientSelectOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={isClientSelectOpen}
+                    className="w-full justify-between"
+                    disabled={loadingClients || creatingAppointment}
+                  >
+                    {loadingClients ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                    {selectedClient ? selectedClient.name : "Select client..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                  <Command>
+                    <CommandInput placeholder="Search client..." />
+                    <CommandEmpty>No client found.</CommandEmpty>
+                    <CommandGroup className="max-h-[300px] overflow-y-auto">
+                      {allClients.map((client) => (
+                        <CommandItem
+                          key={client.id}
+                          value={client.name}
+                          onSelect={() => handleClientSelect(client)}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              selectedClient?.id === client.id ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {client.name}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            )}
           </div>
 
           {/* Date Picker */}
@@ -249,7 +267,7 @@ const CreateAppointmentDialog: React.FC<CreateAppointmentDialogProps> = ({ onApp
           <Button
             type="submit"
             className="w-full h-12 text-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 mt-4"
-            disabled={creatingAppointment || loadingClients}
+            disabled={creatingAppointment || loadingClients || isClientTableEmpty}
           >
             {creatingAppointment ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <PlusCircle className="h-5 w-5 mr-2" />}
             {creatingAppointment ? 'Creating...' : 'Create Appointment'}
