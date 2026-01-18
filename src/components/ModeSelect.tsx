@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
-import { Check, ChevronsUpDown, Info, Loader2, Trash2, ChevronRight } from 'lucide-react';
+import { Check, ChevronsUpDown, Info, Loader2, Trash2, ChevronRight, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCachedEdgeFunction } from '@/hooks/use-cached-edge-function';
 import { Mode, GetNotionModesResponse, LogSessionEventPayload, LogSessionEventResponse } from '@/types/api';
@@ -122,6 +122,15 @@ const ModeSelect: React.FC<ModeSelectProps> = ({
     showSuccess('Mode removed from session display.');
   };
 
+  const handleClearAllModes = () => {
+    if (sessionSelectedModes.length === 0) {
+      showError('No modes to clear.');
+      return;
+    }
+    setSessionSelectedModes([]);
+    showSuccess('All modes cleared from session.');
+  };
+
   const handleOpenModeDetailsPage = (modeId: string) => {
     navigate(`/mode-details/${modeId}`);
   };
@@ -233,6 +242,17 @@ const ModeSelect: React.FC<ModeSelectProps> = ({
               </div>
             </Card>
           ))}
+          
+          {/* Clear All Button */}
+          <Button
+            variant="outline"
+            className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+            onClick={handleClearAllModes}
+            disabled={loggingSessionEvent}
+          >
+            <XCircle className="h-4 w-4 mr-2" />
+            Clear All Modes
+          </Button>
         </div>
       )}
     </div>
