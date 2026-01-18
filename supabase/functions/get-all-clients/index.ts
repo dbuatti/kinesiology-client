@@ -13,7 +13,6 @@ serve(async (req) => {
 
   try {
     console.log("[get-all-clients] Starting function execution")
-    // Attempting to force redeployment
 
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
