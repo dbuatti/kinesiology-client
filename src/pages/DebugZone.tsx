@@ -3,6 +3,7 @@
 import React from 'react';
 import ActiveSession from './ActiveSession';
 import CacheManager from '@/components/CacheManager';
+import NotionMigrationTool from '@/components/NotionMigrationTool';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Bug, PlayCircle } from 'lucide-react';
@@ -23,6 +24,11 @@ const DebugZone = () => {
             <p className="text-indigo-100 mt-1">Tools for testing and cache management.</p>
           </CardHeader>
           <CardContent className="pt-6 space-y-6">
+            
+            <NotionMigrationTool />
+
+            <Separator />
+
             <CacheManager />
             
             <Separator />

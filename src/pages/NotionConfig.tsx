@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Settings, Key, Database, Shield, Loader2, Info } from 'lucide-react'; // Added Info import
 import { showSuccess, showError } from '@/utils/toast'; // Import sonner toast utilities
-import { useCachedEdgeFunction } from '@/hooks/use-supabase-edge-function';
+import { useCachedEdgeFunction } from '@/hooks/use-cached-edge-function';
 import { SetNotionSecretsPayload, SetNotionSecretsResponse, NotionSecrets } from '@/types/api';
 
 import { useForm } from 'react-hook-form';
