@@ -62,11 +62,10 @@ serve(async (req) => {
       })
     }
 
-    // Fetch clients from the clients_mirror table
+    // Fetch clients from the clients_mirror table. RLS handles filtering by user_id.
     const { data: clientsData, error: fetchError } = await supabase
       .from('clients_mirror')
       .select('id, name, focus, email, phone, star_sign')
-      .eq('user_id', user.id) // RLS should handle this, but explicit filter is good practice
       .order('name', { ascending: true });
 
     if (fetchError) {

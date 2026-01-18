@@ -65,7 +65,8 @@ serve(async (req) => {
     // Sync data based on request type
     const { syncType } = await req.json();
     const results: any = {};
-    const serviceRoleSupabase = createClient(supabaseUrl, supabaseServiceRoleKey) // Use service role for writing to clients_mirror
+    // Use the service role client created above for writing to clients_mirror
+    const serviceRoleSupabase = supabase; 
 
     // Helper function to sync a database to notion_cache
     const syncDatabaseToCache = async (databaseId: string, databaseName: string) => {
@@ -99,7 +100,8 @@ serve(async (req) => {
       
       // Cache the results
       const cacheKey = `${user.id}:${databaseName.toLowerCase()}`;
-      await supabase
+      // Use serviceRoleSupabase (which is just 'supabase' here) for upserting cache
+      await serviceRoleSupabase
         .from('notion_cache')
         .upsert({
           id: cacheKey,
@@ -154,7 +156,7 @@ serve(async (req) => {
 
             return {
                 id: page.id,
-                user_id: user.id,
+                user_id: user.id, // Ensure user_id is correctly set
                 name: properties.Name?.title?.[0]?.plain_text || "Unknown Client",
                 focus: properties.Focus?.rich_text?.[0]?.plain_text || "",
                 email: properties.Email?.email || "",
@@ -165,6 +167,7 @@ serve(async (req) => {
         })
 
         if (clientsToUpsert.length > 0) {
+            // Use serviceRoleSupabase (which is 'supabase' here) for upserting
             const { error: upsertError } = await serviceRoleSupabase
                 .from('clients_mirror')
                 .upsert(clientsToUpsert, { onConflict: 'id' });
