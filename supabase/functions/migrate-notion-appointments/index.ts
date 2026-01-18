@@ -148,8 +148,13 @@ serve(async (req) => {
       const sessionAnchor = properties['Session Anchor']?.rich_text?.[0]?.plain_text || '';
       const priorityPattern = properties['Priority Pattern']?.select?.name || null;
 
-      if (!rawClientName || !date) {
-        console.warn(`[migrate-notion-appointments] Skipping appointment due to missing Client Name or Date: ${page.id}`);
+      let missingFields = [];
+      if (!rawClientName) missingFields.push('Client Name');
+      if (!date) missingFields.push('Date');
+
+      if (missingFields.length > 0) {
+        console.warn(`[migrate-notion-appointments] Skipping appointment due to missing fields (${missingFields.join(', ')}): ${page.id}`);
+        errors.push(`Skipped Notion page ${page.id}: Missing required fields (${missingFields.join(', ')}).`);
         skippedCount++;
         continue;
       }
