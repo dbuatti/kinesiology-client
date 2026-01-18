@@ -7,26 +7,26 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Helper function to normalize client names by removing common prefixes/suffixes
+// Helper function to normalize client names for matching
 function normalizeClientName(name: string): string {
     if (!name) return '';
-    let normalized = name.trim();
+    let normalized = name.trim().toLowerCase();
 
-    // Remove common prefixes like "1 - ", "2 - ", "3 - "
+    // 1. Remove common prefixes like numbers and dashes (e.g., "1 - ", "2 - ")
     normalized = normalized.replace(/^\d+\s*-\s*/, '');
 
-    // Remove common suffixes like dates, session types, and parentheses content
-    // Matches patterns like " Diona Hill September 26, 2025 Kinesiology (90 minutes) "
-    // This is a complex regex, simplifying to remove common separators and trailing info
-    normalized = normalized.replace(/\s*\(.*\)\s*$/, ''); // Remove content in parentheses
-    normalized = normalized.replace(/\s*\[.*\]\s*$/, ''); // Remove content in brackets
-    normalized = normalized.replace(/\s*(kinesiology|session|checkup|balance|appointment|follow up|community|discounted|minutes|hour|hr|january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)\s*.*$/i, '');
-    normalized = normalized.replace(/,\s*\d{4}\s*.*$/, ''); // Remove trailing date/year info
-    normalized = normalized.replace(/\s*\d{1,2}\s*(january|february|march|april|may|june|july|august|september|october|november|december)\s*\d{4}\s*.*$/i, ''); // Remove date format like "26 August, 2025"
-    normalized = normalized.replace(/\s*\d{1,2}\/\d{1,2}\/\d{4}\s*.*$/, ''); // Remove date format like "26/02/2025"
+    // 2. Remove common suffixes related to session details, dates, and time
+    // This regex attempts to remove common session/date/time phrases at the end of the string
+    normalized = normalized.replace(/\s*(\(|\s*kinesiology|\s*session|\s*checkup|\s*balance|\s*appointment|\s*follow up|\s*community|\s*discounted|\s*minutes|\s*hour|\s*hr|\s*january|\s*february|\s*march|\s*april|\s*may|\s*june|\s*july|\s*august|\s*september|\s*october|\s*november|\s*december|\s*jan|\s*feb|\s*mar|\s*apr|\s*jun|\s*jul|\s*aug|\s*sep|\s*oct|\s*nov|\s*dec|\s*\d{1,2}\s*\/\s*\d{1,2}\s*\/\s*\d{4}|\s*\d{4}|\s*,\s*\d{4}|\s*\d{1,2}\s*:\s*\d{2}|\s*am|\s*pm|\s*kinesiology|\s*session|\s*checkup|\s*balance|\s*appointment|\s*follow up|\s*community|\s*discounted|\s*minutes|\s*hour|\s*hr|\s*january|\s*february|\s*march|\s*april|\s*may|\s*june|\s*july|\s*august|\s*september|\s*october|\s*november|\s*december|\s*jan|\s*feb|\s*mar|\s*apr|\s*jun|\s*jul|\s*aug|\s*sep|\s*oct|\s*nov|\s*dec|\s*\d{1,2}\s*\/\s*\d{1,2}\s*\/\s*\d{4}|\s*\d{4}|\s*,\s*\d{4}|\s*\d{1,2}\s*:\s*\d{2}|\s*am|\s*pm|\s*)\s*$/ig, '');
     
-    // Final trim and normalization
-    return normalized.trim().toLowerCase();
+    // Remove content in parentheses/brackets if they appear at the end after cleaning
+    normalized = normalized.replace(/\s*\(.*\)\s*$/, ''); 
+    normalized = normalized.replace(/\s*\[.*\]\s*$/, ''); 
+
+    // Remove trailing commas or spaces
+    normalized = normalized.replace(/,\s*$/, '').trim();
+
+    return normalized;
 }
 
 serve(async (req) => {
@@ -78,10 +78,10 @@ serve(async (req) => {
     const notionToken = secrets.notion_integration_token;
     const appointmentsDbId = secrets.appointments_database_id;
 
-    // 2. Fetch local clients for mapping (Normalized Name -> ID)
+    // 2. Fetch local clients for mapping (Normalized Name -> ID, Email -> ID)
     const { data: clientsData, error: clientsError } = await serviceRoleSupabase
       .from('clients')
-      .select('id, name')
+      .select('id, name, email')
       .eq('user_id', user.id);
 
     if (clientsError) {
@@ -96,8 +96,12 @@ serve(async (req) => {
     clientsData.forEach(client => {
       // Store normalized name -> ID mapping
       clientMap.set(normalizeClientName(client.name), client.id);
+      // Store email -> ID mapping (if email exists)
+      if (client.email) {
+        clientMap.set(client.email.toLowerCase().trim(), client.id);
+      }
     });
-    console.log(`[migrate-notion-appointments] Loaded ${clientMap.size} local clients for mapping.`);
+    console.log(`[migrate-notion-appointments] Loaded ${clientMap.size} unique client mappings (names/emails).`);
 
     // 3. Query Notion for appointments (up to 100 for simplicity)
     const notionResponse = await retryFetch(`https://api.notion.com/v1/databases/${appointmentsDbId}/query`, {
@@ -150,12 +154,29 @@ serve(async (req) => {
         continue;
       }
 
-      // Normalize the raw name for lookup
+      // Try to find client ID using multiple strategies
+      let clientId = null;
       const normalizedClientName = normalizeClientName(rawClientName);
-      const clientId = clientMap.get(normalizedClientName);
+      
+      // Strategy 1: Exact match on normalized name
+      clientId = clientMap.get(normalizedClientName);
+
+      // Strategy 2: Check if the normalized name contains any known client name (less reliable, but useful for partial matches)
+      if (!clientId) {
+          for (const [normalizedLocalName, localClientId] of clientMap.entries()) {
+              if (normalizedClientName.includes(normalizedLocalName) || normalizedLocalName.includes(normalizedClientName)) {
+                  clientId = localClientId;
+                  console.log(`[migrate-notion-appointments] Found fuzzy match for "${rawClientName}" -> "${normalizedLocalName}"`);
+                  break;
+              }
+          }
+      }
+      
+      // Strategy 3: Check if the Notion page has an email property (if available in Notion schema)
+      // NOTE: Assuming Notion appointments database doesn't typically store email directly, relying on name matching.
 
       if (!clientId) {
-        console.warn(`[migrate-notion-appointments] Skipping appointment: Normalized client name "${normalizedClientName}" (from raw: "${rawClientName}") not found in local database.`);
+        console.warn(`[migrate-notion-appointments] Skipping appointment: Client name "${rawClientName}" (Normalized: ${normalizedClientName}) not found in local database.`);
         errors.push(`Client "${rawClientName}" (Normalized: ${normalizedClientName}) not found in local database.`);
         skippedCount++;
         continue;
