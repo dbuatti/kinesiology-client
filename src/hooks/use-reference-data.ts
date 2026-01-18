@@ -28,6 +28,7 @@ interface ReferenceDataContextType {
   loading: boolean;
   error: string | null;
   needsConfig: boolean;
+  isCached: boolean; // New: Overall cache status
   refetchAll: () => void;
 }
 
@@ -44,6 +45,7 @@ export const ReferenceDataContext = createContext<ReferenceDataContextType>({
   loading: true,
   error: null,
   needsConfig: false,
+  isCached: false,
   refetchAll: () => {},
 });
 
@@ -56,11 +58,24 @@ export const useReferenceDataFetcher = () => {
   const [loadingCount, setLoadingCount] = useState(0);
   const [errors, setErrors] = useState<string[]>([]);
   const [configNeeded, setConfigNeeded] = useState(false);
+  const [cacheStatus, setCacheStatus] = useState({
+    modes: false,
+    muscles: false,
+    chakras: false,
+    channels: false,
+    acupoints: false,
+  });
 
   const decrementLoading = useCallback(() => setLoadingCount(prev => Math.max(0, prev - 1)), []);
 
   const handleConfigNeeded = useCallback(() => setConfigNeeded(true), []);
   const handleError = useCallback((msg: string) => setErrors(prev => [...prev, msg]), []);
+
+  // Helper to create success handler that updates data and cache status
+  const createSuccessHandler = useCallback((key: keyof ReferenceData) => (res: any, isCached: boolean) => {
+    setData(prev => ({ ...prev, [key]: res[key] }));
+    setCacheStatus(prev => ({ ...prev, [key]: isCached }));
+  }, []);
 
   // 1. Modes
   const { execute: fetchModes } = useCachedEdgeFunction<void, GetNotionModesResponse>('get-notion-modes', {
@@ -68,7 +83,7 @@ export const useReferenceDataFetcher = () => {
     requiresNotionConfig: true,
     cacheKey: 'all-modes',
     cacheTtl: LONG_TTL,
-    onSuccess: (res) => setData(prev => ({ ...prev, modes: res.modes })),
+    onSuccess: createSuccessHandler('modes'),
     onError: handleError,
     onNotionConfigNeeded: handleConfigNeeded,
   });
@@ -79,7 +94,7 @@ export const useReferenceDataFetcher = () => {
     requiresNotionConfig: true,
     cacheKey: 'all-muscles',
     cacheTtl: LONG_TTL,
-    onSuccess: (res) => setData(prev => ({ ...prev, muscles: res.muscles })),
+    onSuccess: createSuccessHandler('muscles'),
     onError: handleError,
     onNotionConfigNeeded: handleConfigNeeded,
   });
@@ -90,7 +105,7 @@ export const useReferenceDataFetcher = () => {
     requiresNotionConfig: true,
     cacheKey: 'all-chakras',
     cacheTtl: LONG_TTL,
-    onSuccess: (res) => setData(prev => ({ ...prev, chakras: res.chakras })),
+    onSuccess: createSuccessHandler('chakras'),
     onError: handleError,
     onNotionConfigNeeded: handleConfigNeeded,
   });
@@ -101,7 +116,7 @@ export const useReferenceDataFetcher = () => {
     requiresNotionConfig: true,
     cacheKey: 'all-channels',
     cacheTtl: LONG_TTL,
-    onSuccess: (res) => setData(prev => ({ ...prev, channels: res.channels })),
+    onSuccess: createSuccessHandler('channels'),
     onError: handleError,
     onNotionConfigNeeded: handleConfigNeeded,
   });
@@ -112,7 +127,7 @@ export const useReferenceDataFetcher = () => {
     requiresNotionConfig: true,
     cacheKey: 'all-acupoints',
     cacheTtl: LONG_TTL,
-    onSuccess: (res) => setData(prev => ({ ...prev, acupoints: res.acupoints })),
+    onSuccess: createSuccessHandler('acupoints'),
     onError: handleError,
     onNotionConfigNeeded: handleConfigNeeded,
   });
@@ -122,6 +137,7 @@ export const useReferenceDataFetcher = () => {
     setErrors([]);
     setConfigNeeded(false);
     setLoadingCount(5); // Start with 5 items loading
+    setCacheStatus({ modes: false, muscles: false, chakras: false, channels: false, acupoints: false });
 
     const promises = [
       fetchModes().finally(decrementLoading),
@@ -141,6 +157,11 @@ export const useReferenceDataFetcher = () => {
 
   const isLoading = loadingCount > 0;
   const error = errors.length > 0 ? errors.join('; ') : null;
+  
+  // Determine overall cache status: true only if ALL reference data sets are cached
+  const isCached = useMemo(() => {
+    return Object.values(cacheStatus).every(status => status === true);
+  }, [cacheStatus]);
 
-  return { data, loading: isLoading, error, needsConfig: configNeeded, refetchAll };
+  return { data, loading: isLoading, error, needsConfig: configNeeded, isCached, refetchAll };
 };

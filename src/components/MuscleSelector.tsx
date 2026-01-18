@@ -27,7 +27,7 @@ interface MuscleSelectorProps {
 }
 
 const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMuscleStrengthLogged, appointmentId, onClearSelection, onOpenNotionPage }) => {
-  const { data, loading: loadingReferenceData, needsConfig: musclesNeedsConfig } = useReferenceData();
+  const { data, loading: loadingReferenceData, needsConfig: musclesNeedsConfig, isCached: isDataCached } = useReferenceData();
   const allMuscles = data.muscles;
 
   const [filteredMuscles, setFilteredMuscles] = useState<Muscle[]>(allMuscles);
@@ -37,7 +37,6 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
   const [selectedMuscle, setSelectedMuscle] = useState<Muscle | null>(null);
   const [showWeaknessChecklist, setShowWeaknessChecklist] = useState(false);
   const [notes, setNotes] = useState('');
-  const [isDataCached, setIsDataCached] = useState(true); // Assume cached since data comes from provider
 
   const navigate = useNavigate();
   const debouncedSearchTerm = useDebounce(searchTerm, 500);

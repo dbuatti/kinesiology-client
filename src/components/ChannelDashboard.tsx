@@ -41,12 +41,11 @@ yuanAndFrontMuPoints.set('Gallbladder', { yuan: 'GB40 (Qiuxu)', frontMu: 'GB24 (
 yuanAndFrontMuPoints.set('Liver', { yuan: 'LV3 (Taichong)', frontMu: 'LV14 (Qimen)' });
 
 const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLogSuccess, onClearSelection, onOpenNotionPage, onChannelSelected }) => {
-  const { data, loading: loadingReferenceData, needsConfig: channelsNeedsConfig } = useReferenceData();
+  const { data, loading: loadingReferenceData, needsConfig: channelsNeedsConfig, isCached: isDataCached } = useReferenceData();
   const allChannels = data.channels;
 
   const [selectedChannelForDisplay, setSelectedChannelForDisplay] = useState<Channel | null>(null);
   const [loggedItems, setLoggedItems] = useState<Set<string>>(new Set());
-  const [isDataCached, setIsDataCached] = useState(true); // Assume cached since data comes from provider
 
   const navigate = useNavigate();
 

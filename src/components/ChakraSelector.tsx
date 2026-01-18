@@ -26,14 +26,13 @@ interface ChakraSelectorProps {
 }
 
 const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakraSelected, onClearSelection, selectedChakra, onOpenNotionPage }) => {
-  const { data, loading: loadingReferenceData, needsConfig: chakrasNeedsConfig } = useReferenceData();
+  const { data, loading: loadingReferenceData, needsConfig: chakrasNeedsConfig, isCached: isDataCached } = useReferenceData();
   const allChakras = data.chakras;
 
   const [filteredChakras, setFilteredChakras] = useState<Chakra[]>(allChakras);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchType, setSearchType] = useState<'name' | 'element' | 'emotion' | 'organ'>('name');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [isDataCached, setIsDataCached] = useState(true); // Assume cached since data comes from provider
 
   const navigate = useNavigate();
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
