@@ -1,15 +1,17 @@
 "use client";
 
 import React, { Fragment, useEffect, useMemo, useState } from 'react';
-import { Loader2, AlertCircle, CheckSquare, Square, ChevronRight, Image as ImageIcon, Info } from 'lucide-react';
+import { Loader2, AlertCircle, CheckSquare, Square, ChevronRight, Image as ImageIcon, Info, XCircle } from 'lucide-react';
 import { useCachedEdgeFunction } from '@/hooks/use-cached-edge-function';
 import { NotionBlock, NotionRichText, GetNotionPageContentPayload, GetNotionPageContentResponse } from '@/types/api';
 import { cn } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card'; // Import Card components
 import { Badge } from './ui/badge'; // Import Badge component
+import { Button } from './ui/button'; // Import Button component
 
 interface NotionPageViewerProps {
   pageId: string | null;
+  onClearSelection?: () => void;
 }
 
 const renderRichText = (richText: NotionRichText[]) => {
@@ -36,7 +38,7 @@ const renderRichText = (richText: NotionRichText[]) => {
   });
 };
 
-const NotionPageViewer: React.FC<NotionPageViewerProps> = ({ pageId }) => {
+const NotionPageViewer: React.FC<NotionPageViewerProps> = ({ pageId, onClearSelection }) => {
   const [internalPageTitle, setInternalPageTitle] = useState<string | null>(null);
 
   const {
@@ -220,7 +222,7 @@ const NotionPageViewer: React.FC<NotionPageViewerProps> = ({ pageId }) => {
   return (
     <div className="notion-page-viewer max-h-[70vh] overflow-y-auto">
       <Card className="shadow-none border-none">
-        <CardHeader className="p-4 pb-2">
+        <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between">
           <CardTitle className="text-2xl font-bold text-indigo-900 flex items-center gap-2">
             <Info className="w-6 h-6 text-indigo-600" />
             {internalPageTitle || "Notion Page"}
@@ -230,6 +232,17 @@ const NotionPageViewer: React.FC<NotionPageViewerProps> = ({ pageId }) => {
               </Badge>
             )}
           </CardTitle>
+          {onClearSelection && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onClearSelection}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+            >
+              <XCircle className="h-4 w-4 mr-2" />
+              Clear
+            </Button>
+          )}
         </CardHeader>
         <CardContent className="p-4 pt-2">
           {pageContent.blocks.map(renderBlock)}
