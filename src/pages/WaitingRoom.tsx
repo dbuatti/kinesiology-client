@@ -10,6 +10,7 @@ import { showSuccess, showError } from '@/utils/toast';
 import { format } from 'date-fns';
 import { useCachedEdgeFunction } from '@/hooks/use-cached-edge-function';
 import { useNotionConfig } from '@/hooks/use-notion-config';
+import { useReferenceData } from '@/hooks/use-reference-data'; // Import centralized hook
 import { Appointment, GetTodaysAppointmentsResponse, UpdateNotionAppointmentPayload, UpdateNotionAppointmentResponse, GetTodaysAppointmentsPayload } from '@/types/api';
 import CreateAppointmentDialog from '@/components/CreateAppointmentDialog';
 import SyncStatusIndicator from '@/components/SyncStatusIndicator';
@@ -19,6 +20,8 @@ const WaitingRoom = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const navigate = useNavigate();
 
+  // Use reference data hook for configuration status check
+  const { loading: loadingReferenceData, needsConfig: referenceNeedsConfig } = useReferenceData();
   const { isConfigured: notionConfigured, isLoading: configLoading } = useNotionConfig();
 
   const handleSuccess = useCallback((data: GetTodaysAppointmentsResponse) => {
@@ -53,12 +56,13 @@ const WaitingRoom = () => {
   );
 
   useEffect(() => {
-    if (notionConfigured) {
+    // Wait for both the general config check AND the reference data check to complete
+    if (notionConfigured && !loadingReferenceData) {
       console.log('[WaitingRoom] Initial fetch for appointments.');
       const todayDate = format(new Date(), 'yyyy-MM-dd'); // Calculate today's date string
       fetchTodaysAppointments({ todayDate }); // Pass payload
     }
-  }, [fetchTodaysAppointments, notionConfigured]);
+  }, [fetchTodaysAppointments, notionConfigured, loadingReferenceData]);
 
   const handleUpdateSuccess = useCallback(() => {
     showSuccess('Navigating to live session dashboard.');
@@ -103,7 +107,7 @@ const WaitingRoom = () => {
 
   console.log('[WaitingRoom] Rendering with appointments:', appointments);
 
-  if (configLoading || loadingAppointments) {
+  if (configLoading || loadingAppointments || loadingReferenceData) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6 flex items-center justify-center">
         <div className="max-w-4xl mx-auto space-y-6 w-full">
@@ -116,7 +120,7 @@ const WaitingRoom = () => {
     );
   }
 
-  if (!notionConfigured) {
+  if (!notionConfigured || referenceNeedsConfig) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center p-6">
         <Card className="max-w-md w-full shadow-xl">

@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import { Search, Check, ChevronsUpDown, Hand, Info, Image, Settings, Loader2, Trash2, ExternalLink, XCircle, Clock, Brain, FlaskConical, Footprints, Heart, Gem, Leaf, Flame, Droplet, Sun, Bone, Mic, Tag, RefreshCw, Shield, Eye, Sparkles, Waves } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useCachedEdgeFunction } from '@/hooks/use-cached-edge-function';
+import { useReferenceData } from '@/hooks/use-reference-data'; // Import centralized hook
 import { Muscle, GetMusclesPayload, GetMusclesResponse } from '@/types/api';
 import { useDebounce } from '@/hooks/use-debounce';
 
@@ -23,66 +24,28 @@ interface MuscleSelectorProps {
   appointmentId: string;
   onClearSelection: () => void;
   onOpenNotionPage: (pageId: string, pageTitle: string) => void;
-  initialMuscles?: Muscle[]; // New prop for pre-fetched data
-  loadingInitial: boolean; // New prop for initial loading state
 }
 
-const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMuscleStrengthLogged, appointmentId, onClearSelection, onOpenNotionPage, initialMuscles, loadingInitial }) => {
-  const [allMuscles, setAllMuscles] = useState<Muscle[]>(initialMuscles || []);
-  const [filteredMuscles, setFilteredMuscles] = useState<Muscle[]>(initialMuscles || []);
+const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMuscleStrengthLogged, appointmentId, onClearSelection, onOpenNotionPage }) => {
+  const { data, loading: loadingReferenceData, needsConfig: musclesNeedsConfig } = useReferenceData();
+  const allMuscles = data.muscles;
+
+  const [filteredMuscles, setFilteredMuscles] = useState<Muscle[]>(allMuscles);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchType, setSearchType] = useState<'muscle' | 'meridian' | 'organ' | 'emotion'>('muscle');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [selectedMuscle, setSelectedMuscle] = useState<Muscle | null>(null);
   const [showWeaknessChecklist, setShowWeaknessChecklist] = useState(false);
   const [notes, setNotes] = useState('');
-  const [isDataCached, setIsDataCached] = useState(false); // Local state to track if data came from cache
+  const [isDataCached, setIsDataCached] = useState(true); // Assume cached since data comes from provider
 
   const navigate = useNavigate();
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
-  const onMusclesSuccess = useCallback((data: GetMusclesResponse, isCached: boolean) => {
-    setAllMuscles(data.muscles);
-    setFilteredMuscles(data.muscles);
-    setIsDataCached(isCached);
-  }, []);
-
-  const onMusclesError = useCallback((msg: string) => {
-    showError(`Failed to load muscles: ${msg}`);
-    setAllMuscles([]);
-    setFilteredMuscles([]);
-  }, []);
-
-  // Use a local hook instance only for logging/updates, not for initial fetch if props are provided
-  const {
-    loading: loadingMusclesHook,
-    error: musclesError,
-    needsConfig,
-    execute: fetchMuscles,
-    isCached: musclesIsCached,
-  } = useCachedEdgeFunction<GetMusclesPayload, GetMusclesResponse>(
-    'get-muscles',
-    {
-      requiresAuth: true,
-      requiresNotionConfig: true,
-      cacheKey: 'all-muscles',
-      cacheTtl: 525600, // 1 year cache
-      onSuccess: onMusclesSuccess,
-      onError: onMusclesError,
-    }
-  );
-
-  // Effect to handle initial data load from props or trigger fetch if props are empty
+  // Effect to update filteredMuscles when allMuscles changes (i.e., after initial load)
   useEffect(() => {
-    if (initialMuscles && initialMuscles.length > 0) {
-      setAllMuscles(initialMuscles);
-      setFilteredMuscles(initialMuscles);
-      setIsDataCached(true); // Assume data passed via props is likely cached/fresh
-    } else if (!loadingInitial && allMuscles.length === 0 && !musclesError && !needsConfig) {
-      // If no initial data provided, fetch it now (this should rarely happen if pre-fetching works)
-      fetchMuscles({ searchTerm: '', searchType: 'muscle' });
-    }
-  }, [initialMuscles, loadingInitial, allMuscles.length, musclesError, needsConfig, fetchMuscles]);
+    setFilteredMuscles(allMuscles);
+  }, [allMuscles]);
 
   // Effect to filter muscles based on search term and type (client-side)
   useEffect(() => {
@@ -150,9 +113,9 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
     setIsSearchOpen(true);
   };
 
-  const isLoading = loadingInitial || loadingMusclesHook;
+  const isLoading = loadingReferenceData;
 
-  if (needsConfig) {
+  if (musclesNeedsConfig) {
     return (
       <Card className="max-w-md w-full shadow-xl mx-auto">
         <CardContent className="pt-8 text-center">
@@ -182,7 +145,7 @@ const MuscleSelector: React.FC<MuscleSelectorProps> = ({ onMuscleSelected, onMus
         <CardTitle className="text-xl font-bold text-indigo-800 flex items-center gap-2">
           <Hand className="w-5 h-5" />
           Muscle Testing & Insights
-          {(isDataCached || musclesIsCached) && (
+          {isDataCached && (
             <Badge variant="secondary" className="bg-green-200 text-green-800 ml-2">
               Cached
             </Badge>

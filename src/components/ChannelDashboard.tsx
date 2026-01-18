@@ -11,6 +11,7 @@ import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 import { Settings, Loader2, Sparkles, ExternalLink, Waves, Leaf, Flame, Gem, Droplet, Sun, Heart, Hand, Footprints, Bone, FlaskConical, Mic, Tag, XCircle, PlusCircle, Brain, Clock, Volume2, Info, CheckCircle2 } from 'lucide-react';
 import { useCachedEdgeFunction } from '@/hooks/use-cached-edge-function';
+import { useReferenceData } from '@/hooks/use-reference-data'; // Import centralized hook
 import { Channel, GetChannelsPayload, GetChannelsResponse, LogSessionEventPayload, LogSessionEventResponse } from '@/types/api';
 import NotionPageViewer from './NotionPageViewer';
 
@@ -20,8 +21,6 @@ interface ChannelDashboardProps {
   onClearSelection: () => void;
   onOpenNotionPage: (pageId: string, pageTitle: string) => void;
   onChannelSelected: (channel: Channel | null) => void;
-  initialChannels?: Channel[]; // New prop for pre-fetched data
-  loadingInitial: boolean; // New prop for initial loading state
 }
 
 const primaryElements = ['Wood', 'Fire', 'Earth', 'Metal', 'Water'];
@@ -41,11 +40,13 @@ yuanAndFrontMuPoints.set('Triple Warmer', { yuan: 'SJ4 (Yangchi)', frontMu: 'CV5
 yuanAndFrontMuPoints.set('Gallbladder', { yuan: 'GB40 (Qiuxu)', frontMu: 'GB24 (Riyue)' });
 yuanAndFrontMuPoints.set('Liver', { yuan: 'LV3 (Taichong)', frontMu: 'LV14 (Qimen)' });
 
-const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLogSuccess, onClearSelection, onOpenNotionPage, onChannelSelected, initialChannels, loadingInitial }) => {
-  const [allChannels, setAllChannels] = useState<Channel[]>(initialChannels || []);
+const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLogSuccess, onClearSelection, onOpenNotionPage, onChannelSelected }) => {
+  const { data, loading: loadingReferenceData, needsConfig: channelsNeedsConfig } = useReferenceData();
+  const allChannels = data.channels;
+
   const [selectedChannelForDisplay, setSelectedChannelForDisplay] = useState<Channel | null>(null);
   const [loggedItems, setLoggedItems] = useState<Set<string>>(new Set());
-  const [isDataCached, setIsDataCached] = useState(false); // Local state to track if data came from cache
+  const [isDataCached, setIsDataCached] = useState(true); // Assume cached since data comes from provider
 
   const navigate = useNavigate();
 
@@ -120,35 +121,6 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
     }
   };
 
-  const onChannelsSuccess = useCallback((data: GetChannelsResponse, isCached: boolean) => {
-    setAllChannels(data.channels);
-    setIsDataCached(isCached);
-  }, []);
-
-  const onChannelsError = useCallback((msg: string) => {
-    showError(`Failed to load channels: ${msg}`);
-    setAllChannels([]);
-  }, []);
-
-  // Use a local hook instance only for logging/updates, not for initial fetch if props are provided
-  const {
-    loading: loadingChannelsHook,
-    error: channelsError,
-    needsConfig,
-    execute: fetchChannels,
-    isCached: channelsIsCached,
-  } = useCachedEdgeFunction<GetChannelsPayload, GetChannelsResponse>(
-    'get-channels',
-    {
-      requiresAuth: true,
-      requiresNotionConfig: true,
-      cacheKey: 'all-channels',
-      cacheTtl: 525600, // 1 year cache
-      onSuccess: onChannelsSuccess,
-      onError: onChannelsError,
-    }
-  );
-
   // Hook for logging general session events
   const {
     loading: loggingSessionEvent,
@@ -167,17 +139,6 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
       }
     }
   );
-
-  // Effect to handle initial data load from props or trigger fetch if props are empty
-  useEffect(() => {
-    if (initialChannels && initialChannels.length > 0) {
-      setAllChannels(initialChannels);
-      setIsDataCached(true); // Assume data passed via props is likely cached/fresh
-    } else if (!loadingInitial && allChannels.length === 0 && !channelsError && !needsConfig) {
-      // If no initial data provided, fetch it now (this should rarely happen if pre-fetching works)
-      fetchChannels({ searchTerm: '', searchType: 'name' }); // Fetch all initially
-    }
-  }, [initialChannels, loadingInitial, allChannels.length, channelsError, needsConfig, fetchChannels]);
 
   const { meridianChannels, nonMeridianChannels } = useMemo(() => {
     const meridian: Channel[] = [];
@@ -253,6 +214,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
           channelName: selectedChannelForDisplay.name,
           itemType: itemType,
           itemValue: itemValue,
+          elements: selectedChannelForDisplay.elements, // Include elements for log display
         }
       });
 
@@ -274,9 +236,9 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
     return channelName;
   };
 
-  const isLoading = loadingInitial || loadingChannelsHook;
+  const isLoading = loadingReferenceData;
 
-  if (needsConfig) {
+  if (channelsNeedsConfig) {
     return (
       <Card className="max-w-md w-full shadow-xl mx-auto">
         <CardContent className="pt-8 text-center">
@@ -306,7 +268,7 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
         <CardTitle className="text-xl font-bold text-indigo-800 flex items-center gap-2">
           <Waves className="w-5 h-5" />
           Channel Dashboard
-          {(isDataCached || channelsIsCached) && (
+          {isDataCached && (
             <Badge variant="secondary" className="bg-green-200 text-green-800 ml-2">
               Cached
             </Badge>
@@ -318,8 +280,6 @@ const ChannelDashboard: React.FC<ChannelDashboardProps> = ({ appointmentId, onLo
           <div className="flex justify-center items-center h-40">
             <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
           </div>
-        ) : channelsError ? (
-          <p className="text-red-500 text-center">{channelsError}</p>
         ) : (
           <>
             {/* Meridian Channels */}

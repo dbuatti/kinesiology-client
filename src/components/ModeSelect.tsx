@@ -7,7 +7,8 @@ import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from '
 import { Check, ChevronsUpDown, Info, Loader2, Trash2, ChevronRight, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCachedEdgeFunction } from '@/hooks/use-cached-edge-function';
-import { Mode, GetNotionModesResponse, LogSessionEventPayload, LogSessionEventResponse } from '@/types/api';
+import { useReferenceData } from '@/hooks/use-reference-data'; // Import centralized hook
+import { Mode, LogSessionEventPayload, LogSessionEventResponse } from '@/types/api';
 import { showSuccess, showError } from '@/utils/toast';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from './ui/card';
@@ -18,8 +19,6 @@ interface ModeSelectProps {
   onOpenNotionPage: (pageId: string, pageTitle: string) => void;
   onLogSuccess: () => void;
   onOpenModeDetailsPanel: (mode: Mode) => void;
-  initialModes?: Mode[]; // New prop for pre-fetched data
-  loadingInitial: boolean; // New prop for initial loading state
 }
 
 const ModeSelect: React.FC<ModeSelectProps> = ({
@@ -28,10 +27,10 @@ const ModeSelect: React.FC<ModeSelectProps> = ({
   onOpenNotionPage,
   onLogSuccess,
   onOpenModeDetailsPanel,
-  initialModes,
-  loadingInitial,
 }) => {
-  const [allModes, setAllModes] = useState<Mode[]>(initialModes || []);
+  const { data, loading: loadingReferenceData, needsConfig: modesNeedsConfig } = useReferenceData();
+  const allModes = data.modes;
+
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [currentModeSelection, setCurrentModeSelection] = useState<Mode | null>(null);
   const [sessionSelectedModes, setSessionSelectedModes] = useState<Mode[]>([]);
@@ -39,32 +38,10 @@ const ModeSelect: React.FC<ModeSelectProps> = ({
 
   const navigate = useNavigate();
 
-  const onModesSuccess = useCallback((data: GetNotionModesResponse) => {
-    setAllModes(data.modes);
-  }, []);
-
-  const onModesError = useCallback((msg: string) => {
-    showError(`Failed to load modes: ${msg}`);
-    setAllModes([]);
-  }, []);
-
-  const {
-    loading: loadingModesHook,
-    error: modesError,
-    needsConfig: modesNeedsConfig,
-    execute: fetchModes,
-    isCached: modesIsCached,
-  } = useCachedEdgeFunction<void, GetNotionModesResponse>(
-    'get-notion-modes',
-    {
-      requiresAuth: true,
-      requiresNotionConfig: true,
-      cacheKey: 'all-modes',
-      cacheTtl: 525600, // 1 year cache
-      onSuccess: onModesSuccess,
-      onError: onModesError,
-    }
-  );
+  // Notify parent when sessionSelectedModes changes
+  useEffect(() => {
+    onModesChanged(sessionSelectedModes);
+  }, [sessionSelectedModes, onModesChanged]);
 
   // --- Logging Handlers ---
   const handleLogSuccess = useCallback((data: LogSessionEventResponse) => {
@@ -96,21 +73,6 @@ const ModeSelect: React.FC<ModeSelectProps> = ({
   );
   // --- End Logging Handlers ---
 
-
-  // Effect to handle initial data load from props or trigger fetch if props are empty
-  useEffect(() => {
-    if (initialModes && initialModes.length > 0) {
-      setAllModes(initialModes);
-    } else if (!loadingInitial && allModes.length === 0 && !modesError && !modesNeedsConfig) {
-      // If no initial data provided, fetch it now (this should only happen if the parent component didn't pre-fetch)
-      fetchModes();
-    }
-  }, [initialModes, loadingInitial, allModes.length, modesError, modesNeedsConfig, fetchModes]);
-
-  // Notify parent when sessionSelectedModes changes
-  useEffect(() => {
-    onModesChanged(sessionSelectedModes);
-  }, [sessionSelectedModes, onModesChanged]);
 
   const handleSelectModeFromDropdown = (mode: Mode) => {
     if (sessionSelectedModes.some(m => m.id === mode.id)) {
@@ -152,11 +114,7 @@ const ModeSelect: React.FC<ModeSelectProps> = ({
     showSuccess('All modes cleared from session.');
   };
 
-  const handleOpenModeDetailsPage = (modeId: string) => {
-    navigate(`/mode-details/${modeId}`);
-  };
-
-  const isLoading = loadingInitial || loadingModesHook;
+  const isLoading = loadingReferenceData;
 
   if (modesNeedsConfig) {
     return null;

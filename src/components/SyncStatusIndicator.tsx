@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useCachedEdgeFunction } from '@/hooks/use-cached-edge-function';
+import { useReferenceData } from '@/hooks/use-reference-data'; // Import centralized hook
 import { showSuccess, showError } from '@/utils/toast';
 import { cacheService } from '@/integrations/supabase/cache';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,6 +23,7 @@ const REFERENCE_CACHE_KEYS = [
 ];
 
 const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({ onSyncComplete }) => {
+  const { refetchAll: refetchReferenceData } = useReferenceData(); // Get refetch function
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
@@ -49,8 +51,11 @@ const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({ onSyncComplet
       console.log('[SyncStatusIndicator] Cleared relevant caches after successful sync.');
     }
 
+    // Trigger refetch of the centralized reference data after sync
+    refetchReferenceData();
+
     if (onSyncComplete) onSyncComplete();
-  }, [onSyncComplete]);
+  }, [onSyncComplete, refetchReferenceData]);
 
   const handleSyncError = useCallback((msg: string) => {
     setSyncStatus('error');

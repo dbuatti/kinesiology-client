@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { Search, Check, ChevronsUpDown, Lightbulb, PlusCircle, Trash2, Info, Loader2, XCircle, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useCachedEdgeFunction } from '@/hooks/use-cached-edge-function';
+import { useReferenceData } from '@/hooks/use-reference-data'; // Import centralized hook
 import { Acupoint, GetAcupointsPayload, GetAcupointsResponse, LogSessionEventPayload, LogSessionEventResponse } from '@/types/api';
 import { useDebounce } from '@/hooks/use-debounce';
 
@@ -22,67 +23,29 @@ interface AcupointSelectorProps {
   onClearSelection: () => void;
   onOpenNotionPage: (pageId: string, pageTitle: string) => void;
   onAcupointSelected: (acupoint: Acupoint | null) => void;
-  initialAcupoints?: Acupoint[]; // New prop for pre-fetched data
-  loadingInitial: boolean; // New prop for initial loading state
 }
 
-const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLogSuccess, onClearSelection, onOpenNotionPage, onAcupointSelected, initialAcupoints, loadingInitial }) => {
-  const [allAcupoints, setAllAcupoints] = useState<Acupoint[]>(initialAcupoints || []);
-  const [foundAcupoints, setFoundAcupoints] = useState<Acupoint[]>(initialAcupoints || []);
+const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLogSuccess, onClearSelection, onOpenNotionPage, onAcupointSelected }) => {
+  const { data, loading: loadingReferenceData, needsConfig: acupointsNeedsConfig } = useReferenceData();
+  const allAcupoints = data.acupoints;
+
+  const [foundAcupoints, setFoundAcupoints] = useState<Acupoint[]>(allAcupoints);
   const [acupointSearchTerm, setAcupointSearchTerm] = useState('');
   const [symptomSearchTerm, setSymptomSearchTerm] = useState('');
   const [selectedAcupoint, setSelectedAcupoint] = useState<Acupoint | null>(null);
   const [isAcupointSearchOpen, setIsAcupointSearchOpen] = useState(false);
   const [isSymptomSearchOpen, setIsSymptomSearchOpen] = useState(false);
-  const [isDataCached, setIsDataCached] = useState(false); // Local state to track if data came from cache
+  const [isDataCached, setIsDataCached] = useState(true); // Assume cached since data comes from provider
 
   const navigate = useNavigate();
 
   const debouncedAcupointSearchTerm = useDebounce(acupointSearchTerm, 500);
   const debouncedSymptomSearchTerm = useDebounce(symptomSearchTerm, 500);
 
-  const onAcupointsSuccess = useCallback((data: GetAcupointsResponse, isCached: boolean) => {
-    setAllAcupoints(data.acupoints);
-    setFoundAcupoints(data.acupoints);
-    setIsDataCached(isCached);
-  }, []);
-
-  const onAcupointsError = useCallback((msg: string) => {
-    showError(`Failed to search: ${msg}`);
-    setAllAcupoints([]);
-    setFoundAcupoints([]);
-  }, []);
-
-  // Use a local hook instance only for logging/updates, not for initial fetch if props are provided
-  const {
-    loading: loadingAcupointsHook,
-    error: acupointsError,
-    needsConfig,
-    execute: fetchAcupoints,
-    isCached: acupointsIsCached,
-  } = useCachedEdgeFunction<GetAcupointsPayload, GetAcupointsResponse>(
-    'get-acupoints',
-    {
-      requiresAuth: true,
-      requiresNotionConfig: true,
-      cacheKey: 'all-acupoints',
-      cacheTtl: 525600, // 1 year cache
-      onSuccess: onAcupointsSuccess,
-      onError: onAcupointsError,
-    }
-  );
-
-  // Effect to handle initial data load from props or trigger fetch if props are empty
+  // Effect to update foundAcupoints when allAcupoints changes (i.e., after initial load)
   useEffect(() => {
-    if (initialAcupoints && initialAcupoints.length > 0) {
-      setAllAcupoints(initialAcupoints);
-      setFoundAcupoints(initialAcupoints);
-      setIsDataCached(true); // Assume data passed via props is likely cached/fresh
-    } else if (!loadingInitial && allAcupoints.length === 0 && !acupointsError && !needsConfig) {
-      // If no initial data provided, fetch it now (this should rarely happen if pre-fetching works)
-      fetchAcupoints({ searchTerm: '', searchType: 'point' }); // Fetch all initially
-    }
-  }, [initialAcupoints, loadingInitial, allAcupoints.length, acupointsError, needsConfig, fetchAcupoints]);
+    setFoundAcupoints(allAcupoints);
+  }, [allAcupoints]);
 
   const {
     loading: loggingSessionEvent,
@@ -199,9 +162,9 @@ const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLo
     }
   }, [selectedAcupoint, appointmentId, loggingSessionEvent, logSessionEvent, handleClearSelectedAcupoint]);
 
-  const isLoading = loadingInitial || loadingAcupointsHook;
+  const isLoading = loadingReferenceData;
 
-  if (needsConfig) {
+  if (acupointsNeedsConfig) {
     return (
       <Card className="max-w-md w-full w-full shadow-xl mx-auto">
         <CardContent className="pt-8 text-center">
@@ -231,7 +194,7 @@ const AcupointSelector: React.FC<AcupointSelectorProps> = ({ appointmentId, onLo
         <CardTitle className="text-xl font-bold text-indigo-800 flex items-center gap-2">
           <Search className="w-5 h-5" />
           Acupoint Insight Engine
-          {(isDataCached || acupointsIsCached) && (
+          {isDataCached && (
             <Badge variant="secondary" className="bg-green-200 text-green-800 ml-2">
               Cached
             </Badge>

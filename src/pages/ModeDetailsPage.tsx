@@ -4,9 +4,9 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Lightbulb, ArrowLeft, AlertCircle } from 'lucide-react';
-import { useSupabaseEdgeFunction } from '@/hooks/use-supabase-edge-function';
-import { Mode, GetNotionModesResponse } from '@/types/api';
+import { Loader2, Lightbulb, ArrowLeft, AlertCircle, Settings } from 'lucide-react';
+import { useReferenceData } from '@/hooks/use-reference-data'; // Import centralized hook
+import { Mode } from '@/types/api';
 import { showError } from '@/utils/toast';
 
 const ModeDetailsPage: React.FC = () => {
@@ -14,46 +14,28 @@ const ModeDetailsPage: React.FC = () => {
   const navigate = useNavigate();
   const [modeDetails, setModeDetails] = useState<Mode | null>(null);
 
-  const onModesSuccess = useCallback((data: GetNotionModesResponse) => {
-    const foundMode = data.modes.find(mode => mode.id === modeId);
-    if (foundMode) {
-      setModeDetails(foundMode);
-    } else {
-      showError('Mode not found.');
-      navigate('/active-session'); // Redirect if mode not found
-    }
-  }, [modeId, navigate]);
-
-  const onModesError = useCallback((msg: string) => {
-    showError(`Failed to load mode details: ${msg}`);
-    navigate('/active-session'); // Redirect on error
-  }, [navigate]);
-
-  const {
-    loading: loadingModes,
-    error: modesError,
-    needsConfig: modesNeedsConfig,
-    execute: fetchModes,
-  } = useSupabaseEdgeFunction<void, GetNotionModesResponse>(
-    'get-notion-modes',
-    {
-      requiresAuth: true,
-      requiresNotionConfig: true,
-      onSuccess: onModesSuccess,
-      onError: onModesError,
-    }
-  );
+  const { data: referenceData, loading: loadingReferenceData, needsConfig: modesNeedsConfig } = useReferenceData();
+  const allModes = referenceData.modes;
 
   useEffect(() => {
-    if (modeId) {
-      fetchModes();
-    } else {
+    if (!modeId) {
       showError('No mode ID provided.');
       navigate('/active-session');
+      return;
     }
-  }, [modeId, fetchModes, navigate]);
 
-  if (loadingModes) {
+    if (!loadingReferenceData) {
+      const foundMode = allModes.find(mode => mode.id === modeId);
+      if (foundMode) {
+        setModeDetails(foundMode);
+      } else {
+        showError('Mode not found.');
+        navigate(-1); // Go back if mode not found
+      }
+    }
+  }, [modeId, loadingReferenceData, allModes, navigate]);
+
+  if (loadingReferenceData) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-indigo-100 p-6">
         <Loader2 className="w-12 h-12 animate-spin text-indigo-600" />
@@ -67,7 +49,7 @@ const ModeDetailsPage: React.FC = () => {
         <Card className="max-w-md w-full shadow-xl">
           <CardContent className="pt-8 text-center">
             <div className="mx-auto mb-4 p-4 bg-indigo-100 rounded-full w-20 h-20 flex items-center justify-center">
-              <Lightbulb className="w-10 h-10 text-indigo-600" />
+              <Settings className="w-10 h-10 text-indigo-600" />
             </div>
             <h2 className="text-2xl font-bold text-indigo-900 mb-2">
               Notion Modes Database Required
@@ -87,7 +69,7 @@ const ModeDetailsPage: React.FC = () => {
     );
   }
 
-  if (modesError || !modeDetails) {
+  if (!modeDetails) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-indigo-100 p-6">
         <Card className="max-w-md w-full shadow-lg">
@@ -96,7 +78,7 @@ const ModeDetailsPage: React.FC = () => {
               <AlertCircle className="w-12 h-12 mx-auto" />
             </div>
             <h2 className="text-xl font-bold mb-2">Error Loading Mode</h2>
-            <p className="text-gray-600 mb-4">{modesError || 'Mode details could not be loaded.'}</p>
+            <p className="text-gray-600 mb-4">Mode details could not be loaded or found.</p>
             <Button onClick={() => navigate(-1)}>
               <ArrowLeft className="h-4 w-4 mr-2" /> Back
             </Button>

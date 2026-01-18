@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { Search, Check, ChevronsUpDown, Settings, Loader2, Sparkles, PlusCircle, Trash2, ExternalLink, Info } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useCachedEdgeFunction } from '@/hooks/use-cached-edge-function';
+import { useReferenceData } from '@/hooks/use-reference-data'; // Import centralized hook
 import { Chakra, GetChakrasPayload, GetChakrasResponse, LogSessionEventPayload, LogSessionEventResponse } from '@/types/api';
 import { useDebounce } from '@/hooks/use-debounce';
 
@@ -22,63 +23,25 @@ interface ChakraSelectorProps {
   onClearSelection: () => void;
   selectedChakra: Chakra | null;
   onOpenNotionPage: (pageId: string, pageTitle: string) => void;
-  initialChakras?: Chakra[]; // New prop for pre-fetched data
-  loadingInitial: boolean; // New prop for initial loading state
 }
 
-const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakraSelected, onClearSelection, selectedChakra, onOpenNotionPage, initialChakras, loadingInitial }) => {
-  const [allChakras, setAllChakras] = useState<Chakra[]>(initialChakras || []);
-  const [filteredChakras, setFilteredChakras] = useState<Chakra[]>(initialChakras || []);
+const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakraSelected, onClearSelection, selectedChakra, onOpenNotionPage }) => {
+  const { data, loading: loadingReferenceData, needsConfig: chakrasNeedsConfig } = useReferenceData();
+  const allChakras = data.chakras;
+
+  const [filteredChakras, setFilteredChakras] = useState<Chakra[]>(allChakras);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchType, setSearchType] = useState<'name' | 'element' | 'emotion' | 'organ'>('name');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [isDataCached, setIsDataCached] = useState(false); // Local state to track if data came from cache
+  const [isDataCached, setIsDataCached] = useState(true); // Assume cached since data comes from provider
 
   const navigate = useNavigate();
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
-  const onChakrasSuccess = useCallback((data: GetChakrasResponse, isCached: boolean) => {
-    setAllChakras(data.chakras);
-    setFilteredChakras(data.chakras);
-    setIsDataCached(isCached);
-  }, []);
-
-  const onChakrasError = useCallback((msg: string) => {
-    showError(`Failed to load chakras: ${msg}`);
-    setAllChakras([]);
-    setFilteredChakras([]);
-  }, []);
-
-  // Use a local hook instance only for logging/updates, not for initial fetch if props are provided
-  const {
-    loading: loadingChakrasHook,
-    error: chakrasError,
-    needsConfig,
-    execute: fetchChakras,
-    isCached: chakrasIsCached,
-  } = useCachedEdgeFunction<GetChakrasPayload, GetChakrasResponse>(
-    'get-chakras',
-    {
-      requiresAuth: true,
-      requiresNotionConfig: true,
-      cacheKey: 'all-chakras',
-      cacheTtl: 525600, // 1 year cache
-      onSuccess: onChakrasSuccess,
-      onError: onChakrasError,
-    }
-  );
-
-  // Effect to handle initial data load from props or trigger fetch if props are empty
+  // Effect to update filteredChakras when allChakras changes (i.e., after initial load)
   useEffect(() => {
-    if (initialChakras && initialChakras.length > 0) {
-      setAllChakras(initialChakras);
-      setFilteredChakras(initialChakras);
-      setIsDataCached(true); // Assume data passed via props is likely cached/fresh
-    } else if (!loadingInitial && allChakras.length === 0 && !chakrasError && !needsConfig) {
-      // If no initial data provided, fetch it now (this should rarely happen if pre-fetching works)
-      fetchChakras({ searchTerm: '', searchType: 'name' });
-    }
-  }, [initialChakras, loadingInitial, allChakras.length, chakrasError, needsConfig, fetchChakras]);
+    setFilteredChakras(allChakras);
+  }, [allChakras]);
 
   // Hook for logging general session events
   const {
@@ -167,9 +130,9 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
     onClearSelection();
   };
 
-  const isLoading = loadingInitial || loadingChakrasHook;
+  const isLoading = loadingReferenceData;
 
-  if (needsConfig) {
+  if (chakrasNeedsConfig) {
     return (
       <Card className="max-w-md w-full shadow-xl mx-auto">
         <CardContent className="pt-8 text-center">
@@ -199,7 +162,7 @@ const ChakraSelector: React.FC<ChakraSelectorProps> = ({ appointmentId, onChakra
         <CardTitle className="text-xl font-bold text-indigo-800 flex items-center gap-2">
           <Sparkles className="w-5 h-5" />
           Chakra Insight Engine
-          {(isDataCached || chakrasIsCached) && (
+          {isDataCached && (
             <Badge variant="secondary" className="bg-green-200 text-green-800 ml-2">
               Cached
             </Badge>
