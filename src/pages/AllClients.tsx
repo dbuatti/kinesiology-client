@@ -12,7 +12,6 @@ import { User, Settings, Loader2, Search, AlertCircle, XCircle, RefreshCw, Datab
 import { showSuccess, showError } from '@/utils/toast';
 import { useCachedEdgeFunction } from '@/hooks/use-cached-edge-function';
 import { Client, GetAllClientsResponse, UpdateNotionClientPayload, UpdateNotionClientResponse } from '@/types/api';
-import SyncStatusIndicator from '@/components/SyncStatusIndicator';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useForm } from 'react-hook-form';
@@ -245,13 +244,6 @@ const AllClients = () => {
                 {loadingClients ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
                 {loadingClients ? 'Refreshing...' : 'Refresh'}
               </Button>
-            </div>
-
-            <div className="flex justify-center mb-4">
-              <SyncStatusIndicator onSyncComplete={() => {
-                // Refresh data after sync
-                fetchAllClients();
-              }} />
             </div>
 
             {isTableEmpty || filteredClients.length === 0 ? (
