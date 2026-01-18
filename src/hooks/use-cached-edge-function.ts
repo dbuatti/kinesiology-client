@@ -53,6 +53,7 @@ export const useCachedEdgeFunction = <TRequest, TResponse>(
     setError(null);
     setData(null);
     setIsCached(false);
+    setNeedsConfig(false);
 
     try {
       let session = null;

@@ -29,6 +29,7 @@ import SyncStatusIndicator from '@/components/SyncStatusIndicator';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 import { useCachedEdgeFunction } from '@/hooks/use-cached-edge-function';
+import { useNotionConfig } from '@/hooks/use-notion-config';
 import {
   Appointment,
   Mode,
@@ -62,6 +63,8 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
   const actualAppointmentId = mockAppointmentId || params.appointmentId;
   const navigate = useNavigate();
 
+  const { isConfigured: notionConfigured, isLoading: configLoading } = useNotionConfig();
+
   const [appointment, setAppointment] = useState<Appointment | null>(null);
   const [sessionAnchorText, setSessionAnchorText] = useState('');
   const [sessionNorthStarText, setSessionNorthStarText] = useState('');
@@ -90,7 +93,6 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
     data: fetchedAppointmentData,
     loading: loadingAppointment,
     error: appointmentError,
-    needsConfig: appointmentNeedsConfig,
     execute: fetchSingleAppointment,
     isCached: appointmentIsCached,
   } = useCachedEdgeFunction<GetSingleAppointmentPayload, GetSingleAppointmentResponse>(
@@ -282,7 +284,7 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
   // --- Effects ---
 
   useEffect(() => {
-    if (actualAppointmentId) {
+    if (actualAppointmentId && notionConfigured) {
       fetchSingleAppointment({ appointmentId: actualAppointmentId });
       fetchSessionLogs({ appointmentId: actualAppointmentId });
       
@@ -295,7 +297,7 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
       fetchAcupoints({ searchTerm: '', searchType: 'point' });
       // --------------------------------
     }
-  }, [actualAppointmentId, fetchSingleAppointment, fetchSessionLogs, fetchMuscles, fetchChakras, fetchChannels, fetchAcupoints]);
+  }, [actualAppointmentId, notionConfigured, fetchSingleAppointment, fetchSessionLogs, fetchMuscles, fetchChakras, fetchChannels, fetchAcupoints]);
 
   // Clear Notion page viewer when switching tabs
   useEffect(() => {
@@ -309,9 +311,7 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
   }, [activeTab]);
 
   // Combine all loading states
-  const overallLoading = loadingAppointment || loggingMuscleStrength || loadingSessionLogs || deletingSessionLog || clearingAllLogs;
-  // Combine all needsConfig states
-  const overallNeedsConfig = appointmentNeedsConfig;
+  const overallLoading = configLoading || loadingAppointment || loggingMuscleStrength || loadingSessionLogs || deletingSessionLog || clearingAllLogs;
   // Combine all errors for initial display
   const overallError = appointmentError || sessionLogsError;
 
@@ -446,7 +446,7 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ mockAppointmentId }) => {
     );
   }
 
-  if (overallNeedsConfig) {
+  if (!notionConfigured) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center p-6">
         <Card className="max-w-md w-full shadow-xl">

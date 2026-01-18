@@ -9,6 +9,7 @@ import { Calendar, Settings, AlertCircle, PlayCircle, User, Star, Target, Lightb
 import { showSuccess, showError } from '@/utils/toast';
 import { format } from 'date-fns';
 import { useCachedEdgeFunction } from '@/hooks/use-cached-edge-function';
+import { useNotionConfig } from '@/hooks/use-notion-config';
 import { Appointment, GetTodaysAppointmentsResponse, UpdateNotionAppointmentPayload, UpdateNotionAppointmentResponse, GetTodaysAppointmentsPayload } from '@/types/api';
 import CreateAppointmentDialog from '@/components/CreateAppointmentDialog';
 import SyncStatusIndicator from '@/components/SyncStatusIndicator';
@@ -17,6 +18,8 @@ import { Badge } from '@/components/ui/badge';
 const WaitingRoom = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const navigate = useNavigate();
+
+  const { isConfigured: notionConfigured, isLoading: configLoading } = useNotionConfig();
 
   const handleSuccess = useCallback((data: GetTodaysAppointmentsResponse) => {
     console.log('[WaitingRoom] Received appointments data:', data.appointments);
@@ -31,16 +34,10 @@ const WaitingRoom = () => {
     }
   }, []);
 
-  const handleNotionConfigNeeded = useCallback(() => {
-    // This callback is now stable and can be passed to useCachedEdgeFunction
-    // The needsConfig state will handle the UI redirect.
-  }, []);
-
   const {
     data: fetchedAppointmentsData,
     loading: loadingAppointments,
     error: appointmentsError,
-    needsConfig,
     execute: fetchTodaysAppointments,
     isCached: appointmentsIsCached,
   } = useCachedEdgeFunction<GetTodaysAppointmentsPayload, GetTodaysAppointmentsResponse>(
@@ -52,15 +49,16 @@ const WaitingRoom = () => {
       cacheTtl: 15, // 15 minutes cache
       onSuccess: handleSuccess,
       onError: handleError,
-      onNotionConfigNeeded: handleNotionConfigNeeded,
     }
   );
 
   useEffect(() => {
-    console.log('[WaitingRoom] Initial fetch for appointments.');
-    const todayDate = format(new Date(), 'yyyy-MM-dd'); // Calculate today's date string
-    fetchTodaysAppointments({ todayDate }); // Pass payload
-  }, [fetchTodaysAppointments]);
+    if (notionConfigured) {
+      console.log('[WaitingRoom] Initial fetch for appointments.');
+      const todayDate = format(new Date(), 'yyyy-MM-dd'); // Calculate today's date string
+      fetchTodaysAppointments({ todayDate }); // Pass payload
+    }
+  }, [fetchTodaysAppointments, notionConfigured]);
 
   const handleUpdateSuccess = useCallback(() => {
     showSuccess('Navigating to live session dashboard.');
@@ -105,7 +103,7 @@ const WaitingRoom = () => {
 
   console.log('[WaitingRoom] Rendering with appointments:', appointments);
 
-  if (loadingAppointments) {
+  if (configLoading || loadingAppointments) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6 flex items-center justify-center">
         <div className="max-w-4xl mx-auto space-y-6 w-full">
@@ -118,7 +116,7 @@ const WaitingRoom = () => {
     );
   }
 
-  if (needsConfig) {
+  if (!notionConfigured) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center p-6">
         <Card className="max-w-md w-full shadow-xl">

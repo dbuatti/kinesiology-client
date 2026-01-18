@@ -6,6 +6,7 @@ import { useCachedEdgeFunction } from '@/hooks/use-cached-edge-function';
 import { NotionBlock, NotionRichText, GetNotionPageContentPayload, GetNotionPageContentResponse } from '@/types/api';
 import { cn } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card'; // Import Card components
+import { Badge } from './ui/badge'; // Import Badge component
 
 interface NotionPageViewerProps {
   pageId: string | null;
