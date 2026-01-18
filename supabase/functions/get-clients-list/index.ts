@@ -89,13 +89,13 @@ serve(async (req) => {
 
     if (clients.length === 0) {
         console.log("[get-clients-list] Clients mirror is empty. Returning empty list with specific error code.")
-        // Return 200 OK, but signal empty state via error code in body
+        // Return 404 Not Found to trigger client-side error handler which handles CLIENTS_MIRROR_EMPTY
         return new Response(JSON.stringify({ 
             error: 'No clients found in local database. Please run a Notion sync.',
             errorCode: 'CLIENTS_MIRROR_EMPTY',
             clients: []
         }), {
-            status: 200, // Changed status to 200
+            status: 404, // Changed status to 404
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
     }
