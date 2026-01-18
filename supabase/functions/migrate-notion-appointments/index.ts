@@ -33,6 +33,39 @@ function normalizeClientName(name: string): string {
     return normalized;
 }
 
+// Helper function to fetch client name from Notion page ID
+async function fetchClientName(clientPageId: string, notionToken: string): Promise<string | null> {
+    try {
+        const clientPageResponse = await retryFetch(`https://api.notion.com/v1/pages/${clientPageId}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${notionToken}`,
+                'Content-Type': 'application/json',
+                'Notion-Version': '2022-06-28'
+            }
+        });
+
+        if (!clientPageResponse.ok) {
+            console.warn(`[migrate-notion-appointments] Failed to fetch client page ${clientPageId}: ${await clientPageResponse.text()}`);
+            return null;
+        }
+
+        const clientPageData = await clientPageResponse.json();
+        // Assuming the client name is in the 'Name' title property of the client page
+        const clientName = clientPageData.properties.Name?.title?.[0]?.plain_text || null;
+        
+        if (!clientName) {
+            console.warn(`[migrate-notion-appointments] Client name property not found on client page ${clientPageId}.`);
+            return null;
+        }
+        return clientName;
+    } catch (error) {
+        console.error(`[migrate-notion-appointments] Error fetching client name for ${clientPageId}:`, error);
+        return null;
+    }
+}
+
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -143,8 +176,25 @@ serve(async (req) => {
     for (const page of notionAppointments) {
       const properties = page.properties;
       
-      // Extract the raw client name/title
-      const rawClientName = properties['Client Name']?.title?.[0]?.plain_text || properties['Name']?.title?.[0]?.plain_text;
+      // 1. Determine Client Name/Identifier
+      let rawClientName = properties['Client Name']?.title?.[0]?.plain_text || properties['Name']?.title?.[0]?.plain_text;
+      const clientRelationId = properties.Client?.relation?.[0]?.id; // Check for relation named "Client"
+
+      if (clientRelationId) {
+          // If a relation ID is found, fetch the client name from the related page
+          const fetchedName = await fetchClientName(clientRelationId, notionToken);
+          if (fetchedName) {
+              rawClientName = fetchedName;
+              console.log(`[migrate-notion-appointments] Resolved client name via relation: ${rawClientName}`);
+          } else if (!rawClientName) {
+              // If relation failed and no name in title, we can't proceed
+              console.warn(`[migrate-notion-appointments] Skipping appointment: Failed to resolve client name from relation ID ${clientRelationId} and no name in title.`);
+              errors.push(`Skipped Notion page ${page.id}: Failed to resolve client name from relation ID ${clientRelationId}.`);
+              skippedCount++;
+              continue;
+          }
+      }
+
       const date = properties.Date?.date?.start;
       const goal = properties.Goal?.rich_text?.[0]?.plain_text || '';
       const sessionNorthStar = properties['Session North Star']?.rich_text?.[0]?.plain_text || '';
@@ -234,7 +284,6 @@ serve(async (req) => {
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
-
   } catch (error) {
     console.error("[migrate-notion-appointments] Unexpected error:", error?.message)
     return new Response(JSON.stringify({ error: 'Internal server error', details: error.message }), {
